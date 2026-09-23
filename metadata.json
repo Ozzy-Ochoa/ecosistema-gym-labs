@@ -1,0 +1,6 @@
+{
+  "name": "Gym Labs (Labcore 2026)",
+  "description": "Plataforma de Inteligência Fisiológica, Periodização de Treinamento, Nutrição Baseada em Evidências e Auditoria Criptográfica.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

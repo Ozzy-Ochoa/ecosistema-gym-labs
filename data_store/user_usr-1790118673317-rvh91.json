@@ -1,0 +1,87 @@
+{
+  "user": {
+    "id": "usr-1790118673317-rvh91",
+    "email": "operador@gymlabs.com",
+    "name": "Operador Principal",
+    "passwordHash": "scrypt$f93d33cc98ec2fdff497496794db785a$8fa2fdea36088ec93dc8b742b00f185b5cca2b557e1b1565380877612fb5b442c1d1f5d73c9ef47a18459021ebd994a70acbcdc0dd79616bb64037085012ef53",
+    "recoveryKeyHash": "4adde33f112666fd9400698848eae7fa3d5298e670c0ec2cae0867cd65694e0f",
+    "twoFactorEnabled": false,
+    "role": "ATHLETE",
+    "createdAt": "2026-09-22T23:11:13.379Z",
+    "updatedAt": "2026-09-22T23:11:13.379Z"
+  },
+  "workouts": [
+    {
+      "id": "wkt-1790118706901",
+      "userId": "usr-1790118673317-rvh91",
+      "startedAt": "2026-09-22T23:11:46.901Z",
+      "completedAt": "2026-09-22T23:11:46.901Z",
+      "name": "Supino Pesado Semana 2",
+      "durationMinutes": 60,
+      "sessionRpe": 8.5,
+      "workloadUnits": 510,
+      "exercises": [
+        {
+          "name": "Supino Reto com Barra",
+          "sets": [
+            {
+              "loadKg": 102.5,
+              "reps": 5
+            },
+            {
+              "loadKg": 102.5,
+              "reps": 5
+            }
+          ]
+        }
+      ],
+      "notes": "",
+      "recordedAt": "2026-09-22T23:11:46.901Z"
+    },
+    {
+      "id": "wkt-1790118698402",
+      "userId": "usr-1790118673317-rvh91",
+      "startedAt": "2026-09-22T23:11:38.402Z",
+      "completedAt": "2026-09-22T23:11:38.402Z",
+      "name": "Supino Pesado & Costas",
+      "durationMinutes": 65,
+      "sessionRpe": 8.5,
+      "workloadUnits": 552.5,
+      "exercises": [
+        {
+          "name": "Supino Reto com Barra",
+          "sets": [
+            {
+              "loadKg": 100,
+              "reps": 5
+            },
+            {
+              "loadKg": 100,
+              "reps": 5
+            }
+          ]
+        }
+      ],
+      "notes": "",
+      "recordedAt": "2026-09-22T23:11:38.402Z"
+    }
+  ],
+  "nutrition": [],
+  "sleep": [],
+  "body": [],
+  "auditLogs": [
+    {
+      "id": "audit-1790118673380-q2yes",
+      "userId": "usr-1790118673317-rvh91",
+      "eventType": "AUTH_LOGIN_SUCCESS",
+      "ipAddress": "127.0.0.1",
+      "userAgent": "curl/7.88.1",
+      "timestamp": "2026-09-22T23:11:13.380Z",
+      "status": "SUCCESS",
+      "metadata": {
+        "action": "INITIAL_REGISTRATION"
+      }
+    }
+  ],
+  "vault": {}
+}
