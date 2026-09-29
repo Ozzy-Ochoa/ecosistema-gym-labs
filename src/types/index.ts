@@ -9,3 +9,7 @@ export * from './consent';
 export * from './professional';
 export * from './organization';
 export * from './audit';
+export * from './notification';
+export * from './nutri';
+export * from './trainer';
+export * from './ecosystem';

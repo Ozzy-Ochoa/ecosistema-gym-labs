@@ -71,38 +71,8 @@ export const GymDashboardView: React.FC = () => {
         </div>
       </header>
 
-      {/* Tabs */}
-      <div className="border-b border-zinc-900 bg-black px-4">
-        <div className="max-w-7xl mx-auto flex gap-4 text-xs">
-          <button
-            onClick={() => setActiveTab('staff')}
-            className={`py-3 px-2 border-b-2 font-bold cursor-pointer uppercase ${
-              activeTab === 'staff' ? 'border-white text-white' : 'border-transparent text-zinc-500 hover:text-zinc-300'
-            }`}
-          >
-            01 EQUIPE (PERSONAIS & NUTRIS) ({affiliatedStaff.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('students')}
-            className={`py-3 px-2 border-b-2 font-bold cursor-pointer uppercase ${
-              activeTab === 'students' ? 'border-white text-white' : 'border-transparent text-zinc-500 hover:text-zinc-300'
-            }`}
-          >
-            02 ALUNOS MATRICULADOS ({enrolledStudents.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('metrics')}
-            className={`py-3 px-2 border-b-2 font-bold cursor-pointer uppercase ${
-              activeTab === 'metrics' ? 'border-white text-white' : 'border-transparent text-zinc-500 hover:text-zinc-300'
-            }`}
-          >
-            03 RETENÇÃO & AUDITORIA
-          </button>
-        </div>
-      </div>
-
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto w-full p-4 sm:p-6 space-y-6 flex-1">
+      <main className="max-w-7xl mx-auto w-full p-4 sm:p-6 space-y-6 flex-1 pb-28">
         {activeTab === 'staff' && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -202,6 +172,74 @@ export const GymDashboardView: React.FC = () => {
           </div>
         )}
       </main>
+
+      {/* Cyber HUD Bottom Bar with Icons for Gym */}
+      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-black/95 backdrop-blur-md border-t border-zinc-800 select-none pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_24px_rgba(0,0,0,0.9)]">
+        <div className="max-w-2xl mx-auto flex items-stretch justify-around px-2 py-1.5 sm:py-2">
+          <button
+            type="button"
+            onClick={() => setActiveTab('staff')}
+            className={`relative flex-1 flex flex-col items-center justify-center py-1 sm:py-1.5 px-2 font-mono transition-all cursor-pointer ${
+              activeTab === 'staff'
+                ? 'border border-white bg-zinc-950 text-white shadow-[0_0_12px_rgba(255,255,255,0.18)]'
+                : 'border border-transparent text-zinc-500 hover:text-zinc-300'
+            }`}
+          >
+            {activeTab === 'staff' && (
+              <span className="absolute -top-[3px] -left-[3px] w-1.5 h-1.5 bg-white inline-block shadow-[0_0_6px_#fff]" />
+            )}
+            <div className="flex items-center gap-1 mb-0.5">
+              <Award className="w-4 h-4 text-white" />
+              <span className="text-[10px] text-zinc-400">01</span>
+            </div>
+            <span className="text-[10px] sm:text-xs font-black tracking-wider uppercase">
+              EQUIPE ({affiliatedStaff.length})
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('students')}
+            className={`relative flex-1 flex flex-col items-center justify-center py-1 sm:py-1.5 px-2 font-mono transition-all cursor-pointer ${
+              activeTab === 'students'
+                ? 'border border-white bg-zinc-950 text-white shadow-[0_0_12px_rgba(255,255,255,0.18)]'
+                : 'border border-transparent text-zinc-500 hover:text-zinc-300'
+            }`}
+          >
+            {activeTab === 'students' && (
+              <span className="absolute -top-[3px] -left-[3px] w-1.5 h-1.5 bg-white inline-block shadow-[0_0_6px_#fff]" />
+            )}
+            <div className="flex items-center gap-1 mb-0.5">
+              <Users className="w-4 h-4 text-white" />
+              <span className="text-[10px] text-zinc-400">02</span>
+            </div>
+            <span className="text-[10px] sm:text-xs font-black tracking-wider uppercase">
+              MATRICULADOS ({enrolledStudents.length})
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('metrics')}
+            className={`relative flex-1 flex flex-col items-center justify-center py-1 sm:py-1.5 px-2 font-mono transition-all cursor-pointer ${
+              activeTab === 'metrics'
+                ? 'border border-white bg-zinc-950 text-white shadow-[0_0_12px_rgba(255,255,255,0.18)]'
+                : 'border border-transparent text-zinc-500 hover:text-zinc-300'
+            }`}
+          >
+            {activeTab === 'metrics' && (
+              <span className="absolute -top-[3px] -left-[3px] w-1.5 h-1.5 bg-white inline-block shadow-[0_0_6px_#fff]" />
+            )}
+            <div className="flex items-center gap-1 mb-0.5">
+              <TrendingUp className="w-4 h-4 text-white" />
+              <span className="text-[10px] text-zinc-400">03</span>
+            </div>
+            <span className="text-[10px] sm:text-xs font-black tracking-wider uppercase">
+              RETENÇÃO & CHURN
+            </span>
+          </button>
+        </div>
+      </nav>
     </div>
   );
 };

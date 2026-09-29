@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Target, Layers, Crosshair, Zap, Shield, Activity } from 'lucide-react';
+import { Crosshair } from 'lucide-react';
 
 export interface MuscleGroupInfo {
   id: string;
@@ -61,23 +61,23 @@ const MUSCLE_DATA: Record<string, MuscleGroupInfo> = {
   quadriceps: {
     id: 'quadriceps',
     name: 'Quadríceps Femoral',
-    latinName: 'Rectus Femoris / Vastus Lateralis',
-    weeklySets: 15,
-    targetSets: 16,
+    latinName: 'Quadriceps Femoris',
+    weeklySets: 16,
+    targetSets: 18,
     symmetryPct: 97,
     status: 'OPTIMAL',
-    keyExercises: ['Agachamento Livre com Barra', 'Leg Press 45°', 'Cadeira Extensora'],
+    keyExercises: ['Agachamento Livre com Barra', 'Leg Press 45°', 'Cadeira Extensora Unilateral'],
     lastTrained: 'Há 3 dias',
   },
   isquiotibiais: {
     id: 'isquiotibiais',
-    name: 'Isquiotibiais & Glúteos',
-    latinName: 'Biceps Femoris / Gluteus Maximus',
-    weeklySets: 12,
-    targetSets: 14,
+    name: 'Posteriores de Coxa & Glúteos',
+    latinName: 'Hamstrings & Gluteus Maximus',
+    weeklySets: 14,
+    targetSets: 16,
     symmetryPct: 95,
     status: 'OPTIMAL',
-    keyExercises: ['Levantamento Terra Romeno', 'Mesa Flexora', 'Elevação Pélvica'],
+    keyExercises: ['Levantamento Terra Romeno (RDL)', 'Mesa Flexora', 'Elevação Pélvica com Barra'],
     lastTrained: 'Há 3 dias',
   },
   panturrilhas: {
@@ -86,15 +86,15 @@ const MUSCLE_DATA: Record<string, MuscleGroupInfo> = {
     latinName: 'Gastrocnemius / Soleus',
     weeklySets: 10,
     targetSets: 12,
-    symmetryPct: 99,
-    status: 'UNDERLOADED',
+    symmetryPct: 98,
+    status: 'OPTIMAL',
     keyExercises: ['Panturrilha em Pé na Máquina', 'Panturrilha Sentado (Sóleo)'],
-    lastTrained: 'Há 4 dias',
+    lastTrained: 'Hoje',
   },
   core: {
     id: 'core',
     name: 'Reto Abdominal & Oblíquos',
-    latinName: 'Rectus Abdominis / Obliquus',
+    latinName: 'Rectus Abdominis / Obliques',
     weeklySets: 8,
     targetSets: 10,
     symmetryPct: 100,
@@ -111,23 +111,17 @@ export const BodyHudCanvas: React.FC = () => {
   const current = MUSCLE_DATA[selectedMuscle] || MUSCLE_DATA.peito;
 
   return (
-    <div className="neo-box-thick p-6 relative overflow-hidden bg-black text-zinc-100">
+    <div className="p-6 bg-black border border-zinc-800 text-zinc-100 font-mono select-none">
       {/* Corner HUD Markers */}
-      <div className="absolute top-2 left-2 text-[#00F0FF] text-[10px] font-mono select-none">┌ HUD_ANAT_3D ┐</div>
-      <div className="absolute top-2 right-2 text-[#00F0FF] text-[10px] font-mono select-none">┌ SCAN_V4.2 ┐</div>
-      <div className="absolute bottom-2 left-2 text-zinc-600 text-[9px] font-mono select-none">└ RES: VECTOR_SVG ┘</div>
-      <div className="absolute bottom-2 right-2 text-zinc-600 text-[9px] font-mono select-none">└ SYM: 97.4% ┘</div>
-
-      {/* Header telemetry */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-zinc-800">
         <div>
           <div className="flex items-center gap-2">
-            <Crosshair className="w-4 h-4 text-[#00F0FF]" />
-            <h3 className="font-mono text-xs uppercase tracking-widest text-[#00F0FF] font-bold">
+            <Crosshair className="w-4 h-4 text-white" />
+            <h3 className="text-xs uppercase tracking-widest text-white font-bold">
               Visualizador Anatômico HUD // Mapeamento Muscular
             </h3>
           </div>
-          <p className="text-[11px] text-zinc-400 font-mono mt-0.5">
+          <p className="text-[11px] text-zinc-400 font-sans mt-0.5">
             Renderização vetorial anatômica interativa — monitoramento de simetria e volume por grupamento
           </p>
         </div>
@@ -137,9 +131,9 @@ export const BodyHudCanvas: React.FC = () => {
           <button
             type="button"
             onClick={() => setViewOrientation('ANTERIOR')}
-            className={`px-3 py-1 font-mono text-[10px] font-bold uppercase transition-all ${
+            className={`px-3 py-1 text-[10px] font-bold uppercase transition-all cursor-pointer ${
               viewOrientation === 'ANTERIOR'
-                ? 'bg-[#00F0FF] text-black shadow-[2px_2px_0px_0px_rgba(0,240,255,0.4)]'
+                ? 'bg-white text-black shadow-[2px_2px_0px_0px_rgba(255,255,255,0.4)]'
                 : 'text-zinc-400 hover:text-white'
             }`}
           >
@@ -148,9 +142,9 @@ export const BodyHudCanvas: React.FC = () => {
           <button
             type="button"
             onClick={() => setViewOrientation('POSTERIOR')}
-            className={`px-3 py-1 font-mono text-[10px] font-bold uppercase transition-all ${
+            className={`px-3 py-1 text-[10px] font-bold uppercase transition-all cursor-pointer ${
               viewOrientation === 'POSTERIOR'
-                ? 'bg-[#00F0FF] text-black shadow-[2px_2px_0px_0px_rgba(0,240,255,0.4)]'
+                ? 'bg-white text-black shadow-[2px_2px_0px_0px_rgba(255,255,255,0.4)]'
                 : 'text-zinc-400 hover:text-white'
             }`}
           >
@@ -160,16 +154,12 @@ export const BodyHudCanvas: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 pt-6">
-        {/* Anatomical Vector Diagram */}
-        <div className="lg:col-span-7 flex flex-col items-center justify-center p-4 bg-[#050505] border border-zinc-800 relative">
-          {/* Subtle Cyber Grid */}
-          <div className="absolute inset-0 cyber-grid opacity-30 pointer-events-none" />
-
-          {/* Body Silhouette SVG with Interactive Hitboxes */}
+        {/* Anatomical Vector Diagram in strict monochrome */}
+        <div className="lg:col-span-7 flex flex-col items-center justify-center p-4 bg-zinc-950 border border-zinc-800 relative">
           <div className="relative w-64 h-96 flex items-center justify-center">
             <svg
               viewBox="0 0 200 320"
-              className="w-full h-full filter drop-shadow-[0_0_8px_rgba(0,240,255,0.15)]"
+              className="w-full h-full"
               xmlns="http://www.w3.org/2000/svg"
             >
               {/* Head / Cranium */}
@@ -177,130 +167,130 @@ export const BodyHudCanvas: React.FC = () => {
                 cx="100"
                 cy="28"
                 r="18"
-                fill="#0A0E17"
-                stroke="#27272A"
+                fill="#000000"
+                stroke="#52525B"
                 strokeWidth="1.5"
               />
               {/* Neck */}
-              <rect x="94" y="46" width="12" height="12" fill="#0A0E17" stroke="#27272A" strokeWidth="1" />
+              <rect x="94" y="46" width="12" height="12" fill="#000000" stroke="#52525B" strokeWidth="1" />
 
               {viewOrientation === 'ANTERIOR' ? (
                 <>
                   {/* Pectorals / Chest */}
                   <path
                     d="M 75 58 L 125 58 L 130 92 L 100 96 L 70 92 Z"
-                    fill={selectedMuscle === 'peito' ? '#00F0FF' : '#121A2A'}
-                    fillOpacity={selectedMuscle === 'peito' ? 0.8 : 0.6}
-                    stroke={selectedMuscle === 'peito' ? '#00F0FF' : '#3B82F6'}
+                    fill={selectedMuscle === 'peito' ? '#FFFFFF' : '#18181B'}
+                    fillOpacity={selectedMuscle === 'peito' ? 0.9 : 0.6}
+                    stroke={selectedMuscle === 'peito' ? '#FFFFFF' : '#71717A'}
                     strokeWidth="1.5"
-                    className="cursor-pointer transition-all hover:opacity-100"
+                    className="cursor-pointer transition-all hover:fill-zinc-300"
                     onClick={() => setSelectedMuscle('peito')}
                   />
 
                   {/* Core / Abdominals */}
                   <path
                     d="M 80 98 L 120 98 L 115 150 L 85 150 Z"
-                    fill={selectedMuscle === 'core' ? '#00F0FF' : '#121A2A'}
-                    fillOpacity={selectedMuscle === 'core' ? 0.8 : 0.6}
-                    stroke={selectedMuscle === 'core' ? '#00F0FF' : '#3B82F6'}
+                    fill={selectedMuscle === 'core' ? '#FFFFFF' : '#18181B'}
+                    fillOpacity={selectedMuscle === 'core' ? 0.9 : 0.6}
+                    stroke={selectedMuscle === 'core' ? '#FFFFFF' : '#71717A'}
                     strokeWidth="1.5"
-                    className="cursor-pointer transition-all hover:opacity-100"
+                    className="cursor-pointer transition-all hover:fill-zinc-300"
                     onClick={() => setSelectedMuscle('core')}
                   />
 
-                  {/* Left Shoulder (Anterior Deltoid) */}
+                  {/* Left Shoulder */}
                   <circle
                     cx="60"
                     cy="68"
                     r="12"
-                    fill={selectedMuscle === 'ombros' ? '#00F0FF' : '#121A2A'}
-                    fillOpacity={selectedMuscle === 'ombros' ? 0.8 : 0.6}
-                    stroke={selectedMuscle === 'ombros' ? '#00F0FF' : '#3B82F6'}
+                    fill={selectedMuscle === 'ombros' ? '#FFFFFF' : '#18181B'}
+                    fillOpacity={selectedMuscle === 'ombros' ? 0.9 : 0.6}
+                    stroke={selectedMuscle === 'ombros' ? '#FFFFFF' : '#71717A'}
                     strokeWidth="1.5"
-                    className="cursor-pointer transition-all hover:opacity-100"
+                    className="cursor-pointer transition-all hover:fill-zinc-300"
                     onClick={() => setSelectedMuscle('ombros')}
                   />
 
-                  {/* Right Shoulder (Anterior Deltoid) */}
+                  {/* Right Shoulder */}
                   <circle
                     cx="140"
                     cy="68"
                     r="12"
-                    fill={selectedMuscle === 'ombros' ? '#00F0FF' : '#121A2A'}
-                    fillOpacity={selectedMuscle === 'ombros' ? 0.8 : 0.6}
-                    stroke={selectedMuscle === 'ombros' ? '#00F0FF' : '#3B82F6'}
+                    fill={selectedMuscle === 'ombros' ? '#FFFFFF' : '#18181B'}
+                    fillOpacity={selectedMuscle === 'ombros' ? 0.9 : 0.6}
+                    stroke={selectedMuscle === 'ombros' ? '#FFFFFF' : '#71717A'}
                     strokeWidth="1.5"
-                    className="cursor-pointer transition-all hover:opacity-100"
+                    className="cursor-pointer transition-all hover:fill-zinc-300"
                     onClick={() => setSelectedMuscle('ombros')}
                   />
 
-                  {/* Left Arm (Biceps / Forearm) */}
+                  {/* Left Arm */}
                   <rect
                     x="48"
                     y="84"
                     width="12"
                     height="58"
-                    rx="3"
-                    fill={selectedMuscle === 'bracos' ? '#00F0FF' : '#121A2A'}
-                    fillOpacity={selectedMuscle === 'bracos' ? 0.8 : 0.6}
-                    stroke={selectedMuscle === 'bracos' ? '#00F0FF' : '#3B82F6'}
+                    rx="2"
+                    fill={selectedMuscle === 'bracos' ? '#FFFFFF' : '#18181B'}
+                    fillOpacity={selectedMuscle === 'bracos' ? 0.9 : 0.6}
+                    stroke={selectedMuscle === 'bracos' ? '#FFFFFF' : '#71717A'}
                     strokeWidth="1.5"
-                    className="cursor-pointer transition-all hover:opacity-100"
+                    className="cursor-pointer transition-all hover:fill-zinc-300"
                     onClick={() => setSelectedMuscle('bracos')}
                   />
 
-                  {/* Right Arm (Biceps / Forearm) */}
+                  {/* Right Arm */}
                   <rect
                     x="140"
                     y="84"
                     width="12"
                     height="58"
-                    rx="3"
-                    fill={selectedMuscle === 'bracos' ? '#00F0FF' : '#121A2A'}
-                    fillOpacity={selectedMuscle === 'bracos' ? 0.8 : 0.6}
-                    stroke={selectedMuscle === 'bracos' ? '#00F0FF' : '#3B82F6'}
+                    rx="2"
+                    fill={selectedMuscle === 'bracos' ? '#FFFFFF' : '#18181B'}
+                    fillOpacity={selectedMuscle === 'bracos' ? 0.9 : 0.6}
+                    stroke={selectedMuscle === 'bracos' ? '#FFFFFF' : '#71717A'}
                     strokeWidth="1.5"
-                    className="cursor-pointer transition-all hover:opacity-100"
+                    className="cursor-pointer transition-all hover:fill-zinc-300"
                     onClick={() => setSelectedMuscle('bracos')}
                   />
 
                   {/* Pelvis */}
-                  <path d="M 85 152 L 115 152 L 120 170 L 80 170 Z" fill="#0A0E17" stroke="#27272A" strokeWidth="1" />
+                  <path d="M 85 152 L 115 152 L 120 170 L 80 170 Z" fill="#09090B" stroke="#3F3F46" strokeWidth="1" />
 
                   {/* Left Quad */}
                   <path
                     d="M 76 174 L 96 174 L 92 235 L 72 235 Z"
-                    fill={selectedMuscle === 'quadriceps' ? '#00F0FF' : '#121A2A'}
-                    fillOpacity={selectedMuscle === 'quadriceps' ? 0.8 : 0.6}
-                    stroke={selectedMuscle === 'quadriceps' ? '#00F0FF' : '#3B82F6'}
+                    fill={selectedMuscle === 'quadriceps' ? '#FFFFFF' : '#18181B'}
+                    fillOpacity={selectedMuscle === 'quadriceps' ? 0.9 : 0.6}
+                    stroke={selectedMuscle === 'quadriceps' ? '#FFFFFF' : '#71717A'}
                     strokeWidth="1.5"
-                    className="cursor-pointer transition-all hover:opacity-100"
+                    className="cursor-pointer transition-all hover:fill-zinc-300"
                     onClick={() => setSelectedMuscle('quadriceps')}
                   />
 
                   {/* Right Quad */}
                   <path
                     d="M 104 174 L 124 174 L 128 235 L 108 235 Z"
-                    fill={selectedMuscle === 'quadriceps' ? '#00F0FF' : '#121A2A'}
-                    fillOpacity={selectedMuscle === 'quadriceps' ? 0.8 : 0.6}
-                    stroke={selectedMuscle === 'quadriceps' ? '#00F0FF' : '#3B82F6'}
+                    fill={selectedMuscle === 'quadriceps' ? '#FFFFFF' : '#18181B'}
+                    fillOpacity={selectedMuscle === 'quadriceps' ? 0.9 : 0.6}
+                    stroke={selectedMuscle === 'quadriceps' ? '#FFFFFF' : '#71717A'}
                     strokeWidth="1.5"
-                    className="cursor-pointer transition-all hover:opacity-100"
+                    className="cursor-pointer transition-all hover:fill-zinc-300"
                     onClick={() => setSelectedMuscle('quadriceps')}
                   />
 
-                  {/* Calves (Anterior Tibialis) */}
+                  {/* Calves */}
                   <rect
                     x="70"
                     y="245"
                     width="18"
                     height="55"
-                    rx="4"
-                    fill={selectedMuscle === 'panturrilhas' ? '#00F0FF' : '#121A2A'}
-                    fillOpacity={selectedMuscle === 'panturrilhas' ? 0.8 : 0.6}
-                    stroke={selectedMuscle === 'panturrilhas' ? '#00F0FF' : '#3B82F6'}
+                    rx="2"
+                    fill={selectedMuscle === 'panturrilhas' ? '#FFFFFF' : '#18181B'}
+                    fillOpacity={selectedMuscle === 'panturrilhas' ? 0.9 : 0.6}
+                    stroke={selectedMuscle === 'panturrilhas' ? '#FFFFFF' : '#71717A'}
                     strokeWidth="1.5"
-                    className="cursor-pointer transition-all hover:opacity-100"
+                    className="cursor-pointer transition-all hover:fill-zinc-300"
                     onClick={() => setSelectedMuscle('panturrilhas')}
                   />
                   <rect
@@ -308,25 +298,25 @@ export const BodyHudCanvas: React.FC = () => {
                     y="245"
                     width="18"
                     height="55"
-                    rx="4"
-                    fill={selectedMuscle === 'panturrilhas' ? '#00F0FF' : '#121A2A'}
-                    fillOpacity={selectedMuscle === 'panturrilhas' ? 0.8 : 0.6}
-                    stroke={selectedMuscle === 'panturrilhas' ? '#00F0FF' : '#3B82F6'}
+                    rx="2"
+                    fill={selectedMuscle === 'panturrilhas' ? '#FFFFFF' : '#18181B'}
+                    fillOpacity={selectedMuscle === 'panturrilhas' ? 0.9 : 0.6}
+                    stroke={selectedMuscle === 'panturrilhas' ? '#FFFFFF' : '#71717A'}
                     strokeWidth="1.5"
-                    className="cursor-pointer transition-all hover:opacity-100"
+                    className="cursor-pointer transition-all hover:fill-zinc-300"
                     onClick={() => setSelectedMuscle('panturrilhas')}
                   />
                 </>
               ) : (
                 <>
-                  {/* Posterior: Upper Back / Traps / Lats */}
+                  {/* Posterior: Back */}
                   <path
                     d="M 70 56 L 130 56 L 122 135 L 100 145 L 78 135 Z"
-                    fill={selectedMuscle === 'costas' ? '#00F0FF' : '#121A2A'}
-                    fillOpacity={selectedMuscle === 'costas' ? 0.8 : 0.6}
-                    stroke={selectedMuscle === 'costas' ? '#00F0FF' : '#3B82F6'}
+                    fill={selectedMuscle === 'costas' ? '#FFFFFF' : '#18181B'}
+                    fillOpacity={selectedMuscle === 'costas' ? 0.9 : 0.6}
+                    stroke={selectedMuscle === 'costas' ? '#FFFFFF' : '#71717A'}
                     strokeWidth="1.5"
-                    className="cursor-pointer transition-all hover:opacity-100"
+                    className="cursor-pointer transition-all hover:fill-zinc-300"
                     onClick={() => setSelectedMuscle('costas')}
                   />
 
@@ -335,22 +325,22 @@ export const BodyHudCanvas: React.FC = () => {
                     cx="60"
                     cy="68"
                     r="12"
-                    fill={selectedMuscle === 'ombros' ? '#00F0FF' : '#121A2A'}
-                    fillOpacity={selectedMuscle === 'ombros' ? 0.8 : 0.6}
-                    stroke={selectedMuscle === 'ombros' ? '#00F0FF' : '#3B82F6'}
+                    fill={selectedMuscle === 'ombros' ? '#FFFFFF' : '#18181B'}
+                    fillOpacity={selectedMuscle === 'ombros' ? 0.9 : 0.6}
+                    stroke={selectedMuscle === 'ombros' ? '#FFFFFF' : '#71717A'}
                     strokeWidth="1.5"
-                    className="cursor-pointer transition-all hover:opacity-100"
+                    className="cursor-pointer transition-all hover:fill-zinc-300"
                     onClick={() => setSelectedMuscle('ombros')}
                   />
                   <circle
                     cx="140"
                     cy="68"
                     r="12"
-                    fill={selectedMuscle === 'ombros' ? '#00F0FF' : '#121A2A'}
-                    fillOpacity={selectedMuscle === 'ombros' ? 0.8 : 0.6}
-                    stroke={selectedMuscle === 'ombros' ? '#00F0FF' : '#3B82F6'}
+                    fill={selectedMuscle === 'ombros' ? '#FFFFFF' : '#18181B'}
+                    fillOpacity={selectedMuscle === 'ombros' ? 0.9 : 0.6}
+                    stroke={selectedMuscle === 'ombros' ? '#FFFFFF' : '#71717A'}
                     strokeWidth="1.5"
-                    className="cursor-pointer transition-all hover:opacity-100"
+                    className="cursor-pointer transition-all hover:fill-zinc-300"
                     onClick={() => setSelectedMuscle('ombros')}
                   />
 
@@ -360,12 +350,12 @@ export const BodyHudCanvas: React.FC = () => {
                     y="84"
                     width="12"
                     height="58"
-                    rx="3"
-                    fill={selectedMuscle === 'bracos' ? '#00F0FF' : '#121A2A'}
-                    fillOpacity={selectedMuscle === 'bracos' ? 0.8 : 0.6}
-                    stroke={selectedMuscle === 'bracos' ? '#00F0FF' : '#3B82F6'}
+                    rx="2"
+                    fill={selectedMuscle === 'bracos' ? '#FFFFFF' : '#18181B'}
+                    fillOpacity={selectedMuscle === 'bracos' ? 0.9 : 0.6}
+                    stroke={selectedMuscle === 'bracos' ? '#FFFFFF' : '#71717A'}
                     strokeWidth="1.5"
-                    className="cursor-pointer transition-all hover:opacity-100"
+                    className="cursor-pointer transition-all hover:fill-zinc-300"
                     onClick={() => setSelectedMuscle('bracos')}
                   />
                   <rect
@@ -373,38 +363,38 @@ export const BodyHudCanvas: React.FC = () => {
                     y="84"
                     width="12"
                     height="58"
-                    rx="3"
-                    fill={selectedMuscle === 'bracos' ? '#00F0FF' : '#121A2A'}
-                    fillOpacity={selectedMuscle === 'bracos' ? 0.8 : 0.6}
-                    stroke={selectedMuscle === 'bracos' ? '#00F0FF' : '#3B82F6'}
+                    rx="2"
+                    fill={selectedMuscle === 'bracos' ? '#FFFFFF' : '#18181B'}
+                    fillOpacity={selectedMuscle === 'bracos' ? 0.9 : 0.6}
+                    stroke={selectedMuscle === 'bracos' ? '#FFFFFF' : '#71717A'}
                     strokeWidth="1.5"
-                    className="cursor-pointer transition-all hover:opacity-100"
+                    className="cursor-pointer transition-all hover:fill-zinc-300"
                     onClick={() => setSelectedMuscle('bracos')}
                   />
 
                   {/* Hamstrings / Gluteals */}
                   <path
                     d="M 74 165 L 126 165 L 122 235 L 102 235 L 98 235 L 78 235 Z"
-                    fill={selectedMuscle === 'isquiotibiais' ? '#00F0FF' : '#121A2A'}
-                    fillOpacity={selectedMuscle === 'isquiotibiais' ? 0.8 : 0.6}
-                    stroke={selectedMuscle === 'isquiotibiais' ? '#00F0FF' : '#3B82F6'}
+                    fill={selectedMuscle === 'isquiotibiais' ? '#FFFFFF' : '#18181B'}
+                    fillOpacity={selectedMuscle === 'isquiotibiais' ? 0.9 : 0.6}
+                    stroke={selectedMuscle === 'isquiotibiais' ? '#FFFFFF' : '#71717A'}
                     strokeWidth="1.5"
-                    className="cursor-pointer transition-all hover:opacity-100"
+                    className="cursor-pointer transition-all hover:fill-zinc-300"
                     onClick={() => setSelectedMuscle('isquiotibiais')}
                   />
 
-                  {/* Calves (Gastrocnemius / Soleus) */}
+                  {/* Calves */}
                   <rect
                     x="70"
                     y="245"
                     width="18"
                     height="55"
-                    rx="4"
-                    fill={selectedMuscle === 'panturrilhas' ? '#00F0FF' : '#121A2A'}
-                    fillOpacity={selectedMuscle === 'panturrilhas' ? 0.8 : 0.6}
-                    stroke={selectedMuscle === 'panturrilhas' ? '#00F0FF' : '#3B82F6'}
+                    rx="2"
+                    fill={selectedMuscle === 'panturrilhas' ? '#FFFFFF' : '#18181B'}
+                    fillOpacity={selectedMuscle === 'panturrilhas' ? 0.9 : 0.6}
+                    stroke={selectedMuscle === 'panturrilhas' ? '#FFFFFF' : '#71717A'}
                     strokeWidth="1.5"
-                    className="cursor-pointer transition-all hover:opacity-100"
+                    className="cursor-pointer transition-all hover:fill-zinc-300"
                     onClick={() => setSelectedMuscle('panturrilhas')}
                   />
                   <rect
@@ -412,12 +402,12 @@ export const BodyHudCanvas: React.FC = () => {
                     y="245"
                     width="18"
                     height="55"
-                    rx="4"
-                    fill={selectedMuscle === 'panturrilhas' ? '#00F0FF' : '#121A2A'}
-                    fillOpacity={selectedMuscle === 'panturrilhas' ? 0.8 : 0.6}
-                    stroke={selectedMuscle === 'panturrilhas' ? '#00F0FF' : '#3B82F6'}
+                    rx="2"
+                    fill={selectedMuscle === 'panturrilhas' ? '#FFFFFF' : '#18181B'}
+                    fillOpacity={selectedMuscle === 'panturrilhas' ? 0.9 : 0.6}
+                    stroke={selectedMuscle === 'panturrilhas' ? '#FFFFFF' : '#71717A'}
                     strokeWidth="1.5"
-                    className="cursor-pointer transition-all hover:opacity-100"
+                    className="cursor-pointer transition-all hover:fill-zinc-300"
                     onClick={() => setSelectedMuscle('panturrilhas')}
                   />
                 </>
@@ -431,16 +421,16 @@ export const BodyHudCanvas: React.FC = () => {
         </div>
 
         {/* Selected Muscle Telemetry Card */}
-        <div className="lg:col-span-5 flex flex-col justify-between p-5 bg-[#050505] border border-zinc-800 space-y-4">
+        <div className="lg:col-span-5 flex flex-col justify-between p-5 bg-zinc-950 border border-zinc-800 space-y-4">
           <div>
             <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
               <div>
-                <span className="text-[10px] font-mono text-[#00F0FF] uppercase tracking-wider block">
+                <span className="text-[10px] text-zinc-400 uppercase tracking-wider block font-bold">
                   ALVO BIOMECÂNICO // {current.latinName}
                 </span>
-                <h4 className="text-xl font-bold font-mono text-white mt-0.5">{current.name}</h4>
+                <h4 className="text-lg font-bold text-white mt-0.5 uppercase">{current.name}</h4>
               </div>
-              <span className="px-2 py-0.5 border border-[#00F0FF] text-[#00F0FF] font-mono text-[10px] font-bold">
+              <span className="px-2 py-0.5 border border-white text-white text-[10px] font-bold">
                 {current.status}
               </span>
             </div>
@@ -448,49 +438,49 @@ export const BodyHudCanvas: React.FC = () => {
             {/* Metrics Grid */}
             <div className="grid grid-cols-2 gap-3 pt-4">
               <div className="p-3 bg-black border border-zinc-800">
-                <span className="text-[10px] font-mono text-zinc-400 block uppercase">Séries Semanais</span>
-                <div className="text-2xl font-bold font-mono text-white">
-                  {current.weeklySets} <span className="text-xs text-zinc-400 font-normal">/ {current.targetSets}</span>
+                <span className="text-[10px] text-zinc-400 block uppercase font-bold">Séries Semanais</span>
+                <div className="text-2xl font-black text-white mt-1">
+                  {current.weeklySets} <span className="text-xs text-zinc-500 font-normal">/ {current.targetSets}</span>
                 </div>
-                <div className="w-full h-1 bg-zinc-800 mt-2">
+                <div className="w-full h-1 bg-zinc-900 mt-2">
                   <div
-                    className="h-full bg-[#00F0FF]"
+                    className="h-full bg-white"
                     style={{ width: `${Math.min(100, (current.weeklySets / current.targetSets) * 100)}%` }}
                   />
                 </div>
               </div>
 
               <div className="p-3 bg-black border border-zinc-800">
-                <span className="text-[10px] font-mono text-zinc-400 block uppercase">Índice Simetria</span>
-                <div className="text-2xl font-bold font-mono text-[#39FF14]">
+                <span className="text-[10px] text-zinc-400 block uppercase font-bold">Índice Simetria</span>
+                <div className="text-2xl font-black text-white mt-1">
                   {current.symmetryPct}%
                 </div>
-                <span className="text-[9px] font-mono text-zinc-500 block mt-1">E/D Balanceamento</span>
+                <span className="text-[10px] text-zinc-500 block mt-1 font-sans">E/D Balanceamento</span>
               </div>
             </div>
 
             {/* Key Exercises in Current Mesocycle */}
             <div className="pt-4 space-y-2">
-              <span className="text-[10px] font-mono text-zinc-400 uppercase tracking-wider block">
+              <span className="text-[10px] text-zinc-400 uppercase tracking-wider block font-bold">
                 Exercícios Principais (Mesociclo Ativo):
               </span>
               <div className="space-y-1">
                 {current.keyExercises.map((ex, i) => (
                   <div
                     key={i}
-                    className="flex items-center gap-2 p-2 bg-black border border-zinc-800/80 font-mono text-xs text-zinc-300"
+                    className="p-2 bg-black border border-zinc-900 text-xs text-zinc-300 font-sans flex items-center justify-between"
                   >
-                    <span className="text-[#00F0FF] text-[10px]">0{i + 1}.</span>
                     <span>{ex}</span>
+                    <span className="text-[10px] font-mono text-zinc-500">Primário</span>
                   </div>
                 ))}
               </div>
             </div>
           </div>
 
-          <div className="pt-3 border-t border-zinc-800 flex items-center justify-between text-[11px] font-mono text-zinc-400">
-            <span>Último Estímulo: <strong className="text-white">{current.lastTrained}</strong></span>
-            <span className="text-[#00F0FF]">Schoenfeld (2021) 12-20 sets/wk</span>
+          <div className="pt-3 border-t border-zinc-800 flex items-center justify-between text-[10px] text-zinc-500">
+            <span>Última estimulação: {current.lastTrained}</span>
+            <span className="text-white font-bold">RECUPERADO</span>
           </div>
         </div>
       </div>

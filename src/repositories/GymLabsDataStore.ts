@@ -1,6 +1,6 @@
 import { UserIdentity, UserProfile, SavedUserAccount, RegisterUserData } from '../types/user';
 import { BodyCompositionRecord, CircumferenceRecord } from '../types/body';
-import { Exercise, TrainingSession } from '../types/training';
+import { Exercise, TrainingSession, DayAttendance } from '../types/training';
 import { MealEntry, HydrationLog, FoodItem } from '../types/nutrition';
 import { SleepSession, SubjectiveWellnessLog } from '../types/recovery';
 import { ConsentGrant } from '../types/consent';
@@ -8,6 +8,44 @@ import { AuditRecord, AuditEventType } from '../types/audit';
 import { STANDARD_EXERCISES, STANDARD_FOODS, DEMO_PROFESSIONALS, DEMO_ORGANIZATIONS, DEFAULT_SAVED_ACCOUNTS } from '../data/seedData';
 import { ProfessionalProfile } from '../types/professional';
 import { Organization } from '../types/organization';
+import { SystemNotification } from '../types/notification';
+import {
+  NutriPatient,
+  NutriConsultation,
+  NutriAssessment,
+  NutriMealPlan,
+  NutriFinanceTransaction,
+  NutriLibraryItem,
+} from '../types/nutri';
+import {
+  TrainerStudent,
+  TrainerWorkoutPlan,
+  TrainerAssessment,
+  TrainerScheduleAppointment,
+  TrainerFinanceTransaction,
+} from '../types/trainer';
+import {
+  HealthTeamMember,
+  InterProfessionalConsent,
+  ChatMessage,
+  ProfessionalInvitation,
+} from '../types/ecosystem';
+import {
+  DEFAULT_NUTRI_PATIENTS,
+  DEFAULT_NUTRI_CONSULTATIONS,
+  DEFAULT_NUTRI_ASSESSMENTS,
+  DEFAULT_NUTRI_MEAL_PLANS,
+  DEFAULT_NUTRI_FINANCES,
+  DEFAULT_NUTRI_LIBRARY,
+  DEFAULT_TRAINER_STUDENTS,
+  DEFAULT_TRAINER_WORKOUT_PLANS,
+  DEFAULT_TRAINER_ASSESSMENTS,
+  DEFAULT_TRAINER_APPOINTMENTS,
+  DEFAULT_TRAINER_FINANCES,
+  DEFAULT_HEALTH_TEAM,
+  DEFAULT_INTER_PROFESSIONAL_CONSENTS,
+  DEFAULT_CHAT_MESSAGES,
+} from '../data/professionalSeedData';
 
 const STORAGE_KEYS = {
   USER_IDENTITY: 'gymlabs_user_identity_v1',
@@ -15,6 +53,8 @@ const STORAGE_KEYS = {
   BODY_RECORDS: 'gymlabs_body_records_v1',
   CIRCUMFERENCES: 'gymlabs_circumferences_v1',
   TRAINING_SESSIONS: 'gymlabs_training_sessions_v1',
+  ATTENDANCE_LOGS: 'gymlabs_attendance_logs_v1',
+  SCHEDULED_DAYS: 'gymlabs_scheduled_days_v1',
   CUSTOM_EXERCISES: 'gymlabs_custom_exercises_v1',
   MEALS: 'gymlabs_meals_v1',
   HYDRATION: 'gymlabs_hydration_v1',
@@ -26,6 +66,23 @@ const STORAGE_KEYS = {
   SAVED_ACCOUNTS: 'gymlabs_saved_accounts_v1',
   ACTIVE_ACCOUNT_ID: 'gymlabs_active_account_id_v1',
   SESSION_ACTIVE: 'gymlabs_session_active_v1',
+  NOTIFICATIONS: 'gymlabs_notifications_v1',
+  LAST_DATA_VERIFICATION: 'gymlabs_last_data_verification_v1',
+  NUTRI_PATIENTS: 'gymlabs_nutri_patients_v1',
+  NUTRI_CONSULTATIONS: 'gymlabs_nutri_consultations_v1',
+  NUTRI_ASSESSMENTS: 'gymlabs_nutri_assessments_v1',
+  NUTRI_MEAL_PLANS: 'gymlabs_nutri_meal_plans_v1',
+  NUTRI_FINANCES: 'gymlabs_nutri_finances_v1',
+  NUTRI_LIBRARY: 'gymlabs_nutri_library_v1',
+  TRAINER_STUDENTS: 'gymlabs_trainer_students_v1',
+  TRAINER_WORKOUT_PLANS: 'gymlabs_trainer_workout_plans_v1',
+  TRAINER_ASSESSMENTS: 'gymlabs_trainer_assessments_v1',
+  TRAINER_APPOINTMENTS: 'gymlabs_trainer_appointments_v1',
+  TRAINER_FINANCES: 'gymlabs_trainer_finances_v1',
+  HEALTH_TEAM: 'gymlabs_health_team_v1',
+  INTER_CONSENTS: 'gymlabs_inter_consents_v1',
+  CHAT_MESSAGES: 'gymlabs_chat_messages_v1',
+  INVITATIONS: 'gymlabs_invitations_v1',
 };
 
 // Default clean production user
@@ -68,6 +125,8 @@ export class GymLabsDataStore {
   private bodyRecords: BodyCompositionRecord[] = [];
   private circumferences: CircumferenceRecord[] = [];
   private trainingSessions: TrainingSession[] = [];
+  private attendanceLogs: DayAttendance[] = [];
+  private scheduledDaysOfWeek: number[] = [1, 2, 3, 4, 5];
   private exercises: Exercise[] = [...STANDARD_EXERCISES];
   private meals: MealEntry[] = [];
   private foods: FoodItem[] = [...STANDARD_FOODS];
@@ -81,6 +140,29 @@ export class GymLabsDataStore {
   private savedAccounts: SavedUserAccount[] = [...DEFAULT_SAVED_ACCOUNTS];
   private activeAccountId: string = 'usr_gymlabs_master';
   private isAuthenticated: boolean = false;
+  private notifications: SystemNotification[] = [];
+  private lastDataVerificationDate: string = '';
+
+  // Nutri Professional State
+  private nutriPatients: NutriPatient[] = [...DEFAULT_NUTRI_PATIENTS];
+  private nutriConsultations: NutriConsultation[] = [...DEFAULT_NUTRI_CONSULTATIONS];
+  private nutriAssessments: NutriAssessment[] = [...DEFAULT_NUTRI_ASSESSMENTS];
+  private nutriMealPlans: NutriMealPlan[] = [...DEFAULT_NUTRI_MEAL_PLANS];
+  private nutriFinances: NutriFinanceTransaction[] = [...DEFAULT_NUTRI_FINANCES];
+  private nutriLibrary: NutriLibraryItem[] = [...DEFAULT_NUTRI_LIBRARY];
+
+  // Trainer Professional State
+  private trainerStudents: TrainerStudent[] = [...DEFAULT_TRAINER_STUDENTS];
+  private trainerWorkoutPlans: TrainerWorkoutPlan[] = [...DEFAULT_TRAINER_WORKOUT_PLANS];
+  private trainerAssessments: TrainerAssessment[] = [...DEFAULT_TRAINER_ASSESSMENTS];
+  private trainerAppointments: TrainerScheduleAppointment[] = [...DEFAULT_TRAINER_APPOINTMENTS];
+  private trainerFinances: TrainerFinanceTransaction[] = [...DEFAULT_TRAINER_FINANCES];
+
+  // Cross-Ecosystem Connections & Communication State
+  private healthTeamMembers: HealthTeamMember[] = [...DEFAULT_HEALTH_TEAM];
+  private interProfessionalConsents: InterProfessionalConsent[] = [...DEFAULT_INTER_PROFESSIONAL_CONSENTS];
+  private chatMessages: ChatMessage[] = [...DEFAULT_CHAT_MESSAGES];
+  private invitations: ProfessionalInvitation[] = [];
 
   private constructor() {
     this.loadState();
@@ -171,6 +253,12 @@ export class GymLabsDataStore {
       const trainVal = localStorage.getItem(STORAGE_KEYS.TRAINING_SESSIONS);
       if (trainVal) this.trainingSessions = JSON.parse(trainVal);
 
+      const attVal = localStorage.getItem(STORAGE_KEYS.ATTENDANCE_LOGS);
+      if (attVal) this.attendanceLogs = JSON.parse(attVal);
+
+      const schedVal = localStorage.getItem(STORAGE_KEYS.SCHEDULED_DAYS);
+      if (schedVal) this.scheduledDaysOfWeek = JSON.parse(schedVal);
+
       const mealsVal = localStorage.getItem(STORAGE_KEYS.MEALS);
       if (mealsVal) this.meals = JSON.parse(mealsVal);
 
@@ -188,6 +276,96 @@ export class GymLabsDataStore {
 
       const auditVal = localStorage.getItem(STORAGE_KEYS.AUDIT_LOGS);
       if (auditVal) this.auditLogs = JSON.parse(auditVal);
+
+      const notifsVal = localStorage.getItem(STORAGE_KEYS.NOTIFICATIONS);
+      if (notifsVal) {
+        try {
+          this.notifications = JSON.parse(notifsVal);
+        } catch {
+          this.notifications = [];
+        }
+      }
+
+      const lastVerifVal = localStorage.getItem(STORAGE_KEYS.LAST_DATA_VERIFICATION);
+      if (lastVerifVal) {
+        this.lastDataVerificationDate = lastVerifVal;
+      } else {
+        // Default to 16 days ago so periodic verification prompt is active and ready to test
+        const initialDate = new Date(Date.now() - 16 * 86400000).toISOString();
+        this.lastDataVerificationDate = initialDate;
+        try {
+          localStorage.setItem(STORAGE_KEYS.LAST_DATA_VERIFICATION, initialDate);
+        } catch {}
+      }
+
+      // Load Nutri Professional data
+      const nutriPatientsVal = localStorage.getItem(STORAGE_KEYS.NUTRI_PATIENTS);
+      if (nutriPatientsVal) {
+        try { this.nutriPatients = JSON.parse(nutriPatientsVal); } catch {}
+      }
+      const nutriCstVal = localStorage.getItem(STORAGE_KEYS.NUTRI_CONSULTATIONS);
+      if (nutriCstVal) {
+        try { this.nutriConsultations = JSON.parse(nutriCstVal); } catch {}
+      }
+      const nutriAssessVal = localStorage.getItem(STORAGE_KEYS.NUTRI_ASSESSMENTS);
+      if (nutriAssessVal) {
+        try { this.nutriAssessments = JSON.parse(nutriAssessVal); } catch {}
+      }
+      const nutriPlansVal = localStorage.getItem(STORAGE_KEYS.NUTRI_MEAL_PLANS);
+      if (nutriPlansVal) {
+        try { this.nutriMealPlans = JSON.parse(nutriPlansVal); } catch {}
+      }
+      const nutriFinVal = localStorage.getItem(STORAGE_KEYS.NUTRI_FINANCES);
+      if (nutriFinVal) {
+        try { this.nutriFinances = JSON.parse(nutriFinVal); } catch {}
+      }
+      const nutriLibVal = localStorage.getItem(STORAGE_KEYS.NUTRI_LIBRARY);
+      if (nutriLibVal) {
+        try { this.nutriLibrary = JSON.parse(nutriLibVal); } catch {}
+      }
+
+      // Load Trainer Professional data
+      const trainerStdVal = localStorage.getItem(STORAGE_KEYS.TRAINER_STUDENTS);
+      if (trainerStdVal) {
+        try { this.trainerStudents = JSON.parse(trainerStdVal); } catch {}
+      }
+      const trainerPlansVal = localStorage.getItem(STORAGE_KEYS.TRAINER_WORKOUT_PLANS);
+      if (trainerPlansVal) {
+        try { this.trainerWorkoutPlans = JSON.parse(trainerPlansVal); } catch {}
+      }
+      const trainerAssessVal = localStorage.getItem(STORAGE_KEYS.TRAINER_ASSESSMENTS);
+      if (trainerAssessVal) {
+        try { this.trainerAssessments = JSON.parse(trainerAssessVal); } catch {}
+      }
+      const trainerAppVal = localStorage.getItem(STORAGE_KEYS.TRAINER_APPOINTMENTS);
+      if (trainerAppVal) {
+        try { this.trainerAppointments = JSON.parse(trainerAppVal); } catch {}
+      }
+      const trainerFinVal = localStorage.getItem(STORAGE_KEYS.TRAINER_FINANCES);
+      if (trainerFinVal) {
+        try { this.trainerFinances = JSON.parse(trainerFinVal); } catch {}
+      }
+
+      // Load Ecosystem data
+      const teamVal = localStorage.getItem(STORAGE_KEYS.HEALTH_TEAM);
+      if (teamVal) {
+        try { this.healthTeamMembers = JSON.parse(teamVal); } catch {}
+      }
+      const interVal = localStorage.getItem(STORAGE_KEYS.INTER_CONSENTS);
+      if (interVal) {
+        try { this.interProfessionalConsents = JSON.parse(interVal); } catch {}
+      }
+      const chatVal = localStorage.getItem(STORAGE_KEYS.CHAT_MESSAGES);
+      if (chatVal) {
+        try { this.chatMessages = JSON.parse(chatVal); } catch {}
+      }
+      const invVal = localStorage.getItem(STORAGE_KEYS.INVITATIONS);
+      if (invVal) {
+        try { this.invitations = JSON.parse(invVal); } catch {}
+      }
+
+      // Check and update system notifications based on physiological parameters and periodic rules
+      this.checkAndGenerateSystemNotifications();
 
       // Strict Real-Data Mode: do NOT generate fictitious data
       this.isDemoMode = false;
@@ -242,6 +420,9 @@ export class GymLabsDataStore {
       preferredName: target.preferredName || target.name.split(' ')[0],
       email: target.email,
       biologicalSex: target.biologicalSex || 'MALE',
+      dateOfBirth: target.dateOfBirth || this.identity.dateOfBirth || '1998-05-20',
+      weightKg: target.weightKg !== undefined ? target.weightKg : this.identity.weightKg,
+      heightCm: target.heightCm !== undefined ? target.heightCm : this.identity.heightCm,
       role: target.role || 'USER',
     };
     localStorage.setItem(STORAGE_KEYS.USER_IDENTITY, JSON.stringify(this.identity));
@@ -250,6 +431,7 @@ export class GymLabsDataStore {
     this.profile = {
       ...this.profile,
       userId: target.id,
+      activityLevel: target.activityLevel || this.profile.activityLevel || 'MODERATELY_ACTIVE',
       primaryGoal: target.primaryGoal || 'HYPERTROPHY',
     };
     localStorage.setItem(STORAGE_KEYS.USER_PROFILE, JSON.stringify(this.profile));
@@ -264,12 +446,14 @@ export class GymLabsDataStore {
       `Switched active athlete profile to: ${target.name} (${target.email})`
     );
 
+    this.checkAndGenerateSystemNotifications();
+
     return true;
   }
 
   public addSavedAccount(account: SavedUserAccount): void {
     const existingIndex = this.savedAccounts.findIndex(
-      (a) => a.id === account.id || a.email.toLowerCase() === account.email.toLowerCase()
+      (a) => a.id === account.id || (Boolean(a.email) && Boolean(account.email) && a.email.toLowerCase() === account.email.toLowerCase())
     );
     if (existingIndex >= 0) {
       this.savedAccounts[existingIndex] = { ...this.savedAccounts[existingIndex], ...account };
@@ -317,7 +501,25 @@ export class GymLabsDataStore {
     }
 
     if (credentials.email) {
-      const acc = this.savedAccounts.find((a) => a.email.toLowerCase() === credentials.email?.toLowerCase());
+      const inputEmail = (credentials.email || '').toLowerCase().trim();
+      let acc = this.savedAccounts.find((a) => a.email && a.email.toLowerCase() === inputEmail);
+      if (!acc) {
+        const em = inputEmail;
+        if (em.includes('alex') || em === 'atleta@gymlabs.com' || em === 'alex.atleta@gymlabs.com') {
+          const res = this.quickAccessSampleAccount('USER');
+          acc = res.account;
+        } else if (em.includes('lucas') || em === 'coach@gymlabs.pro' || em === 'lucas.personal@gymlabs.pro') {
+          const res = this.quickAccessSampleAccount('COACH');
+          acc = res.account;
+        } else if (em.includes('elena') || em === 'nutri@gymlabs.pro' || em === 'elena.nutri@gymlabs.pro') {
+          const res = this.quickAccessSampleAccount('NUTRITIONIST');
+          acc = res.account;
+        } else if (em.includes('gestao') || em === 'gym@gymlabs.com' || em === 'gestao@gymlabssp.com.br') {
+          const res = this.quickAccessSampleAccount('GYM');
+          acc = res.account;
+        }
+      }
+
       if (acc) {
         if (credentials.password && acc.password && credentials.password !== acc.password) {
           return { success: false, error: 'Senha incorreta.' };
@@ -326,10 +528,105 @@ export class GymLabsDataStore {
         this.setAuthenticated(true);
         return { success: true };
       }
-      return { success: false, error: 'Usuário não localizado no enclave local.' };
+      return { success: false, error: 'Usuário não localizado no enclave local. Verifique o e-mail ou crie uma conta.' };
     }
 
     return { success: false, error: 'Informe um login ou credenciais.' };
+  }
+
+  public quickAccessSampleAccount(role: 'USER' | 'COACH' | 'NUTRITIONIST' | 'GYM'): { success: boolean; account: SavedUserAccount } {
+    const existing = this.savedAccounts.find((a) => a.role === role);
+    if (existing) {
+      this.switchAccount(existing.id);
+      this.setAuthenticated(true);
+      return { success: true, account: existing };
+    }
+
+    // Create realistic sample account for the specified app role
+    let sampleData: SavedUserAccount;
+    const nowIso = new Date().toISOString();
+
+    if (role === 'COACH') {
+      sampleData = {
+        id: `pro_coach_${Date.now()}`,
+        name: 'Dr. Lucas Silva (Personal CREF)',
+        email: 'lucas.personal@gymlabs.pro',
+        preferredName: 'Lucas',
+        role: 'COACH',
+        biologicalSex: 'MALE',
+        pin: '2026',
+        password: 'password123',
+        tagline: 'Personal Trainer (CREF 089142-G/SP)',
+        lastActiveAt: 'Agora',
+      };
+    } else if (role === 'NUTRITIONIST') {
+      sampleData = {
+        id: `pro_nutri_${Date.now()}`,
+        name: 'Elena Vance (Nutricionista CRN)',
+        email: 'elena.nutri@gymlabs.pro',
+        preferredName: 'Elena',
+        role: 'NUTRITIONIST',
+        biologicalSex: 'FEMALE',
+        pin: '2026',
+        password: 'password123',
+        tagline: 'Nutricionista Esportiva (CRN-3 48192)',
+        lastActiveAt: 'Agora',
+      };
+    } else if (role === 'GYM') {
+      sampleData = {
+        id: `gym_unit_${Date.now()}`,
+        name: 'Gym Labs Instituto de Performance SP',
+        email: 'gestao@gymlabssp.com.br',
+        preferredName: 'Gym Labs SP',
+        role: 'GYM',
+        pin: '2026',
+        password: 'password123',
+        tagline: 'Academia / Centro de Treino (CNPJ 42.109.876/0001-20)',
+        lastActiveAt: 'Agora',
+      };
+    } else {
+      sampleData = {
+        id: `usr_athlete_${Date.now()}`,
+        name: 'Alex Vance (Atleta Teste)',
+        email: 'alex.atleta@gymlabs.com',
+        preferredName: 'Alex',
+        role: 'USER',
+        biologicalSex: 'MALE',
+        primaryGoal: 'HYPERTROPHY',
+        weightKg: 82.5,
+        heightCm: 180,
+        pin: '2026',
+        password: 'password123',
+        tagline: 'Usuário Convencional // Atleta Hipertrofia',
+        lastActiveAt: 'Agora',
+      };
+    }
+
+    this.addSavedAccount(sampleData);
+    this.switchAccount(sampleData.id);
+
+    if (role === 'USER') {
+      this.addBodyRecord({
+        id: `bdy_init_${Date.now()}`,
+        userId: sampleData.id,
+        timestamp: nowIso,
+        method: 'SELF_REPORT',
+        weightKg: {
+          value: 82.5,
+          unit: 'kg',
+          provenance: { type: 'REAL', source: 'Perfil Inicial', recordedAt: nowIso, confidence: 'HIGH' },
+        },
+        heightCm: {
+          value: 180,
+          unit: 'cm',
+          provenance: { type: 'REAL', source: 'Perfil Inicial', recordedAt: nowIso, confidence: 'HIGH' },
+        },
+        provenance: { type: 'REAL', source: 'Perfil Inicial', recordedAt: nowIso, confidence: 'HIGH' },
+      });
+    }
+
+    this.setAuthenticated(true);
+    return { success: true, account: sampleData };
   }
 
   public register(data: RegisterUserData): { success: boolean; error?: string; account?: SavedUserAccount } {
@@ -337,7 +634,8 @@ export class GymLabsDataStore {
       return { success: false, error: 'Nome e E-mail são obrigatórios.' };
     }
 
-    const existing = this.savedAccounts.find((a) => a.email.toLowerCase() === data.email.toLowerCase());
+    const targetEmail = (data.email || '').toLowerCase().trim();
+    const existing = this.savedAccounts.find((a) => a.email && a.email.toLowerCase() === targetEmail);
     if (existing) {
       return { success: false, error: 'Já existe um cadastro com este e-mail neste dispositivo.' };
     }
@@ -350,6 +648,8 @@ export class GymLabsDataStore {
       preferredName: data.name.split(' ')[0],
       role: data.role || 'USER',
       biologicalSex: data.biologicalSex || 'MALE',
+      dateOfBirth: data.dateOfBirth,
+      activityLevel: data.activityLevel || 'MODERATELY_ACTIVE',
       primaryGoal: data.primaryGoal || 'HYPERTROPHY',
       pin: data.pin || '2026',
       password: data.password || 'password123',
@@ -360,6 +660,8 @@ export class GymLabsDataStore {
           ? `Personal Trainer (${data.professionalLicense || 'CREF'})`
           : data.role === 'NUTRITIONIST'
           ? `Nutricionista (${data.professionalLicense || 'CRN'})`
+          : data.role === 'GYM'
+          ? `Academia / Unidade (${data.organizationName || 'CNPJ Registrado'})`
           : data.role === 'ADMIN'
           ? 'Administrador do Sistema'
           : 'Usuário Convencional // Atleta',
@@ -409,6 +711,100 @@ export class GymLabsDataStore {
       });
     }
 
+    // Optional circumferences if provided at registration (medidas opcionais)
+    if (data.measurements) {
+      const m = data.measurements;
+      const hasAnyMeasurement = Boolean(
+        m.waistCm || m.hipCm || m.chestCm || m.armCm || m.thighCm || m.neckCm
+      );
+      if (hasAnyMeasurement) {
+        const nowIso = new Date().toISOString();
+        this.addCircumference({
+          id: `circ_${Date.now()}`,
+          userId: newId,
+          timestamp: nowIso,
+          waistCm: m.waistCm
+            ? {
+                value: m.waistCm,
+                unit: 'cm',
+                provenance: {
+                  type: 'REAL',
+                  source: 'Cadastro Inicial (Opcional)',
+                  recordedAt: nowIso,
+                  confidence: 'HIGH',
+                },
+              }
+            : undefined,
+          hipCm: m.hipCm
+            ? {
+                value: m.hipCm,
+                unit: 'cm',
+                provenance: {
+                  type: 'REAL',
+                  source: 'Cadastro Inicial (Opcional)',
+                  recordedAt: nowIso,
+                  confidence: 'HIGH',
+                },
+              }
+            : undefined,
+          chestCm: m.chestCm
+            ? {
+                value: m.chestCm,
+                unit: 'cm',
+                provenance: {
+                  type: 'REAL',
+                  source: 'Cadastro Inicial (Opcional)',
+                  recordedAt: nowIso,
+                  confidence: 'HIGH',
+                },
+              }
+            : undefined,
+          leftArmCm: m.armCm
+            ? {
+                value: m.armCm,
+                unit: 'cm',
+                provenance: {
+                  type: 'REAL',
+                  source: 'Cadastro Inicial (Opcional)',
+                  recordedAt: nowIso,
+                  confidence: 'HIGH',
+                },
+              }
+            : undefined,
+          leftThighCm: m.thighCm
+            ? {
+                value: m.thighCm,
+                unit: 'cm',
+                provenance: {
+                  type: 'REAL',
+                  source: 'Cadastro Inicial (Opcional)',
+                  recordedAt: nowIso,
+                  confidence: 'HIGH',
+                },
+              }
+            : undefined,
+          neckCm: m.neckCm
+            ? {
+                value: m.neckCm,
+                unit: 'cm',
+                provenance: {
+                  type: 'REAL',
+                  source: 'Cadastro Inicial (Opcional)',
+                  recordedAt: nowIso,
+                  confidence: 'HIGH',
+                },
+              }
+            : undefined,
+          provenance: {
+            type: 'REAL',
+            source: 'Cadastro Inicial (Opcional)',
+            recordedAt: nowIso,
+            confidence: 'HIGH',
+          },
+        });
+      }
+    }
+
     this.setAuthenticated(true);
     return { success: true, account: newAccount };
   }
@@ -428,6 +824,40 @@ export class GymLabsDataStore {
     this.identity = { ...this.identity, ...updates };
     localStorage.setItem(STORAGE_KEYS.USER_IDENTITY, JSON.stringify(this.identity));
     this.logAudit('SECURITY_SCOPE_ESCALATION_PREVENTED', 'USER_IDENTITY_UPDATED', `Updated identity fields: ${Object.keys(updates).join(', ')}`);
+  }
+
+  public updateAccountEmail(accountId: string, newEmail: string, currentPassword?: string): { success: boolean; error?: string } {
+    const acc = this.savedAccounts.find((a) => a.id === accountId);
+    if (!acc) {
+      return { success: false, error: 'Perfil de usuário não localizado neste dispositivo.' };
+    }
+    if (acc.password && currentPassword && acc.password !== currentPassword) {
+      return { success: false, error: 'Senha atual incorreta. A alteração de e-mail foi bloqueada pelo enclave de segurança.' };
+    }
+    const cleanEmail = (newEmail || '').toLowerCase().trim();
+    if (!cleanEmail || !cleanEmail.includes('@') || !cleanEmail.includes('.')) {
+      return { success: false, error: 'Informe um e-mail válido com formato nome@dominio.com.' };
+    }
+    const emailInUse = this.savedAccounts.some((a) => a.id !== accountId && a.email && a.email.toLowerCase() === cleanEmail);
+    if (emailInUse) {
+      return { success: false, error: 'Este e-mail já está associado a outro perfil neste dispositivo.' };
+    }
+
+    acc.email = cleanEmail;
+    localStorage.setItem(STORAGE_KEYS.SAVED_ACCOUNTS, JSON.stringify(this.savedAccounts));
+
+    if (this.activeAccountId === accountId) {
+      this.identity = { ...this.identity, email: cleanEmail };
+      localStorage.setItem(STORAGE_KEYS.USER_IDENTITY, JSON.stringify(this.identity));
+    }
+
+    this.logAudit(
+      'SECURITY_SCOPE_ESCALATION_PREVENTED',
+      'EMAIL_CREDENTIAL_ROTATED',
+      `E-mail de acesso da conta atualizado com segurança para: ${cleanEmail}`
+    );
+
+    return { success: true };
   }
 
   public getProfile(): UserProfile {
@@ -476,6 +906,64 @@ export class GymLabsDataStore {
     this.trainingSessions.unshift(session);
     localStorage.setItem(STORAGE_KEYS.TRAINING_SESSIONS, JSON.stringify(this.trainingSessions));
     this.logAudit('CALCULATION_EXECUTED', 'TRAINING_SESSION_RECORDED', `Title: ${session.title}, Volume: ${session.calculatedVolumeKg.value} kg`);
+
+    // Auto sync attendance for the session date
+    const sessionDate = session.startedAt.split('T')[0];
+    this.setDayAttendance({
+      date: sessionDate,
+      status: 'ATTENDED',
+      workoutType: session.title.toLowerCase().includes('push')
+        ? 'PUSH'
+        : session.title.toLowerCase().includes('pull')
+        ? 'PULL'
+        : session.title.toLowerCase().includes('leg') || session.title.toLowerCase().includes('inferior')
+        ? 'LEGS'
+        : session.title.toLowerCase().includes('upper') || session.title.toLowerCase().includes('superior')
+        ? 'UPPER'
+        : session.title.toLowerCase().includes('lower')
+        ? 'LOWER'
+        : 'FULL_BODY',
+      title: session.title,
+      durationMinutes: session.durationMinutes,
+      volumeKg: session.calculatedVolumeKg.value,
+      notes: `Sessão concluída com RPE ${session.sessionRpe}/10`,
+    });
+  }
+
+  // Gym Attendance & Planning
+  public getAttendanceLogs(): DayAttendance[] {
+    return [...this.attendanceLogs];
+  }
+
+  public setDayAttendance(attendance: DayAttendance): void {
+    const idx = this.attendanceLogs.findIndex((a) => a.date === attendance.date);
+    if (idx >= 0) {
+      this.attendanceLogs[idx] = {
+        ...this.attendanceLogs[idx],
+        ...attendance,
+        updatedAt: new Date().toISOString(),
+      };
+    } else {
+      this.attendanceLogs.push({
+        ...attendance,
+        updatedAt: new Date().toISOString(),
+      });
+    }
+    localStorage.setItem(STORAGE_KEYS.ATTENDANCE_LOGS, JSON.stringify(this.attendanceLogs));
+    this.logAudit(
+      'CALCULATION_EXECUTED',
+      'ATTENDANCE_RECORDED',
+      `Data: ${attendance.date}, Status: ${attendance.status}, Tipo: ${attendance.workoutType}`
+    );
+  }
+
+  public getScheduledDaysOfWeek(): number[] {
+    return [...this.scheduledDaysOfWeek];
+  }
+
+  public setScheduledDaysOfWeek(days: number[]): void {
+    this.scheduledDaysOfWeek = [...days];
+    localStorage.setItem(STORAGE_KEYS.SCHEDULED_DAYS, JSON.stringify(this.scheduledDaysOfWeek));
   }
 
   // Nutrition
@@ -599,6 +1087,774 @@ export class GymLabsDataStore {
     try {
       localStorage.setItem(STORAGE_KEYS.AUDIT_LOGS, JSON.stringify(this.auditLogs));
     } catch {}
+  }
+
+  // System Notifications & Data Compatibility Checks
+  public getNotifications(): SystemNotification[] {
+    return [...this.notifications];
+  }
+
+  public checkAndGenerateSystemNotifications(): void {
+    const hasWeight = (this.identity.weightKg !== undefined && this.identity.weightKg > 0) || this.bodyRecords.length > 0;
+    const hasHeight = this.identity.heightCm !== undefined && this.identity.heightCm > 0;
+    const hasSex = this.identity.biologicalSex === 'MALE' || this.identity.biologicalSex === 'FEMALE';
+    const hasDob = !!this.identity.dateOfBirth;
+    const hasActivity = !!this.profile.activityLevel;
+
+    const isMissingMandatory = !hasWeight || !hasHeight || !hasSex || !hasDob || !hasActivity;
+
+    // 1. Mandatory Data Verification Check
+    const existingMandatoryIdx = this.notifications.findIndex((n) => n.type === 'MANDATORY_DATA');
+    if (isMissingMandatory) {
+      const missingList: string[] = [];
+      if (!hasWeight) missingList.push('Peso corporal');
+      if (!hasHeight) missingList.push('Altura');
+      if (!hasSex) missingList.push('Sexo biológico');
+      if (!hasDob) missingList.push('Data de nascimento');
+      if (!hasActivity) missingList.push('Nível de atividade');
+
+      if (existingMandatoryIdx >= 0) {
+        this.notifications[existingMandatoryIdx].metadata = {
+          ...this.notifications[existingMandatoryIdx].metadata,
+          missingFields: missingList,
+        };
+      } else {
+        this.notifications.unshift({
+          id: 'notif_mandatory_data',
+          type: 'MANDATORY_DATA',
+          title: 'Aviso: Dados Fisiológicos Obrigatórios Pendentes',
+          message: `O sistema identificou a ausência de dados obrigatórios (${missingList.join(', ')}). Para que os motores científicos de TDEE, BMR e hidratação dinâmica funcionem com acurácia, seus dados precisam ser informados.`,
+          timestamp: new Date().toISOString(),
+          read: false,
+          dismissedPopup: false,
+          severity: 'urgent',
+          actionLabel: 'Preencher Dados Agora',
+          actionType: 'OPEN_VERIFY_MODAL',
+          metadata: { missingFields: missingList },
+        });
+      }
+    } else {
+      if (existingMandatoryIdx >= 0 && !this.notifications[existingMandatoryIdx].read) {
+        this.notifications[existingMandatoryIdx].read = true;
+      }
+    }
+
+    // 2. Periodic Compatibility Verification (a cada X tempo)
+    const lastCheckMs = this.lastDataVerificationDate ? new Date(this.lastDataVerificationDate).getTime() : 0;
+    const daysSince = lastCheckMs > 0 ? Math.floor((Date.now() - lastCheckMs) / (1000 * 60 * 60 * 24)) : 16;
+    const checkFrequencyDays = 14;
+
+    const existingPeriodicIdx = this.notifications.findIndex((n) => n.type === 'PERIODIC_CHECK');
+    if (daysSince >= checkFrequencyDays) {
+      if (existingPeriodicIdx === -1) {
+        const currentWeight = this.identity.weightKg || (this.bodyRecords[0]?.weightKg?.value ?? 70);
+        const currentHeight = this.identity.heightCm || 175;
+        this.notifications.unshift({
+          id: `notif_periodic_${Date.now()}`,
+          type: 'PERIODIC_CHECK',
+          title: 'Verificação Periódica: Seus dados ainda são compatíveis?',
+          message: `Já faz ${daysSince} dias desde sua última confirmação cadastral. O organismo oscila com frequência. Confirme se seu peso (${currentWeight} kg) e altura (${currentHeight} cm) continuam fiéis à sua realidade física atual.`,
+          timestamp: new Date().toISOString(),
+          read: false,
+          dismissedPopup: false,
+          severity: 'warning',
+          actionLabel: 'Verificar & Confirmar Dados',
+          actionType: 'OPEN_VERIFY_MODAL',
+          metadata: {
+            daysSinceLastCheck: daysSince,
+            lastCheckedDate: this.lastDataVerificationDate,
+            checkFrequencyDays,
+          },
+        });
+      }
+    }
+
+    // 3. News & System Updates
+    const hasNewsCalendar = this.notifications.some((n) => n.id === 'notif_news_calendar');
+    if (!hasNewsCalendar) {
+      this.notifications.push({
+        id: 'notif_news_calendar',
+        type: 'NEWS',
+        title: 'Novidade: Calendário Mensal de Frequência e Treinos',
+        message: 'Acompanhe dia a dia sua assiduidade e planejamento mensal de treinos diretamente na aba Treino, com contagem de presenças e faltas.',
+        timestamp: new Date(Date.now() - 3600000 * 5).toISOString(),
+        read: false,
+        dismissedPopup: true, // starts in the bell without blocking popup
+        severity: 'info',
+        actionLabel: 'Ver no Treino',
+        actionType: 'NAVIGATE_TAB',
+        actionTargetTab: 'training',
+      });
+    }
+
+    const hasSysHydration = this.notifications.some((n) => n.id === 'notif_sys_hydration');
+    if (!hasSysHydration) {
+      this.notifications.push({
+        id: 'notif_sys_hydration',
+        type: 'SYSTEM_UPDATE',
+        title: 'Boletim do Sistema: Monitoramento de Hidratação e Carga ACWR',
+        message: 'A ingestão hídrica agora é monitorada via Escala Cromática de Armstrong e a fadiga acumulada utiliza o índice ACWR (Acute:Chronic Workload Ratio).',
+        timestamp: new Date(Date.now() - 86400000 * 2).toISOString(),
+        read: true,
+        dismissedPopup: true,
+        severity: 'info',
+        actionLabel: 'Ver Métricas no Início',
+        actionType: 'NAVIGATE_TAB',
+        actionTargetTab: 'today',
+      });
+    }
+
+    this.saveNotifications();
+  }
+
+  public addNotification(notif: SystemNotification): void {
+    this.notifications.unshift(notif);
+    this.saveNotifications();
+  }
+
+  public dismissNotificationPopup(id: string): void {
+    const notif = this.notifications.find((n) => n.id === id);
+    if (notif) {
+      notif.dismissedPopup = true;
+      this.saveNotifications();
+      this.logAudit('CONSENT_GRANTED', 'NOTIFICATION_POPUP_DISMISSED', `Popup dispensado para "${notif.title}". Notificação mantida no sino.`);
+    }
+  }
+
+  public markNotificationAsRead(id: string): void {
+    const notif = this.notifications.find((n) => n.id === id);
+    if (notif) {
+      notif.read = true;
+      this.saveNotifications();
+    }
+  }
+
+  public markAllNotificationsAsRead(): void {
+    this.notifications.forEach((n) => {
+      n.read = true;
+    });
+    this.saveNotifications();
+  }
+
+  public removeNotification(id: string): void {
+    this.notifications = this.notifications.filter((n) => n.id !== id);
+    this.saveNotifications();
+    this.logAudit('DATA_DELETED', 'NOTIFICATION_REMOVED', `Notificação ${id} removida.`);
+  }
+
+  public clearAllNotifications(): void {
+    this.notifications = [];
+    this.saveNotifications();
+    this.logAudit('DATA_DELETED', 'NOTIFICATIONS_CLEARED', 'Caixa de notificações esvaziada pelo usuário.');
+  }
+
+  public getLastDataVerificationDate(): string {
+    return this.lastDataVerificationDate;
+  }
+
+  public confirmDataCompatibility(updates?: {
+    weightKg?: number;
+    heightCm?: number;
+    biologicalSex?: 'MALE' | 'FEMALE';
+    activityLevel?: any;
+  }): void {
+    const nowIso = new Date().toISOString();
+    this.lastDataVerificationDate = nowIso;
+    try {
+      localStorage.setItem(STORAGE_KEYS.LAST_DATA_VERIFICATION, nowIso);
+    } catch {}
+
+    if (updates) {
+      const idUpdates: Partial<UserIdentity> = {};
+      if (updates.weightKg) idUpdates.weightKg = updates.weightKg;
+      if (updates.heightCm) idUpdates.heightCm = updates.heightCm;
+      if (updates.biologicalSex) idUpdates.biologicalSex = updates.biologicalSex;
+
+      if (Object.keys(idUpdates).length > 0) {
+        this.updateIdentity(idUpdates);
+      }
+
+      if (updates.weightKg) {
+        this.addBodyRecord({
+          id: `body_${Date.now()}`,
+          userId: this.identity.id,
+          timestamp: nowIso,
+          weightKg: {
+            value: updates.weightKg,
+            unit: 'kg',
+            provenance: {
+              type: 'REAL',
+              source: 'Revalidação Periódica de Dados (Atleta)',
+              recordedAt: nowIso,
+              confidence: 'HIGH',
+              isVerified: true,
+            },
+          },
+          method: 'SELF_REPORT',
+          provenance: {
+            type: 'REAL',
+            source: 'Revalidação Periódica de Dados',
+            recordedAt: nowIso,
+            confidence: 'HIGH',
+            isVerified: true,
+          },
+        });
+      }
+
+      if (updates.activityLevel) {
+        this.updateProfile({ activityLevel: updates.activityLevel });
+      }
+    }
+
+    // Dismiss popups and mark periodic / mandatory checks as resolved
+    this.notifications.forEach((n) => {
+      if (n.type === 'PERIODIC_CHECK' || n.type === 'MANDATORY_DATA') {
+        n.read = true;
+        n.dismissedPopup = true;
+      }
+    });
+    this.saveNotifications();
+
+    this.logAudit(
+      'CALCULATION_EXECUTED',
+      'DATA_COMPATIBILITY_REVALIDATED',
+      `Dados fisiológicos revalidados com sucesso em ${nowIso}. Próxima checagem agendada em 14 dias.`
+    );
+  }
+
+  public triggerPeriodicCheckSimulation(): void {
+    const simulatedOldDate = new Date(Date.now() - 20 * 86400000).toISOString();
+    this.lastDataVerificationDate = simulatedOldDate;
+    try {
+      localStorage.setItem(STORAGE_KEYS.LAST_DATA_VERIFICATION, simulatedOldDate);
+    } catch {}
+
+    // Remove previous periodic checks
+    this.notifications = this.notifications.filter((n) => n.type !== 'PERIODIC_CHECK');
+
+    const curWeight = this.identity.weightKg || (this.bodyRecords[0]?.weightKg?.value ?? 70);
+    const curHeight = this.identity.heightCm || 175;
+
+    const newNotif: SystemNotification = {
+      id: `notif_periodic_${Date.now()}`,
+      type: 'PERIODIC_CHECK',
+      title: 'Verificação Periódica: Seus dados ainda são compatíveis?',
+      message: `Já faz 20 dias desde a última conferência. O corpo humano passa por oscilações constantes de peso e rotina. Confirme se seu peso (${curWeight} kg) e altura (${curHeight} cm) continuam fiéis à sua realidade física atual.`,
+      timestamp: new Date().toISOString(),
+      read: false,
+      dismissedPopup: false,
+      severity: 'warning',
+      actionLabel: 'Verificar & Confirmar Dados',
+      actionType: 'OPEN_VERIFY_MODAL',
+      metadata: {
+        daysSinceLastCheck: 20,
+        lastCheckedDate: simulatedOldDate,
+        checkFrequencyDays: 14,
+      },
+    };
+
+    this.notifications.unshift(newNotif);
+    this.saveNotifications();
+  }
+
+  private saveNotifications(): void {
+    try {
+      localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(this.notifications));
+    } catch {}
+  }
+
+  // ==========================================
+  // GYM LABS NUTRI — PROFESSIONAL CRUD METHODS
+  // ==========================================
+
+  public getNutriPatients(): NutriPatient[] {
+    return [...this.nutriPatients];
+  }
+
+  public getNutriPatientById(id: string): NutriPatient | undefined {
+    return this.nutriPatients.find((p) => p.id === id);
+  }
+
+  public saveNutriPatient(patient: NutriPatient): void {
+    const idx = this.nutriPatients.findIndex((p) => p.id === patient.id);
+    if (idx >= 0) {
+      this.nutriPatients[idx] = { ...patient };
+    } else {
+      this.nutriPatients.unshift({ ...patient });
+    }
+    this.persistNutriPatients();
+    this.logAudit('CALCULATION_EXECUTED', 'NUTRI_PATIENT_SAVED', `Prontuário do paciente ${patient.name} atualizado.`);
+  }
+
+  public deleteNutriPatient(id: string): void {
+    this.nutriPatients = this.nutriPatients.filter((p) => p.id !== id);
+    this.persistNutriPatients();
+    this.logAudit('DATA_DELETED', 'NUTRI_PATIENT_REMOVED', `Paciente ${id} removido da carteira.`);
+  }
+
+  public getNutriConsultations(patientId?: string): NutriConsultation[] {
+    if (patientId) {
+      return this.nutriConsultations.filter((c) => c.patientId === patientId);
+    }
+    return [...this.nutriConsultations];
+  }
+
+  public saveNutriConsultation(cst: NutriConsultation): void {
+    const idx = this.nutriConsultations.findIndex((c) => c.id === cst.id);
+    if (idx >= 0) {
+      this.nutriConsultations[idx] = { ...cst };
+    } else {
+      this.nutriConsultations.unshift({ ...cst });
+    }
+    this.persistNutriConsultations();
+
+    // Update patient next appointment or last consultation
+    const patient = this.nutriPatients.find((p) => p.id === cst.patientId);
+    if (patient) {
+      if (cst.status === 'COMPLETED') {
+        patient.lastConsultationDate = cst.date;
+      }
+      patient.timeline.unshift({
+        id: `time_${Date.now()}`,
+        date: cst.date,
+        type: 'CONSULTATION',
+        title: `Consulta (${cst.type === 'FIRST_VISIT' ? 'Primeira Consulta' : cst.type === 'FOLLOW_UP' ? 'Retorno' : 'Avaliação'})`,
+        description: cst.anamnesisNotes || 'Consulta registrada no prontuário.',
+        authorName: this.identity.name,
+      });
+      this.persistNutriPatients();
+    }
+
+    this.logAudit('CALCULATION_EXECUTED', 'NUTRI_CONSULTATION_SAVED', `Consulta com paciente ${cst.patientName} registrada.`);
+  }
+
+  public getNutriAssessments(patientId?: string): NutriAssessment[] {
+    if (patientId) {
+      return this.nutriAssessments.filter((a) => a.patientId === patientId);
+    }
+    return [...this.nutriAssessments];
+  }
+
+  public saveNutriAssessment(as: NutriAssessment): void {
+    const idx = this.nutriAssessments.findIndex((a) => a.id === as.id);
+    if (idx >= 0) {
+      this.nutriAssessments[idx] = { ...as };
+    } else {
+      this.nutriAssessments.unshift({ ...as });
+    }
+    this.persistNutriAssessments();
+
+    // Sync weight and body composition with patient profile
+    const patient = this.nutriPatients.find((p) => p.id === as.patientId);
+    if (patient) {
+      patient.weightKg = as.weightKg;
+      patient.heightCm = as.heightCm;
+      patient.timeline.unshift({
+        id: `time_as_${Date.now()}`,
+        date: as.date,
+        type: 'ASSESSMENT',
+        title: `Avaliação Antropométrica (IMC ${as.bmi})`,
+        description: `Peso: ${as.weightKg}kg, % Gordura: ${as.bodyFatPercentage || '--'}%, Massa Magra: ${as.muscleMassKg || '--'}kg`,
+        authorName: this.identity.name,
+      });
+      this.persistNutriPatients();
+    }
+
+    this.logAudit('CALCULATION_EXECUTED', 'NUTRI_ASSESSMENT_RECORDED', `Avaliação antropométrica registrada para paciente ${as.patientId}.`);
+  }
+
+  public getNutriMealPlans(patientId?: string): NutriMealPlan[] {
+    if (patientId) {
+      return this.nutriMealPlans.filter((p) => p.patientId === patientId);
+    }
+    return [...this.nutriMealPlans];
+  }
+
+  public saveNutriMealPlan(plan: NutriMealPlan): void {
+    const idx = this.nutriMealPlans.findIndex((p) => p.id === plan.id);
+    if (idx >= 0) {
+      this.nutriMealPlans[idx] = { ...plan };
+    } else {
+      this.nutriMealPlans.unshift({ ...plan });
+    }
+    this.persistNutriMealPlans();
+
+    const patient = this.nutriPatients.find((p) => p.id === plan.patientId);
+    if (patient && plan.status === 'PUBLISHED') {
+      patient.timeline.unshift({
+        id: `time_mp_${Date.now()}`,
+        date: new Date().toISOString().split('T')[0],
+        type: 'MEAL_PLAN',
+        title: `Plano Alimentar "${plan.title}" Publicado`,
+        description: `Meta: ${plan.totalCaloriesTarget} kcal (${plan.totalProteinGTarget}g P, ${plan.totalCarbsGTarget}g C, ${plan.totalFatGTarget}g G).`,
+        authorName: this.identity.name,
+      });
+      this.persistNutriPatients();
+    }
+
+    this.logAudit('CALCULATION_EXECUTED', 'NUTRI_MEAL_PLAN_SAVED', `Plano alimentar ${plan.title} salvo (Status: ${plan.status}).`);
+  }
+
+  public publishNutriMealPlan(id: string): void {
+    const plan = this.nutriMealPlans.find((p) => p.id === id);
+    if (plan) {
+      // Archive other plans for same patient
+      this.nutriMealPlans.forEach((p) => {
+        if (p.patientId === plan.patientId && p.id !== id && p.status === 'PUBLISHED') {
+          p.status = 'ARCHIVED';
+        }
+      });
+      plan.status = 'PUBLISHED';
+      plan.publishedAt = new Date().toISOString();
+      this.persistNutriMealPlans();
+      this.logAudit('CALCULATION_EXECUTED', 'NUTRI_MEAL_PLAN_PUBLISHED', `Plano "${plan.title}" publicado para o paciente.`);
+    }
+  }
+
+  public getNutriFinances(): NutriFinanceTransaction[] {
+    return [...this.nutriFinances];
+  }
+
+  public saveNutriFinance(tx: NutriFinanceTransaction): void {
+    const idx = this.nutriFinances.findIndex((f) => f.id === tx.id);
+    if (idx >= 0) {
+      this.nutriFinances[idx] = { ...tx };
+    } else {
+      this.nutriFinances.unshift({ ...tx });
+    }
+    this.persistNutriFinances();
+  }
+
+  public deleteNutriFinance(id: string): void {
+    this.nutriFinances = this.nutriFinances.filter((f) => f.id !== id);
+    this.persistNutriFinances();
+  }
+
+  public getNutriLibrary(): NutriLibraryItem[] {
+    return [...this.nutriLibrary];
+  }
+
+  public saveNutriLibraryItem(item: NutriLibraryItem): void {
+    const idx = this.nutriLibrary.findIndex((i) => i.id === item.id);
+    if (idx >= 0) {
+      this.nutriLibrary[idx] = { ...item };
+    } else {
+      this.nutriLibrary.unshift({ ...item });
+    }
+    this.persistNutriLibrary();
+  }
+
+  // ============================================
+  // GYM LABS TRAINER — PROFESSIONAL CRUD METHODS
+  // ============================================
+
+  public getTrainerStudents(): TrainerStudent[] {
+    return [...this.trainerStudents];
+  }
+
+  public getTrainerStudentById(id: string): TrainerStudent | undefined {
+    return this.trainerStudents.find((s) => s.id === id);
+  }
+
+  public saveTrainerStudent(student: TrainerStudent): void {
+    const idx = this.trainerStudents.findIndex((s) => s.id === student.id);
+    if (idx >= 0) {
+      this.trainerStudents[idx] = { ...student };
+    } else {
+      this.trainerStudents.unshift({ ...student });
+    }
+    this.persistTrainerStudents();
+    this.logAudit('CALCULATION_EXECUTED', 'TRAINER_STUDENT_SAVED', `Aluno ${student.name} atualizado no Trainer.`);
+  }
+
+  public deleteTrainerStudent(id: string): void {
+    this.trainerStudents = this.trainerStudents.filter((s) => s.id !== id);
+    this.persistTrainerStudents();
+    this.logAudit('DATA_DELETED', 'TRAINER_STUDENT_REMOVED', `Aluno ${id} removido do Trainer.`);
+  }
+
+  public getTrainerWorkoutPlans(studentId?: string): TrainerWorkoutPlan[] {
+    if (studentId) {
+      return this.trainerWorkoutPlans.filter((p) => p.studentId === studentId);
+    }
+    return [...this.trainerWorkoutPlans];
+  }
+
+  public saveTrainerWorkoutPlan(plan: TrainerWorkoutPlan): void {
+    const idx = this.trainerWorkoutPlans.findIndex((p) => p.id === plan.id);
+    if (idx >= 0) {
+      this.trainerWorkoutPlans[idx] = { ...plan };
+    } else {
+      this.trainerWorkoutPlans.unshift({ ...plan });
+    }
+    this.persistTrainerWorkoutPlans();
+
+    const student = this.trainerStudents.find((s) => s.id === plan.studentId);
+    if (student && plan.status === 'PUBLISHED') {
+      student.activeWorkoutPlanTitle = plan.title;
+      student.timeline.unshift({
+        id: `time_tr_${Date.now()}`,
+        date: new Date().toISOString().split('T')[0],
+        type: 'PLAN_PRESCRIBED',
+        title: `Planilha de Treino "${plan.title}" Publicada`,
+        description: `Divisão ${plan.splitType} com ${plan.sessions.length} sessões estruturadas.`,
+        authorName: this.identity.name,
+      });
+      this.persistTrainerStudents();
+    }
+
+    this.logAudit('CALCULATION_EXECUTED', 'TRAINER_WORKOUT_PLAN_SAVED', `Treino ${plan.title} salvo (Status: ${plan.status}).`);
+  }
+
+  public publishTrainerWorkoutPlan(id: string): void {
+    const plan = this.trainerWorkoutPlans.find((p) => p.id === id);
+    if (plan) {
+      this.trainerWorkoutPlans.forEach((p) => {
+        if (p.studentId === plan.studentId && p.id !== id && p.status === 'PUBLISHED') {
+          p.status = 'ARCHIVED';
+        }
+      });
+      plan.status = 'PUBLISHED';
+      plan.publishedAt = new Date().toISOString();
+      this.persistTrainerWorkoutPlans();
+
+      const student = this.trainerStudents.find((s) => s.id === plan.studentId);
+      if (student) {
+        student.activeWorkoutPlanTitle = plan.title;
+        this.persistTrainerStudents();
+      }
+      this.logAudit('CALCULATION_EXECUTED', 'TRAINER_WORKOUT_PLAN_PUBLISHED', `Treino "${plan.title}" publicado para o aluno.`);
+    }
+  }
+
+  public getTrainerAssessments(studentId?: string): TrainerAssessment[] {
+    if (studentId) {
+      return this.trainerAssessments.filter((a) => a.studentId === studentId);
+    }
+    return [...this.trainerAssessments];
+  }
+
+  public saveTrainerAssessment(as: TrainerAssessment): void {
+    const idx = this.trainerAssessments.findIndex((a) => a.id === as.id);
+    if (idx >= 0) {
+      this.trainerAssessments[idx] = { ...as };
+    } else {
+      this.trainerAssessments.unshift({ ...as });
+    }
+    this.persistTrainerAssessments();
+
+    const student = this.trainerStudents.find((s) => s.id === as.studentId);
+    if (student) {
+      student.weightKg = as.weightKg;
+      student.heightCm = as.heightCm;
+      student.timeline.unshift({
+        id: `time_tas_${Date.now()}`,
+        date: as.date,
+        type: 'ASSESSMENT',
+        title: `Avaliação Física Completa`,
+        description: `1RM Supino: ${as.strengthBenchmarks?.benchPress1RMKg || '--'}kg, 1RM Agachamento: ${as.strengthBenchmarks?.squat1RMKg || '--'}kg`,
+        authorName: this.identity.name,
+      });
+      this.persistTrainerStudents();
+    }
+    this.logAudit('CALCULATION_EXECUTED', 'TRAINER_ASSESSMENT_SAVED', `Avaliação física salva para aluno ${as.studentId}.`);
+  }
+
+  public getTrainerAppointments(studentId?: string): TrainerScheduleAppointment[] {
+    if (studentId) {
+      return this.trainerAppointments.filter((a) => a.studentId === studentId);
+    }
+    return [...this.trainerAppointments];
+  }
+
+  public saveTrainerAppointment(app: TrainerScheduleAppointment): void {
+    const idx = this.trainerAppointments.findIndex((a) => a.id === app.id);
+    if (idx >= 0) {
+      this.trainerAppointments[idx] = { ...app };
+    } else {
+      this.trainerAppointments.unshift({ ...app });
+    }
+    this.persistTrainerAppointments();
+  }
+
+  public getTrainerFinances(): TrainerFinanceTransaction[] {
+    return [...this.trainerFinances];
+  }
+
+  public saveTrainerFinance(tx: TrainerFinanceTransaction): void {
+    const idx = this.trainerFinances.findIndex((f) => f.id === tx.id);
+    if (idx >= 0) {
+      this.trainerFinances[idx] = { ...tx };
+    } else {
+      this.trainerFinances.unshift({ ...tx });
+    }
+    this.persistTrainerFinances();
+  }
+
+  public deleteTrainerFinance(id: string): void {
+    this.trainerFinances = this.trainerFinances.filter((f) => f.id !== id);
+    this.persistTrainerFinances();
+  }
+
+  // ============================================
+  // ECOSYSTEM, HEALTH TEAM & CHAT METHODS
+  // ============================================
+
+  public getHealthTeamMembers(): HealthTeamMember[] {
+    return [...this.healthTeamMembers];
+  }
+
+  public saveHealthTeamMember(member: HealthTeamMember): void {
+    const idx = this.healthTeamMembers.findIndex((m) => m.id === member.id);
+    if (idx >= 0) {
+      this.healthTeamMembers[idx] = { ...member };
+    } else {
+      this.healthTeamMembers.unshift({ ...member });
+    }
+    this.persistHealthTeam();
+    this.logAudit('CONSENT_GRANTED', 'HEALTH_TEAM_MEMBER_UPDATED', `Membro da equipe ${member.name} (${member.role}) atualizado.`);
+  }
+
+  public removeHealthTeamMember(id: string): void {
+    this.healthTeamMembers = this.healthTeamMembers.filter((m) => m.id !== id);
+    this.persistHealthTeam();
+    this.logAudit('DATA_DELETED', 'HEALTH_TEAM_MEMBER_REMOVED', `Profissional ${id} desvinculado da equipe de saúde.`);
+  }
+
+  public getInterProfessionalConsents(studentId?: string): InterProfessionalConsent[] {
+    if (studentId) {
+      return this.interProfessionalConsents.filter((c) => c.studentId === studentId);
+    }
+    return [...this.interProfessionalConsents];
+  }
+
+  public saveInterProfessionalConsent(consent: InterProfessionalConsent): void {
+    const idx = this.interProfessionalConsents.findIndex((c) => c.id === consent.id);
+    if (idx >= 0) {
+      this.interProfessionalConsents[idx] = { ...consent };
+    } else {
+      this.interProfessionalConsents.unshift({ ...consent });
+    }
+    this.persistInterConsents();
+    this.logAudit('CONSENT_GRANTED', 'INTER_PROFESSIONAL_CONSENT_SAVED', `Consentimento interprofissional configurado para aluno ${consent.studentName}.`);
+  }
+
+  public getChatMessages(conversationId?: string): ChatMessage[] {
+    if (conversationId) {
+      return this.chatMessages.filter((m) => m.conversationId === conversationId);
+    }
+    return [...this.chatMessages];
+  }
+
+  public sendChatMessage(msgData: Omit<ChatMessage, 'id' | 'timestamp'>): ChatMessage {
+    const newMsg: ChatMessage = {
+      ...msgData,
+      id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+      timestamp: new Date().toISOString(),
+    };
+    this.chatMessages.push(newMsg);
+    this.persistChatMessages();
+    return newMsg;
+  }
+
+  public markChatAsRead(conversationId: string, currentUserId: string): void {
+    let changed = false;
+    this.chatMessages.forEach((m) => {
+      if (m.conversationId === conversationId && m.receiverId === currentUserId && !m.read) {
+        m.read = true;
+        changed = true;
+      }
+    });
+    if (changed) {
+      this.persistChatMessages();
+    }
+  }
+
+  public getInvitations(): ProfessionalInvitation[] {
+    return [...this.invitations];
+  }
+
+  public createInvitation(invData: Omit<ProfessionalInvitation, 'id' | 'createdAt' | 'code' | 'status'>): ProfessionalInvitation {
+    const newInv: ProfessionalInvitation = {
+      ...invData,
+      id: `inv_${Date.now()}`,
+      code: `GL-${Math.floor(100000 + Math.random() * 900000)}`,
+      status: 'PENDING',
+      createdAt: new Date().toISOString(),
+    };
+    this.invitations.unshift(newInv);
+    this.persistInvitations();
+    this.logAudit('SECURITY_SCOPE_ESCALATION_PREVENTED', 'INVITATION_CREATED', `Convite enviado para ${invData.targetEmail} por ${invData.senderName}.`);
+    return newInv;
+  }
+
+  public acceptInvitation(codeOrId: string): boolean {
+    const inv = this.invitations.find((i) => i.code === codeOrId || i.id === codeOrId);
+    if (!inv || inv.status !== 'PENDING') return false;
+    inv.status = 'ACCEPTED';
+    inv.acceptedAt = new Date().toISOString();
+    this.persistInvitations();
+    return true;
+  }
+
+  // Cross-system getters for Student app:
+  public getActivePrescribedMealPlanForStudent(studentUserIdOrId: string): NutriMealPlan | undefined {
+    const patient = this.nutriPatients.find((p) => p.userId === studentUserIdOrId || p.id === studentUserIdOrId);
+    const targetId = patient ? patient.id : studentUserIdOrId;
+    return this.nutriMealPlans.find((p) => (p.patientId === targetId || p.patientId === 'pat_alex_vance') && p.status === 'PUBLISHED');
+  }
+
+  public getActivePrescribedWorkoutPlanForStudent(studentUserIdOrId: string): TrainerWorkoutPlan | undefined {
+    const student = this.trainerStudents.find((s) => s.userId === studentUserIdOrId || s.id === studentUserIdOrId);
+    const targetId = student ? student.id : studentUserIdOrId;
+    return this.trainerWorkoutPlans.find((p) => (p.studentId === targetId || p.studentId === 'std_alex_vance') && p.status === 'PUBLISHED');
+  }
+
+  // Persistence helpers
+  private persistNutriPatients() {
+    try { localStorage.setItem(STORAGE_KEYS.NUTRI_PATIENTS, JSON.stringify(this.nutriPatients)); } catch {}
+  }
+  private persistNutriConsultations() {
+    try { localStorage.setItem(STORAGE_KEYS.NUTRI_CONSULTATIONS, JSON.stringify(this.nutriConsultations)); } catch {}
+  }
+  private persistNutriAssessments() {
+    try { localStorage.setItem(STORAGE_KEYS.NUTRI_ASSESSMENTS, JSON.stringify(this.nutriAssessments)); } catch {}
+  }
+  private persistNutriMealPlans() {
+    try { localStorage.setItem(STORAGE_KEYS.NUTRI_MEAL_PLANS, JSON.stringify(this.nutriMealPlans)); } catch {}
+  }
+  private persistNutriFinances() {
+    try { localStorage.setItem(STORAGE_KEYS.NUTRI_FINANCES, JSON.stringify(this.nutriFinances)); } catch {}
+  }
+  private persistNutriLibrary() {
+    try { localStorage.setItem(STORAGE_KEYS.NUTRI_LIBRARY, JSON.stringify(this.nutriLibrary)); } catch {}
+  }
+  private persistTrainerStudents() {
+    try { localStorage.setItem(STORAGE_KEYS.TRAINER_STUDENTS, JSON.stringify(this.trainerStudents)); } catch {}
+  }
+  private persistTrainerWorkoutPlans() {
+    try { localStorage.setItem(STORAGE_KEYS.TRAINER_WORKOUT_PLANS, JSON.stringify(this.trainerWorkoutPlans)); } catch {}
+  }
+  private persistTrainerAssessments() {
+    try { localStorage.setItem(STORAGE_KEYS.TRAINER_ASSESSMENTS, JSON.stringify(this.trainerAssessments)); } catch {}
+  }
+  private persistTrainerAppointments() {
+    try { localStorage.setItem(STORAGE_KEYS.TRAINER_APPOINTMENTS, JSON.stringify(this.trainerAppointments)); } catch {}
+  }
+  private persistTrainerFinances() {
+    try { localStorage.setItem(STORAGE_KEYS.TRAINER_FINANCES, JSON.stringify(this.trainerFinances)); } catch {}
+  }
+  private persistHealthTeam() {
+    try { localStorage.setItem(STORAGE_KEYS.HEALTH_TEAM, JSON.stringify(this.healthTeamMembers)); } catch {}
+  }
+  private persistInterConsents() {
+    try { localStorage.setItem(STORAGE_KEYS.INTER_CONSENTS, JSON.stringify(this.interProfessionalConsents)); } catch {}
+  }
+  private persistChatMessages() {
+    try { localStorage.setItem(STORAGE_KEYS.CHAT_MESSAGES, JSON.stringify(this.chatMessages)); } catch {}
+  }
+  private persistInvitations() {
+    try { localStorage.setItem(STORAGE_KEYS.INVITATIONS, JSON.stringify(this.invitations)); } catch {}
   }
 
   // Privacy & Data Rights: JSON Export

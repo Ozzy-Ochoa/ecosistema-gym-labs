@@ -6,17 +6,17 @@ export const MobileNav: React.FC = () => {
   const { currentTab, setCurrentTab } = useGymLabs();
 
   const mobileTabs: { id: NavigationTab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
-    { id: 'today', label: 'Today', icon: Sun },
-    { id: 'training', label: 'Training', icon: Dumbbell },
-    { id: 'nutrition', label: 'Nutrition', icon: Utensils },
-    { id: 'recovery', label: 'Recovery', icon: Moon },
-    { id: 'datalab', label: 'Data Lab', icon: LineChart },
+    { id: 'today', label: 'Hoje', icon: Sun },
+    { id: 'training', label: 'Treino', icon: Dumbbell },
+    { id: 'nutrition', label: 'Dieta', icon: Utensils },
+    { id: 'recovery', label: 'Sono', icon: Moon },
+    { id: 'datalab', label: 'Ciência', icon: LineChart },
   ];
 
   return (
     <nav
       id="gymlabs-mobile-bottom-nav"
-      className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#090D14]/95 backdrop-blur-lg border-t border-slate-800/80 px-2 py-1.5 flex items-center justify-around"
+      className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-black border-t border-zinc-800 px-2 py-1.5 flex items-center justify-around font-mono"
     >
       {mobileTabs.map((tab) => {
         const Icon = tab.icon;
@@ -27,12 +27,12 @@ export const MobileNav: React.FC = () => {
             key={tab.id}
             id={`mobile-nav-${tab.id}`}
             onClick={() => setCurrentTab(tab.id)}
-            className={`flex flex-col items-center py-1 px-3 rounded-xl transition-all ${
-              isActive ? 'text-cyan-400 font-semibold' : 'text-slate-400'
+            className={`flex flex-col items-center py-1 px-2.5 transition-all cursor-pointer ${
+              isActive ? 'text-white font-bold' : 'text-zinc-500'
             }`}
           >
-            <Icon className={`w-5 h-5 ${isActive ? 'scale-110 text-cyan-400' : 'text-slate-400'}`} />
-            <span className="text-[10px] mt-1 font-mono">{tab.label}</span>
+            <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-zinc-500'}`} />
+            <span className="text-[10px] mt-0.5 uppercase">{tab.label}</span>
           </button>
         );
       })}
@@ -40,15 +40,15 @@ export const MobileNav: React.FC = () => {
       {/* More / Settings dropdown quick action */}
       <button
         id="mobile-nav-more"
-        onClick={() => setCurrentTab(currentTab === 'settings' ? 'trust' : 'settings')}
-        className={`flex flex-col items-center py-1 px-3 rounded-xl transition-all ${
-          currentTab === 'settings' || currentTab === 'trust' || currentTab === 'professionals' || currentTab === 'intelligence'
-            ? 'text-cyan-400 font-semibold'
-            : 'text-slate-400'
+        onClick={() => setCurrentTab('settings')}
+        className={`flex flex-col items-center py-1 px-2.5 transition-all cursor-pointer ${
+          currentTab === 'settings' || currentTab === 'body' || currentTab === 'professionals' || currentTab === 'intelligence' || currentTab === 'organizations'
+            ? 'text-white font-bold'
+            : 'text-zinc-500'
         }`}
       >
-        <MoreHorizontal className="w-5 h-5" />
-        <span className="text-[10px] mt-1 font-mono">More</span>
+        <MoreHorizontal className="w-4 h-4" />
+        <span className="text-[10px] mt-0.5 uppercase">Mais</span>
       </button>
     </nav>
   );

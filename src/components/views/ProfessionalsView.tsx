@@ -1,23 +1,27 @@
 import React, { useState } from 'react';
 import { useGymLabs } from '../../context/GymLabsContext';
-import { ProvenanceBadge } from '../common/ProvenanceBadge';
 import { ProfessionalProfile } from '../../types/professional';
 import { ConsentGrant, ConsentScope } from '../../types/consent';
 import {
   Users,
   ShieldCheck,
-  Award,
   Lock,
-  Unlock,
-  CheckCircle,
-  XCircle,
   Plus,
-  ExternalLink,
-  Info,
+  X,
+  Award,
+  CheckCircle2,
+  FileCheck,
+  Zap,
+  ShoppingBag,
+  DollarSign,
+  ArrowRight,
   Sparkles,
-  ShieldAlert,
-  X
+  Check,
+  Dumbbell,
+  Droplet,
+  MessageSquare,
 } from 'lucide-react';
+import { ChatMessengerModal } from '../chat/ChatMessengerModal';
 
 export const ProfessionalsView: React.FC = () => {
   const {
@@ -26,24 +30,34 @@ export const ProfessionalsView: React.FC = () => {
     consents,
     grantConsent,
     revokeConsent,
+    setCurrentTab,
   } = useGymLabs();
 
-  const [selectedPro, setSelectedPro] = useState<ProfessionalProfile | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<'NONE' | 'COACH' | 'NUTRITIONIST' | 'COMBO'>('COMBO');
+  const [successNotice, setSuccessNotice] = useState<string | null>(null);
   const [showGrantModal, setShowGrantModal] = useState(false);
   const [targetProId, setTargetProId] = useState(professionals[0]?.id || '');
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [chatRecipientId, setChatRecipientId] = useState('pro_coach_marcus');
+
+  const handleOpenChat = (proId?: string) => {
+    if (proId) setChatRecipientId(proId);
+    setIsChatOpen(true);
+  };
   const [selectedScopes, setSelectedScopes] = useState<ConsentScope[]>([
     'TRAINING_READ',
     'TRAINING_WRITE',
     'RECOVERY_READ',
+    'NUTRITION_READ',
   ]);
-  const [purpose, setPurpose] = useState('Prescrição de treino e monitoramento de recuperação neuromuscular');
+  const [purpose, setPurpose] = useState('Acompanhamento profissional integrado de treino e nutrição');
 
   const ALL_SCOPES: { id: ConsentScope; label: string; description: string }[] = [
-    { id: 'TRAINING_READ', label: 'Ler Histórico de Treino', description: 'Acessar séries, repetições, tonelagem e RPE' },
-    { id: 'TRAINING_WRITE', label: 'Prescrever Fichas', description: 'Inserir rotinas, periodização e metas de carga' },
-    { id: 'BODY_READ', label: 'Ver Biometria & ISAK', description: 'Acessar peso, dobras cutâneas e circunferências' },
+    { id: 'TRAINING_READ', label: 'Ler Histórico de Treino', description: 'Acessar séries, repetições, tonelagem e RPE real' },
+    { id: 'TRAINING_WRITE', label: 'Prescrever Fichas', description: 'Inserir rotinas, periodização e metas de sobrecarga' },
+    { id: 'BODY_READ', label: 'Ver Biometria & Circunferências', description: 'Acessar peso corporal e medidas antropométricas' },
     { id: 'NUTRITION_READ', label: 'Ver Plano Nutricional', description: 'Consultar calorias diárias e macronutrientes' },
-    { id: 'RECOVERY_READ', label: 'Acessar HRV & Prontidão', description: 'Ver escore de sono e prontidão autonômica' },
+    { id: 'RECOVERY_READ', label: 'Acessar HRV, Sono & Fadiga', description: 'Ver escore de recuperação e prontidão neuromuscular' },
   ];
 
   const handleToggleScope = (scope: ConsentScope) => {
@@ -54,103 +68,476 @@ export const ProfessionalsView: React.FC = () => {
     }
   };
 
+  const handleQuickHirePro = (proId: string, proName: string, roleType: 'COACH' | 'NUTRITIONIST') => {
+    const scopes: ConsentScope[] =
+      roleType === 'COACH'
+        ? ['TRAINING_READ', 'TRAINING_WRITE', 'RECOVERY_READ', 'BODY_READ']
+        : ['NUTRITION_READ', 'BODY_READ', 'RECOVERY_READ'];
+
+    const newGrant: ConsentGrant = {
+      id: `cst-${Date.now()}`,
+      grantorUserId: identity.id,
+      granteeId: proId,
+      granteeName: proName,
+      granteeType: 'PROFESSIONAL',
+      scopes,
+      purpose:
+        roleType === 'COACH'
+          ? 'Prescrição técnica de treinos, monitoramento de sobrecarga e ACWR'
+          : 'Periodização de macronutrientes e protocolo de hidratação de Sawka',
+      grantedAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 90 * 86400000).toISOString(),
+      status: 'ACTIVE',
+    };
+
+    grantConsent(newGrant);
+    setSuccessNotice(`Parabéns! Você se conectou a ${proName}. Suas métricas estão sincronizadas e o acompanhamento está ativo.`);
+    setTimeout(() => setSuccessNotice(null), 5000);
+  };
+
   const handleGrantConsent = (e: React.FormEvent) => {
     e.preventDefault();
     const pro = professionals.find((p) => p.id === targetProId);
     if (!pro) return;
 
+    const proName = pro.name || (pro as any).fullName || 'Profissional';
+
     const newGrant: ConsentGrant = {
       id: `cst-${Date.now()}`,
       grantorUserId: identity.id,
       granteeId: pro.id,
-      granteeName: pro.fullName,
+      granteeName: proName,
       granteeType: 'PROFESSIONAL',
       scopes: selectedScopes,
       purpose,
       grantedAt: new Date().toISOString(),
-      expiresAt: new Date(Date.now() + 90 * 86400000).toISOString(), // 90 days
+      expiresAt: new Date(Date.now() + 90 * 86400000).toISOString(),
       status: 'ACTIVE',
     };
 
     grantConsent(newGrant);
     setShowGrantModal(false);
+    setSuccessNotice(`Acesso autorizado para ${proName}.`);
+    setTimeout(() => setSuccessNotice(null), 4000);
   };
 
+  const activeConsents = (consents || []).filter((c) => c && c.status === 'ACTIVE');
+  const hasConnectedCoach = activeConsents.some((c) => {
+    const nameLower = (c?.granteeName || '').toLowerCase();
+    const scopes = c?.scopes || [];
+    return nameLower.includes('lucas') || nameLower.includes('coach') || nameLower.includes('personal') || scopes.includes('TRAINING_WRITE');
+  });
+  const hasConnectedNutri = activeConsents.some((c) => {
+    const nameLower = (c?.granteeName || '').toLowerCase();
+    const scopes = c?.scopes || [];
+    return nameLower.includes('elena') || nameLower.includes('nutri') || scopes.includes('NUTRITION_READ');
+  });
+
   return (
-    <div id="gymlabs-professionals-view" className="space-y-6 max-w-7xl mx-auto font-mono">
-      {/* Header Banner */}
-      <div className="p-6 bg-[#050505] border-2 border-zinc-800 neo-box-thick flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-xs font-bold uppercase tracking-wider text-[#00F0FF]">
-              // ECOSSISTEMA DO ATLETA • MEUS PROFISSIONAIS
-            </span>
-            <span className="text-[10px] px-2 py-0.5 bg-[#39FF14]/10 text-[#39FF14] border border-[#39FF14]/30 font-bold">
-              LGPD ART. 18
-            </span>
+    <div id="gymlabs-professionals-view" className="space-y-8 max-w-7xl mx-auto font-mono select-none">
+      {/* Header Banner - Explaining the Uber/iFood Model */}
+      <div className="p-6 bg-zinc-950 border border-zinc-800 space-y-4">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                PRO CONNECT // O MARKETPLACE DO FITNESS
+              </span>
+              <span className="text-[9px] px-2 py-0.5 bg-white text-black font-black uppercase">
+                MODELO UBER & IFOOD
+              </span>
+            </div>
+            <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight uppercase">
+              Conecte Personal Trainer e Nutri num só App
+            </h1>
+            <p className="text-xs text-zinc-400 mt-1 max-w-3xl font-sans leading-relaxed">
+              O foco do Gym Labs é permitir que você gerencie treino e nutrição em um só lugar. Você pode treinar de forma independente no plano base ou <strong>contratar e conectar um profissional credenciado (CREF / CRN)</strong> com extrema facilidade, como pedir um Uber ou pedir no iFood!
+            </p>
           </div>
-          <h1 className="text-2xl font-black text-white tracking-tight uppercase">
-            Personais & Nutricionistas Conectados
-          </h1>
-          <p className="text-xs text-zinc-400 mt-1 max-w-2xl font-sans">
-            Gerencie o compartilhamento consentido das suas métricas biométricas com seu Personal Trainer e Nutricionista credenciados pelo Gym Labs.
-          </p>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => setShowGrantModal(true)}
+              className="px-4 py-2 border border-zinc-700 hover:border-white text-white text-xs font-bold uppercase flex items-center gap-1.5 transition-all cursor-pointer"
+            >
+              <Lock className="w-3.5 h-3.5" />
+              <span>GERENCIAR PERMISSÕES</span>
+            </button>
+          </div>
         </div>
 
-        <button
-          id="open-grant-consent-modal-btn"
-          onClick={() => setShowGrantModal(true)}
-          className="px-4 py-2 neo-box bg-[#00F0FF] text-black font-black text-xs uppercase flex items-center gap-2 hover:bg-white transition-all shadow-[2px_2px_0px_0px_rgba(0,240,255,0.4)] shrink-0"
-        >
-          <Plus className="w-4 h-4" />
-          <span>CONCEDER ACESSO A PROFISSIONAL</span>
-        </button>
-      </div>
+        {/* Status of Current Connection */}
+        <div className="p-4 bg-black border border-zinc-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 border border-zinc-700 bg-zinc-950 flex items-center justify-center text-white">
+              <Users className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <div className="text-xs font-bold text-white uppercase flex items-center gap-2">
+                <span>Status da Conexão:</span>
+                <span className="text-[9px] px-2 py-0.5 bg-zinc-900 border border-zinc-700 text-white font-bold">
+                  {activeConsents.length > 0 ? `${activeConsents.length} PROFISSIONAL(IS) CONECTADO(S)` : 'MODO SOLO (PLANO BASE)'}
+                </span>
+              </div>
+              <p className="text-[11px] text-zinc-400 font-sans mt-0.5">
+                {activeConsents.length > 0
+                  ? 'Seus dados de sobrecarga, cargas e hidratação estão sincronizados com sua equipe técnica.'
+                  : 'Você está no modo individual. Contrate um profissional abaixo para receber treinos e planos alimentares direto no app.'}
+              </p>
+            </div>
+          </div>
 
-      {/* Scope Disclaimer Banner */}
-      <div className="p-4 bg-zinc-950 border border-zinc-800 neo-box flex items-start gap-3">
-        <Sparkles className="w-5 h-5 text-[#00F0FF] shrink-0 mt-0.5" />
-        <div className="text-xs text-zinc-300 font-sans space-y-1">
-          <p className="font-bold text-white font-mono uppercase text-xs">
-            Controle Soberano do Aluno / Usuário Final
-          </p>
-          <p className="text-zinc-400 text-xs">
-            Personal Trainers e Nutricionistas operam através de seus próprios sistemas ou portais profissionais do Gym Labs. Neste terminal de usuário, você tem autoridade total para visualizar quem tem acesso aos seus dados e revogar permissões instantaneamente.
-          </p>
+          <div className="flex items-center gap-2 flex-wrap">
+            {hasConnectedCoach && (
+              <button
+                type="button"
+                onClick={() => handleOpenChat('pro_coach_marcus')}
+                className="text-[10px] px-2.5 py-1 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 hover:border-white text-white font-bold uppercase flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <MessageSquare className="w-3 h-3 text-blue-400" />
+                <span>CHAT PERSONAL</span>
+              </button>
+            )}
+            {hasConnectedNutri && (
+              <button
+                type="button"
+                onClick={() => handleOpenChat('pro_nutri_elena')}
+                className="text-[10px] px-2.5 py-1 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 hover:border-white text-white font-bold uppercase flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <MessageSquare className="w-3 h-3 text-emerald-400" />
+                <span>CHAT NUTRI</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => handleOpenChat()}
+              className="text-[10px] px-2.5 py-1 bg-white text-black font-black uppercase flex items-center gap-1.5 hover:bg-zinc-200 transition-colors cursor-pointer"
+            >
+              <MessageSquare className="w-3 h-3" />
+              <span>ABRIR CANAL DE CHAT</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Active Consents Bar */}
-      <div className="p-6 bg-[#050505] border-2 border-zinc-800 neo-box-thick space-y-4">
-        <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
-          <div className="flex items-center gap-2">
-            <Lock className="w-4 h-4 text-[#39FF14]" />
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider">
-              Autorizações Ativas de Acesso ({consents.filter((c) => c.status === 'ACTIVE').length})
-            </h3>
+      {successNotice && (
+        <div className="p-4 bg-black border border-white text-xs text-white flex items-center gap-3 shadow-[2px_2px_0px_0px_rgba(255,255,255,0.4)] animate-fadeIn">
+          <CheckCircle2 className="w-5 h-5 text-white shrink-0" />
+          <span className="font-bold">{successNotice}</span>
+        </div>
+      )}
+
+      {/* PLANOS DE ACOMPANHAMENTO // O "CARDÁPIO" ESTILO UBER/IFOOD */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-[10px] text-zinc-400 font-bold uppercase">
+              // PLANOS DE ACOMPANHAMENTO INTEGRADO
+            </div>
+            <h2 className="text-lg font-black uppercase text-white">
+              Escolha seu Nível de Acompanhamento no App
+            </h2>
           </div>
-          <span className="text-xs text-zinc-400">
-            Soberania estrita de dados
+          <span className="text-xs text-zinc-500 font-sans hidden sm:inline">
+            Cobrança mensal simplificada • Cancele quando quiser
           </span>
         </div>
 
-        {consents.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Plano 01: Personal Trainer */}
+          <div className="p-6 bg-zinc-950 border border-zinc-800 hover:border-zinc-500 transition-all flex flex-col justify-between space-y-6">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="w-8 h-8 bg-black border border-zinc-700 flex items-center justify-center text-white">
+                  <Dumbbell className="w-4 h-4" />
+                </div>
+                <span className="text-[9px] px-2 py-0.5 bg-zinc-900 border border-zinc-700 text-zinc-300 font-bold uppercase">
+                  PLANO TREINO
+                </span>
+              </div>
+
+              <div>
+                <h3 className="text-base font-black text-white uppercase">Personal Trainer (CREF)</h3>
+                <div className="flex items-baseline gap-1 mt-1">
+                  <span className="text-2xl font-black text-white">R$ 149</span>
+                  <span className="text-xs text-zinc-400 font-sans">/mês</span>
+                </div>
+              </div>
+
+              <p className="text-xs text-zinc-400 font-sans leading-relaxed">
+                Prescrição de fichas de treino personalizadas direto na sua tela, monitoramento de sobrecarga e cálculo de risco ACWR.
+              </p>
+
+              <div className="space-y-1.5 pt-2 border-t border-zinc-900 text-[11px] text-zinc-300">
+                <div className="flex items-center gap-1.5">
+                  <Check className="w-3.5 h-3.5 text-white shrink-0" />
+                  <span>Fichas semanais ajustadas por carga real</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Check className="w-3.5 h-3.5 text-white shrink-0" />
+                  <span>Cálculo científico de ACWR contra lesão</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Check className="w-3.5 h-3.5 text-white shrink-0" />
+                  <span>Feedback das séries direto no app</span>
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => handleQuickHirePro('pro_lucas_silva', 'Dr. Lucas Silva', 'COACH')}
+              className="w-full py-2.5 bg-white text-black font-black text-xs uppercase hover:bg-zinc-200 transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-[2px_2px_0px_0px_rgba(255,255,255,0.4)]"
+            >
+              <span>{hasConnectedCoach ? 'PLANO ATIVO' : 'CONTRATAR PERSONAL'}</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          {/* Plano 02: Nutricionista Esportiva */}
+          <div className="p-6 bg-zinc-950 border border-zinc-800 hover:border-zinc-500 transition-all flex flex-col justify-between space-y-6">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="w-8 h-8 bg-black border border-zinc-700 flex items-center justify-center text-white">
+                  <Droplet className="w-4 h-4" />
+                </div>
+                <span className="text-[9px] px-2 py-0.5 bg-zinc-900 border border-zinc-700 text-zinc-300 font-bold uppercase">
+                  PLANO DIETA
+                </span>
+              </div>
+
+              <div>
+                <h3 className="text-base font-black text-white uppercase">Nutricionista (CRN)</h3>
+                <div className="flex items-baseline gap-1 mt-1">
+                  <span className="text-2xl font-black text-white">R$ 129</span>
+                  <span className="text-xs text-zinc-400 font-sans">/mês</span>
+                </div>
+              </div>
+
+              <p className="text-xs text-zinc-400 font-sans leading-relaxed">
+                Metas diárias de calorias e macros calculadas por g/kg, balanço hídrico individual de Sawka e acompanhamento metabólico.
+              </p>
+
+              <div className="space-y-1.5 pt-2 border-t border-zinc-900 text-[11px] text-zinc-300">
+                <div className="flex items-center gap-1.5">
+                  <Check className="w-3.5 h-3.5 text-white shrink-0" />
+                  <span>Periodização de macros (g/kg corporal)</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Check className="w-3.5 h-3.5 text-white shrink-0" />
+                  <span>Protocolo Sawka de hidratação por suor</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Check className="w-3.5 h-3.5 text-white shrink-0" />
+                  <span>Ajustes semanais de gasto calórico TDEE</span>
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => handleQuickHirePro('pro_elena_vance', 'Elena Vance', 'NUTRITIONIST')}
+              className="w-full py-2.5 bg-white text-black font-black text-xs uppercase hover:bg-zinc-200 transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-[2px_2px_0px_0px_rgba(255,255,255,0.4)]"
+            >
+              <span>{hasConnectedNutri ? 'PLANO ATIVO' : 'CONTRATAR NUTRI'}</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          {/* Plano 03: Combo Completo */}
+          <div className="p-6 bg-zinc-950 border border-white hover:shadow-[0_0_20px_rgba(255,255,255,0.15)] transition-all flex flex-col justify-between space-y-6 relative">
+            <div className="absolute -top-3 right-4 px-2 py-0.5 bg-white text-black text-[9px] font-black uppercase">
+              MAIS POPULAR • ECONOMIZE R$ 49
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="w-8 h-8 bg-white text-black flex items-center justify-center font-bold">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <span className="text-[9px] px-2 py-0.5 bg-black border border-white text-white font-bold uppercase">
+                  COMBO COMPLETO
+                </span>
+              </div>
+
+              <div>
+                <h3 className="text-base font-black text-white uppercase">Personal + Nutri 360°</h3>
+                <div className="flex items-baseline gap-1 mt-1">
+                  <span className="text-2xl font-black text-white">R$ 229</span>
+                  <span className="text-xs text-zinc-400 font-sans">/mês</span>
+                </div>
+              </div>
+
+              <p className="text-xs text-zinc-400 font-sans leading-relaxed">
+                Treinador e Nutricionista trabalhando juntos na mesma base de dados. O personal enxerga sua ingestão e a nutri enxerga seu gasto real de treino.
+              </p>
+
+              <div className="space-y-1.5 pt-2 border-t border-zinc-900 text-[11px] text-zinc-300">
+                <div className="flex items-center gap-1.5">
+                  <Check className="w-3.5 h-3.5 text-white shrink-0" />
+                  <span>Sincronia total entre treino e dieta</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Check className="w-3.5 h-3.5 text-white shrink-0" />
+                  <span>Personal (CREF) + Nutricionista (CRN) dedicados</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Check className="w-3.5 h-3.5 text-white shrink-0" />
+                  <span>Resultados até 3x mais rápidos com suporte</span>
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                handleQuickHirePro('pro_lucas_silva', 'Dr. Lucas Silva', 'COACH');
+                handleQuickHirePro('pro_elena_vance', 'Elena Vance', 'NUTRITIONIST');
+              }}
+              className="w-full py-2.5 bg-white text-black font-black text-xs uppercase hover:bg-zinc-200 transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-[2px_2px_0px_0px_rgba(255,255,255,0.4)]"
+            >
+              <span>{hasConnectedCoach && hasConnectedNutri ? 'COMBO 360° ATIVO' : 'CONTRATAR COMBO 360°'}</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* VITRINE DE PROFISSIONAIS VERIFICADOS (SELEÇÃO DIRETA) */}
+      <div className="space-y-4 pt-4 border-t border-zinc-900">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-[10px] text-zinc-400 font-bold uppercase">
+              // ESPECIALISTAS HOMOLOGADOS PELO GYM LABS
+            </div>
+            <h2 className="text-lg font-black uppercase text-white">
+              Escolha seu Profissional com CREF e CRN Auditados
+            </h2>
+          </div>
+          <span className="text-xs text-zinc-500">{professionals.length} verificados</span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {professionals.map((pro) => {
+            const proName = pro.name || (pro as any).fullName || 'Profissional';
+            const proTitle = pro.title || (pro as any).specialty || (pro.specialties && pro.specialties.join(', ')) || 'Especialista';
+            const credNumber = pro.credentials?.[0]?.credentialNumber || (pro as any).licenseNumber || 'REGISTRO ATIVO';
+            const proJurisdiction = pro.credentials?.[0]?.jurisdiction || (pro as any).jurisdiction || pro.country || 'BR';
+
+            const isConnected = activeConsents.some(
+              (c) => (c?.granteeId && c.granteeId === pro.id) || (c?.granteeName && c.granteeName === proName)
+            );
+
+            const titleLower = (proTitle || '').toLowerCase();
+            const specLower = ((pro.specialties || []).join(' ')).toLowerCase();
+            const isCoach = titleLower.includes('personal') || titleLower.includes('coach') || specLower.includes('hypertrophy') || credNumber.includes('CREF');
+
+            return (
+              <div
+                key={pro.id}
+                className={`p-5 bg-black border transition-all flex flex-col justify-between space-y-4 ${
+                  isConnected
+                    ? 'border-white bg-zinc-950 shadow-[0_0_15px_rgba(255,255,255,0.12)]'
+                    : 'border-zinc-800 hover:border-zinc-600'
+                }`}
+              >
+                <div>
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <h4 className="font-bold text-white text-sm uppercase">{proName}</h4>
+                        {isConnected && (
+                          <span className="text-[8px] px-1.5 py-0.2 bg-white text-black font-black uppercase">
+                            CONECTADO
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-xs text-zinc-400 font-sans block mt-0.5">{proTitle}</span>
+                    </div>
+
+                    <span
+                      title="Registro homologado pelo Conselho de Classe"
+                      className="p-1 border border-zinc-700 bg-zinc-900 text-white"
+                    >
+                      <ShieldCheck className="w-3.5 h-3.5 text-white" />
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-zinc-400 mt-2 font-sans line-clamp-3 leading-relaxed">
+                    {pro.bio}
+                  </p>
+
+                  <div className="mt-4 space-y-1.5 text-[11px] text-zinc-400 border-t border-zinc-900 pt-2 font-mono">
+                    <div className="flex items-center justify-between">
+                      <span className="text-zinc-500">Registro Oficial:</span>
+                      <span className="text-white font-bold">{credNumber}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-zinc-500">Jurisdição:</span>
+                      <span className="text-zinc-300">{proJurisdiction}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-zinc-500">Avaliação Média:</span>
+                      <span className="text-white font-bold">★ 4.9 / 5.0 (42 alunos)</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => handleQuickHirePro(pro.id, proName, isCoach ? 'COACH' : 'NUTRITIONIST')}
+                    className={`w-full py-2 text-xs font-bold uppercase transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                      isConnected
+                        ? 'bg-zinc-900 border border-zinc-700 text-zinc-300 hover:text-white hover:border-white'
+                        : 'bg-white text-black hover:bg-zinc-200 font-black shadow-[2px_2px_0px_0px_rgba(255,255,255,0.4)]'
+                    }`}
+                  >
+                    {isConnected ? (
+                      <>
+                        <Check className="w-3.5 h-3.5" />
+                        <span>SINCRONIZADO // ATIVO</span>
+                      </>
+                    ) : (
+                      <>
+                        <Zap className="w-3.5 h-3.5" />
+                        <span>CONTRATAR / CONECTAR (1 CLIQUE)</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* PAINEL DE CONTROLE DE PERMISSÕES & LGPD */}
+      <div className="p-5 bg-black border border-zinc-800 space-y-4">
+        <div className="flex items-center justify-between border-b border-zinc-900 pb-3">
+          <div className="flex items-center gap-2">
+            <Lock className="w-4 h-4 text-white" />
+            <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+              Autorizações Ativas de Compartilhamento ({activeConsents.length})
+            </h3>
+          </div>
+          <span className="text-[10px] text-zinc-500 font-bold uppercase">
+            Controle Soberano do Atleta (LGPD)
+          </span>
+        </div>
+
+        {activeConsents.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {consents.map((consent) => (
+            {activeConsents.map((consent) => (
               <div
                 key={consent.id}
-                className="p-4 bg-black border-2 border-zinc-800 space-y-3 flex flex-col justify-between"
+                className="p-4 bg-zinc-950 border border-zinc-800 space-y-3 flex flex-col justify-between"
               >
                 <div>
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-white text-xs uppercase">{consent.granteeName}</span>
-                    <span
-                      className={`text-[9px] px-2 py-0.5 font-bold uppercase border ${
-                        consent.status === 'ACTIVE'
-                          ? 'bg-[#39FF14]/15 text-[#39FF14] border-[#39FF14]/30'
-                          : 'bg-[#FF0055]/15 text-[#FF0055] border-[#FF0055]/30'
-                      }`}
-                    >
+                    <span className="text-[9px] px-2 py-0.5 font-bold uppercase border border-white text-white">
                       {consent.status}
                     </span>
                   </div>
@@ -161,7 +548,7 @@ export const ProfessionalsView: React.FC = () => {
                     {consent.scopes.map((scope) => (
                       <span
                         key={scope}
-                        className="text-[9px] px-1.5 py-0.5 bg-zinc-900 border border-zinc-800 text-[#00F0FF]"
+                        className="text-[9px] px-1.5 py-0.5 bg-black border border-zinc-800 text-zinc-300 uppercase"
                       >
                         {scope}
                       </span>
@@ -169,217 +556,130 @@ export const ProfessionalsView: React.FC = () => {
                   </div>
                 </div>
 
-                {consent.status === 'ACTIVE' && (
-                  <div className="pt-2 border-t border-zinc-900 flex items-center justify-between">
-                    <span className="text-[10px] text-zinc-500">
-                      Expira em: {new Date(consent.expiresAt).toLocaleDateString('pt-BR')}
-                    </span>
-                    <button
-                      onClick={() => revokeConsent(consent.id, 'Revogado pelo usuário na Central de Soberania')}
-                      className="text-[11px] text-[#FF0055] hover:underline font-bold transition-colors"
-                    >
-                      Revogar Acesso Imediatamente
-                    </button>
-                  </div>
-                )}
+                <div className="pt-2 border-t border-zinc-900 flex items-center justify-between">
+                  <span className="text-[10px] text-zinc-500 font-sans">
+                    Expira em: {new Date(consent.expiresAt).toLocaleDateString('pt-BR')}
+                  </span>
+                  <button
+                    onClick={() => revokeConsent(consent.id, 'Revogado pelo usuário')}
+                    className="text-[11px] text-red-400 hover:text-red-300 hover:underline font-bold transition-colors cursor-pointer uppercase"
+                  >
+                    Revogar Acesso
+                  </button>
+                </div>
               </div>
             ))}
           </div>
         ) : (
           <p className="text-xs text-zinc-400 py-2 font-sans">
-            Você não compartilhou dados com nenhum profissional externo. Sua telemetria está 100% privada e isolada neste dispositivo.
+            Você não compartilhou dados com nenhum profissional externo. Sua telemetria está privada e isolada neste dispositivo.
           </p>
         )}
       </div>
 
-      {/* Directory of Verified Specialists */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-bold text-white uppercase tracking-wider">
-            Profissionais Homologados pelo Gym Labs
-          </h3>
-          <span className="text-xs text-zinc-500">{professionals.length} verificados</span>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {professionals.map((pro) => (
-            <div
-              key={pro.id}
-              className="p-5 bg-[#050505] border-2 border-zinc-800 hover:border-[#00F0FF] transition-all flex flex-col justify-between space-y-4 neo-box"
-            >
-              <div>
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h4 className="font-bold text-white text-sm uppercase">{pro.fullName}</h4>
-                    <span className="text-xs text-[#00F0FF]">{pro.specialty}</span>
-                  </div>
-                  {pro.verifiedByGymLabs && (
-                    <span
-                      title="Registro verificado no respectivo Conselho (CREF/CRN)"
-                      className="p-1 neo-box bg-[#39FF14]/10 text-[#39FF14] border border-[#39FF14]/30"
-                    >
-                      <ShieldCheck className="w-4 h-4" />
-                    </span>
-                  )}
-                </div>
-
-                <p className="text-xs text-zinc-400 mt-2 font-sans line-clamp-2">{pro.bio}</p>
-
-                <div className="mt-3 space-y-1 text-[11px] text-zinc-400 border-t border-zinc-900 pt-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-zinc-500">Registro Profissional:</span>
-                    <span className="text-white font-bold">{pro.licenseNumber}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-zinc-500">Região de Atuação:</span>
-                    <span className="text-zinc-300">{pro.jurisdiction}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-zinc-500">Atletas em Acompanhamento:</span>
-                    <span className="text-white">{pro.activeClientsCount}</span>
-                  </div>
-                </div>
-
-                {pro.credentials && pro.credentials.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-3">
-                    {pro.credentials.map((cred, idx) => (
-                      <span
-                        key={idx}
-                        className="text-[9px] px-1.5 py-0.5 bg-black border border-zinc-800 text-zinc-300"
-                      >
-                        {cred}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <button
-                onClick={() => {
-                  setTargetProId(pro.id);
-                  setShowGrantModal(true);
-                }}
-                className="w-full py-2 neo-box bg-black border border-zinc-700 hover:border-[#00F0FF] text-[#00F0FF] hover:bg-[#00F0FF] hover:text-black text-xs font-bold transition-all uppercase"
-              >
-                Conectar & Autorizar
-              </button>
-            </div>
-          ))}
-        </div>
-      </div>
-
       {/* Grant Consent Modal */}
       {showGrantModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md"
-          onClick={() => setShowGrantModal(false)}
-        >
-          <div
-            className="w-full max-w-lg bg-[#050505] border-2 border-zinc-800 neo-box-thick p-6 space-y-4"
-            onClick={(e) => e.stopPropagation()}
+        <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4">
+          <form
+            onSubmit={handleGrantConsent}
+            className="w-full max-w-lg bg-black border border-white p-6 space-y-4 shadow-[4px_4px_0px_0px_rgba(255,255,255,0.4)]"
           >
-            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
-              <div>
-                <h3 className="text-sm font-bold text-white uppercase tracking-wider">
-                  Termo de Consentimento Granular (LGPD)
-                </h3>
-                <p className="text-[11px] text-zinc-400">
-                  Defina exatamente quais dados o profissional poderá acessar.
-                </p>
-              </div>
+            <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
+              <h3 className="text-sm font-bold text-white uppercase">Ajustar Permissões Fisiológicas</h3>
               <button
                 type="button"
                 onClick={() => setShowGrantModal(false)}
-                className="text-zinc-400 hover:text-white"
+                className="text-zinc-400 hover:text-white cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleGrantConsent} className="space-y-4 text-xs">
-              <div>
-                <label className="block text-zinc-400 uppercase text-[10px] mb-1 font-bold">
-                  Profissional Destinatário
-                </label>
-                <select
-                  value={targetProId}
-                  onChange={(e) => setTargetProId(e.target.value)}
-                  className="w-full p-2.5 bg-black border border-zinc-700 text-white outline-none focus:border-[#00F0FF]"
-                >
-                  {professionals.map((p) => (
+            <div>
+              <label className="text-[10px] uppercase text-zinc-400 block mb-1 font-bold">Profissional Credenciado</label>
+              <select
+                value={targetProId}
+                onChange={(e) => setTargetProId(e.target.value)}
+                className="w-full p-2.5 bg-zinc-950 border border-zinc-700 text-white outline-none focus:border-white font-mono text-xs"
+              >
+                {professionals.map((p) => {
+                  const pName = p.name || (p as any).fullName || 'Profissional';
+                  const pTitle = p.title || (p as any).specialty || 'Especialista';
+                  const pCred = p.credentials?.[0]?.credentialNumber || (p as any).licenseNumber || '';
+                  return (
                     <option key={p.id} value={p.id}>
-                      {p.fullName} — {p.specialty} ({p.licenseNumber})
+                      {pName} ({pTitle} {pCred ? `• ${pCred}` : ''})
                     </option>
-                  ))}
-                </select>
-              </div>
+                  );
+                })}
+              </select>
+            </div>
 
-              <div>
-                <label className="block text-zinc-400 uppercase text-[10px] mb-1 font-bold">
-                  Finalidade do Acesso
-                </label>
-                <input
-                  type="text"
-                  value={purpose}
-                  onChange={(e) => setPurpose(e.target.value)}
-                  className="w-full p-2.5 bg-black border border-zinc-700 text-white outline-none focus:border-[#00F0FF]"
-                  placeholder="Ex: Prescrição de treino e periodização de força"
-                />
-              </div>
+            <div>
+              <label className="text-[10px] uppercase text-zinc-400 block mb-1 font-bold">Finalidade do Compartilhamento</label>
+              <input
+                type="text"
+                value={purpose}
+                onChange={(e) => setPurpose(e.target.value)}
+                className="w-full p-2.5 bg-zinc-950 border border-zinc-700 text-white outline-none focus:border-white font-mono text-xs"
+              />
+            </div>
 
-              <div>
-                <label className="block text-zinc-400 uppercase text-[10px] mb-1 font-bold">
-                  Escopos de Acesso Autorizados
-                </label>
-                <div className="space-y-2 mt-1">
-                  {ALL_SCOPES.map((sc) => {
-                    const isChecked = selectedScopes.includes(sc.id);
-                    return (
-                      <div
-                        key={sc.id}
-                        onClick={() => handleToggleScope(sc.id)}
-                        className={`p-2.5 border transition-all cursor-pointer flex items-center justify-between ${
-                          isChecked
-                            ? 'border-[#00F0FF] bg-[#00F0FF]/5 text-white'
-                            : 'border-zinc-800 bg-black text-zinc-400'
-                        }`}
-                      >
-                        <div>
-                          <div className="font-bold text-xs uppercase">{sc.label}</div>
-                          <div className="text-[10px] text-zinc-500 font-sans">{sc.description}</div>
-                        </div>
-                        <div
-                          className={`w-4 h-4 border flex items-center justify-center ${
-                            isChecked ? 'border-[#00F0FF] bg-[#00F0FF] text-black font-bold' : 'border-zinc-700'
-                          }`}
-                        >
-                          {isChecked && '✓'}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+            <div className="space-y-2">
+              <label className="text-[10px] uppercase text-zinc-400 block font-bold">Escopos de Acesso Permitidos:</label>
+              {ALL_SCOPES.map((sc) => {
+                const isChecked = selectedScopes.includes(sc.id);
+                return (
+                  <div
+                    key={sc.id}
+                    onClick={() => handleToggleScope(sc.id)}
+                    className={`p-2.5 border transition-all cursor-pointer flex items-center justify-between ${
+                      isChecked
+                        ? 'border-white bg-zinc-950 text-white'
+                        : 'border-zinc-800 bg-black text-zinc-500'
+                    }`}
+                  >
+                    <div>
+                      <div className="text-xs font-bold uppercase">{sc.label}</div>
+                      <div className="text-[10px] text-zinc-400 font-sans">{sc.description}</div>
+                    </div>
+                    <div
+                      className={`w-4 h-4 border flex items-center justify-center text-[10px] ${
+                        isChecked ? 'border-white bg-white text-black font-bold' : 'border-zinc-700'
+                      }`}
+                    >
+                      {isChecked ? '✓' : ''}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
 
-              <div className="pt-3 border-t border-zinc-800 flex items-center justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowGrantModal(false)}
-                  className="px-4 py-2 border border-zinc-700 text-zinc-400 hover:text-white"
-                >
-                  CANCELAR
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 neo-box bg-[#00F0FF] text-black font-bold text-xs uppercase hover:bg-white transition-all shadow-[2px_2px_0px_0px_rgba(0,240,255,0.4)]"
-                >
-                  EMITIR TERMO & AUTORIZAR
-                </button>
-              </div>
-            </form>
-          </div>
+            <div className="flex justify-end gap-2 pt-3 border-t border-zinc-800">
+              <button
+                type="button"
+                onClick={() => setShowGrantModal(false)}
+                className="px-4 py-2 border border-zinc-700 text-xs text-zinc-400 hover:text-white cursor-pointer uppercase"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="px-5 py-2 bg-white text-black font-bold text-xs uppercase hover:bg-zinc-200 cursor-pointer shadow-[2px_2px_0px_0px_rgba(255,255,255,0.4)]"
+              >
+                Salvar Permissões
+              </button>
+            </div>
+          </form>
         </div>
       )}
+
+      {/* Floating Chat Modal */}
+      <ChatMessengerModal
+        isOpen={isChatOpen}
+        onClose={() => setIsChatOpen(false)}
+        defaultContactId={chatRecipientId}
+      />
     </div>
   );
 };

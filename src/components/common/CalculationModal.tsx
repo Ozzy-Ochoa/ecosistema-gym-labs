@@ -14,57 +14,59 @@ export const CalculationModal: React.FC<CalculationModalProps> = ({ calculation,
   return (
     <div
       id="calculation-modal-overlay"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 font-mono select-none"
       onClick={onClose}
     >
       <div
         id="calculation-modal-container"
-        className="relative w-full max-w-2xl bg-[#0F172A] border border-cyan-500/30 rounded-2xl shadow-2xl shadow-cyan-950/50 overflow-hidden text-slate-100 max-h-[90vh] flex flex-col"
+        className="relative w-full max-w-2xl bg-black border border-white p-6 shadow-[4px_4px_0px_0px_rgba(255,255,255,0.4)] text-white max-h-[90vh] flex flex-col space-y-5"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-[#0B111E]">
-          <div className="flex items-center gap-2">
-            <div className="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-400">
-              <Calculator className="w-5 h-5" />
+        <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 border border-white flex items-center justify-center text-white">
+              <Calculator className="w-4 h-4" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="font-semibold text-base text-white">{calculation.formulaName}</h3>
-                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
+                <h3 className="font-bold text-sm uppercase text-white">{calculation.formulaName}</h3>
+                <span className="text-[10px] px-1.5 py-0.2 bg-zinc-900 border border-zinc-700 text-zinc-300">
                   v{calculation.formulaVersion}
                 </span>
               </div>
-              <p className="text-xs text-slate-400">Gym Labs Deterministic Science Engine</p>
+              <p className="text-[10px] text-zinc-500">GYM LABS // MOTOR DETERMINÍSTICO</p>
             </div>
           </div>
           <button
             id="close-calculation-modal-button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            className="p-1 border border-zinc-700 hover:border-white text-zinc-400 hover:text-white transition-colors cursor-pointer"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Content Body */}
-        <div className="p-6 overflow-y-auto space-y-6 text-sm">
+        <div className="overflow-y-auto space-y-5 text-xs pr-1">
           {/* Result Banner */}
-          <div className="p-4 rounded-xl bg-cyan-950/30 border border-cyan-500/30 flex items-center justify-between">
+          <div className="p-4 bg-zinc-950 border border-zinc-700 flex items-center justify-between">
             <div>
-              <span className="text-xs uppercase tracking-wider text-cyan-300 font-mono">Calculated Output</span>
-              <div className="text-2xl font-bold text-white font-mono-num mt-0.5">
+              <span className="text-[10px] uppercase tracking-wider text-zinc-400 block font-bold">
+                Resultado Computado
+              </span>
+              <div className="text-2xl font-black text-white font-mono mt-1">
                 {calculation.result !== null ? (
                   typeof calculation.result === 'object' ? (
                     JSON.stringify(calculation.result)
                   ) : (
                     <>
                       {calculation.result}{' '}
-                      <span className="text-sm font-normal text-cyan-300">{calculation.unit}</span>
+                      <span className="text-xs font-normal text-zinc-400">{calculation.unit}</span>
                     </>
                   )
                 ) : (
-                  <span className="text-amber-400 text-lg">INSUFFICIENT DATA</span>
+                  <span className="text-zinc-400 text-base">DADOS INSUFICIENTES</span>
                 )}
               </div>
             </div>
@@ -72,100 +74,55 @@ export const CalculationModal: React.FC<CalculationModalProps> = ({ calculation,
           </div>
 
           {/* Mathematical Expression */}
-          <div>
-            <h4 className="text-xs font-mono uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-1.5">
-              <Calculator className="w-3.5 h-3.5 text-cyan-400" />
-              Mathematical Formula
-            </h4>
-            <div className="p-3.5 rounded-xl bg-[#070A12] border border-slate-800 font-mono text-xs text-cyan-300 overflow-x-auto leading-relaxed">
-              {calculation.mathematicalExpression}
+          <div className="space-y-1.5">
+            <h4 className="text-[10px] uppercase font-bold text-zinc-400">Expressão Matemática</h4>
+            <div className="p-3 bg-zinc-950 border border-zinc-800 text-zinc-300 font-mono text-[11px] overflow-x-auto">
+              {calculation.formulaExpression}
             </div>
           </div>
 
-          {/* Inputs Record */}
-          <div>
-            <h4 className="text-xs font-mono uppercase tracking-wider text-slate-400 mb-2">
-              Verified Input Parameters
-            </h4>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-              {Object.entries(calculation.inputs).map(([key, value]) => (
-                <div key={key} className="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800">
-                  <span className="text-[10px] font-mono text-slate-400 block truncate">{key}</span>
-                  <span className="text-xs font-semibold text-slate-200 font-mono-num">
-                    {value !== null && value !== undefined ? String(value) : 'null'}
-                  </span>
+          {/* Inputs Audit */}
+          <div className="space-y-1.5">
+            <h4 className="text-[10px] uppercase font-bold text-zinc-400">Variáveis e Entradas</h4>
+            <div className="p-3 bg-zinc-950 border border-zinc-800 space-y-2 font-mono">
+              {Object.entries(calculation.inputsUsed).map(([key, input]: [string, any]) => (
+                <div key={key} className="flex items-center justify-between text-[11px] border-b border-zinc-900 pb-1">
+                  <span className="text-zinc-400">{key}:</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-white font-bold">{String(input?.value ?? input)}</span>
+                    {input?.provenance && (
+                      <span className="text-[9px] px-1 bg-zinc-900 border border-zinc-800 text-zinc-500 uppercase">
+                        {String(input.provenance)}
+                      </span>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Scientific Evidence & Citation */}
-          {calculation.evidenceCitation && (
-            <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-3">
-              <div className="flex items-center justify-between">
-                <h4 className="text-xs font-mono uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
-                  <BookOpen className="w-3.5 h-3.5" />
-                  Primary Scientific Evidence
-                </h4>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
-                  Level: {calculation.evidenceCitation.evidenceLevel}
-                </span>
-              </div>
-              <div>
-                <p className="text-xs font-medium text-slate-200">
-                  {calculation.evidenceCitation.shortCitation} — {calculation.evidenceCitation.fullTitle}
-                </p>
-                <p className="text-[11px] text-slate-400 italic mt-0.5">
-                  {calculation.evidenceCitation.journal} ({calculation.evidenceCitation.year})
-                </p>
-              </div>
-              <div className="p-2.5 rounded-lg bg-emerald-950/20 border border-emerald-500/20 text-xs text-slate-300">
-                <span className="font-semibold text-emerald-300">Key Finding: </span>
-                {calculation.evidenceCitation.keyFinding}
-              </div>
+          {/* Scientific Reference */}
+          <div className="p-3 bg-zinc-950 border border-zinc-800 space-y-2">
+            <div className="flex items-center gap-1.5 text-zinc-300 font-bold uppercase text-[10px]">
+              <BookOpen className="w-3.5 h-3.5" />
+              <span>Base Científica & Validação</span>
             </div>
-          )}
-
-          {/* Limitations & Uncertainty */}
-          {calculation.provenance.limitations && calculation.provenance.limitations.length > 0 && (
-            <div>
-              <h4 className="text-xs font-mono uppercase tracking-wider text-amber-400 mb-2 flex items-center gap-1.5">
-                <AlertTriangle className="w-3.5 h-3.5" />
-                Declared Scientific Limitations
-              </h4>
-              <ul className="space-y-1.5">
-                {calculation.provenance.limitations.map((limitation, i) => (
-                  <li key={i} className="text-xs text-slate-300 flex items-start gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 mt-1.5 shrink-0" />
-                    <span>{limitation}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* Clinical Disclaimer */}
-          <div className="p-3 rounded-lg bg-slate-900 border border-slate-800/80 text-[11px] text-slate-400 flex items-start gap-2">
-            <ShieldCheck className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
-            <span>
-              <strong className="text-slate-300">Gym Labs Safety Boundary:</strong>{' '}
-              {calculation.clinicalBoundaryDisclaimer}
-            </span>
+            <p className="text-[11px] text-zinc-400 font-sans leading-relaxed">
+              {calculation.scientificBasis.authors} ({calculation.scientificBasis.year}).{' '}
+              <em>{calculation.scientificBasis.title}</em>.{' '}
+              {calculation.scientificBasis.journal}. DOI: {calculation.scientificBasis.doi}
+            </p>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-3 border-t border-slate-800 bg-[#0B111E] flex items-center justify-between">
-          <div className="flex items-center gap-1.5 text-xs text-slate-400">
-            <CheckCircle2 className="w-3.5 h-3.5 text-cyan-400" />
-            <span>Reproducible Deterministic Calculation</span>
-          </div>
+        <div className="pt-3 border-t border-zinc-800 flex items-center justify-between text-[10px] text-zinc-500">
+          <span>Determinismo Estrito • Sem Ilusões</span>
           <button
-            id="calculation-modal-done-btn"
             onClick={onClose}
-            className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-white transition-colors"
+            className="px-4 py-1.5 bg-white text-black font-black uppercase hover:bg-zinc-200 transition-all cursor-pointer"
           >
-            Close Inspector
+            FECHAR
           </button>
         </div>
       </div>

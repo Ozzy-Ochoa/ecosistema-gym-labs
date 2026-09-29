@@ -28,6 +28,8 @@ export interface UserIdentity {
   unitSystem: UnitSystem;
   role: UserRole;
   createdAt: string;
+  weightKg?: number;
+  heightCm?: number;
 }
 
 export interface UserProfile {
@@ -58,6 +60,8 @@ export interface SavedUserAccount {
   preferredName?: string;
   role: UserRole;
   biologicalSex?: 'MALE' | 'FEMALE' | 'NOT_SPECIFIED';
+  dateOfBirth?: string;
+  activityLevel?: 'SEDENTARY' | 'LIGHTLY_ACTIVE' | 'MODERATELY_ACTIVE' | 'VERY_ACTIVE' | 'EXTREMELY_ACTIVE';
   primaryGoal?: 'HYPERTROPHY' | 'STRENGTH' | 'FAT_LOSS' | 'ENDURANCE' | 'LONGEVITY' | 'MOBILITY';
   pin?: string;
   password?: string;
@@ -78,7 +82,16 @@ export interface RegisterUserData {
   dateOfBirth?: string;
   weightKg?: number;
   heightCm?: number;
+  activityLevel?: 'SEDENTARY' | 'LIGHTLY_ACTIVE' | 'MODERATELY_ACTIVE' | 'VERY_ACTIVE' | 'EXTREMELY_ACTIVE';
   primaryGoal?: 'HYPERTROPHY' | 'STRENGTH' | 'FAT_LOSS' | 'ENDURANCE' | 'LONGEVITY' | 'MOBILITY';
+  measurements?: {
+    waistCm?: number;
+    hipCm?: number;
+    chestCm?: number;
+    armCm?: number;
+    thighCm?: number;
+    neckCm?: number;
+  };
   jurisdiction?: JurisdictionCode;
   professionalLicense?: string; // CREF for Coach, CRN for Nutritionist, CNPJ for Gym
   organizationName?: string;

@@ -6,9 +6,13 @@
 import React from 'react';
 import { GymLabsProvider, useGymLabs } from './context/GymLabsContext';
 import { AthleteTopNav } from './components/layout/AthleteTopNav';
+import { AthleteBottomNav } from './components/layout/AthleteBottomNav';
 import { CalculationModal } from './components/common/CalculationModal';
 import { EnclaveLockScreen } from './components/common/EnclaveLockScreen';
 import { AccountSwitcherModal } from './components/common/AccountSwitcherModal';
+import { SystemNotificationPopup } from './components/common/SystemNotificationPopup';
+import { NotificationCenterDrawer } from './components/common/NotificationCenterDrawer';
+import { DataCompatibilityModal } from './components/common/DataCompatibilityModal';
 
 // Presentation & Auth Views
 import { LandingView } from './components/views/LandingView';
@@ -27,6 +31,7 @@ import { TrainingView } from './components/views/TrainingView';
 import { HealthView } from './components/views/HealthView';
 import { DataLabView } from './components/views/DataLabView';
 import { IntelligenceView } from './components/views/IntelligenceView';
+import { ProfessionalsView } from './components/views/ProfessionalsView';
 import { SettingsView } from './components/views/SettingsView';
 
 const AppContent: React.FC = () => {
@@ -57,6 +62,9 @@ const AppContent: React.FC = () => {
         <CoachDashboardView />
         <AccountSwitcherModal />
         <EnclaveLockScreen />
+        <SystemNotificationPopup />
+        <NotificationCenterDrawer />
+        <DataCompatibilityModal />
       </div>
     );
   }
@@ -67,6 +75,9 @@ const AppContent: React.FC = () => {
         <NutritionistDashboardView />
         <AccountSwitcherModal />
         <EnclaveLockScreen />
+        <SystemNotificationPopup />
+        <NotificationCenterDrawer />
+        <DataCompatibilityModal />
       </div>
     );
   }
@@ -77,6 +88,9 @@ const AppContent: React.FC = () => {
         <GymDashboardView />
         <AccountSwitcherModal />
         <EnclaveLockScreen />
+        <SystemNotificationPopup />
+        <NotificationCenterDrawer />
+        <DataCompatibilityModal />
       </div>
     );
   }
@@ -87,6 +101,9 @@ const AppContent: React.FC = () => {
         <AdminDashboardView />
         <AccountSwitcherModal />
         <EnclaveLockScreen />
+        <SystemNotificationPopup />
+        <NotificationCenterDrawer />
+        <DataCompatibilityModal />
       </div>
     );
   }
@@ -107,6 +124,8 @@ const AppContent: React.FC = () => {
         return <DataLabView />;
       case 'intelligence':
         return <IntelligenceView />;
+      case 'professionals':
+        return <ProfessionalsView />;
       case 'settings':
         return <SettingsView />;
       default:
@@ -120,9 +139,12 @@ const AppContent: React.FC = () => {
       <AthleteTopNav />
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6 pb-20">
+      <main className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6 pb-28">
         {renderAthleteView()}
       </main>
+
+      {/* Cyber HUD Bottom Bar with Icons: Início, Treino, Saúde, etc. */}
+      <AthleteBottomNav />
 
       {/* Transparent Calculation Inspector Modal */}
       <CalculationModal
@@ -135,6 +157,15 @@ const AppContent: React.FC = () => {
 
       {/* Multi-Account & Profile Switcher Modal */}
       <AccountSwitcherModal />
+
+      {/* System Notification Pop-up Alert Banner */}
+      <SystemNotificationPopup />
+
+      {/* Notification Center Drawer / Bell Inbox */}
+      <NotificationCenterDrawer />
+
+      {/* Data Compatibility & Periodic Verification Modal */}
+      <DataCompatibilityModal />
     </div>
   );
 };

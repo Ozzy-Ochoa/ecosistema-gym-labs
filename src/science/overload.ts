@@ -44,8 +44,9 @@ export function evaluateProgressiveOverload(
   exerciseName: string,
   history: ExerciseSessionOccurrence[]
 ): OverloadAnalysisResult {
+  const targetName = (exerciseName || '').toLowerCase().trim();
   const filtered = history
-    .filter((h) => h.exerciseName.toLowerCase() === exerciseName.toLowerCase())
+    .filter((h) => (h.exerciseName || '').toLowerCase().trim() === targetName)
     .sort((a, b) => new Date(a.sessionDate).getTime() - new Date(b.sessionDate).getTime());
 
   if (filtered.length < 2) {

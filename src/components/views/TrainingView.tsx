@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useGymLabs } from '../../context/GymLabsContext';
 import { ProvenanceBadge } from '../common/ProvenanceBadge';
 import { BodyHudCanvas } from '../common/BodyHudCanvas';
+import { GymAttendanceCalendar } from '../common/GymAttendanceCalendar';
 import { calculateEstimated1RM } from '../../science/oneRepMax';
 import { calculateSessionRpeLoad } from '../../science/trainingLoad';
 import {
@@ -10,21 +11,14 @@ import {
   Play,
   Pause,
   RotateCcw,
-  CheckCircle,
   Clock,
   Flame,
   Activity,
-  AlertTriangle,
-  Info,
-  Calendar,
-  Layers,
-  ChevronRight,
   Filter,
-  Shield,
   Trophy,
   Heart,
   TrendingUp,
-  Crosshair,
+  X,
 } from 'lucide-react';
 import { Exercise, TrainingSession, TrainingSet } from '../../types/training';
 
@@ -39,11 +33,14 @@ export const TrainingView: React.FC = () => {
     evaluateOverload,
     tanakaKarvonen,
     openCalculationInspector,
+    activePrescribedWorkoutPlan,
   } = useGymLabs();
+
+  const [activePrescribedSessionIdx, setActivePrescribedSessionIdx] = useState(0);
 
   // Active Logger State
   const [isLogging, setIsLogging] = useState(false);
-  const [sessionTitle, setSessionTitle] = useState('Upper Body Hypertrophy');
+  const [sessionTitle, setSessionTitle] = useState('Hipertrofia Superior A');
   const [durationMinutes, setDurationMinutes] = useState(60);
   const [sessionRpe, setSessionRpe] = useState(8);
   const [patternFilter, setPatternFilter] = useState<string>('ALL');
@@ -136,7 +133,7 @@ export const TrainingView: React.FC = () => {
 
     const provObj = {
       type: 'REAL' as const,
-      source: 'User Logged Session',
+      source: 'Sessão Registrada pelo Usuário',
       recordedAt: new Date().toISOString(),
       confidence: 'HIGH' as const,
     };
@@ -182,21 +179,23 @@ export const TrainingView: React.FC = () => {
   const overloadResult = evaluateOverload(overloadTargetExercise);
 
   return (
-    <div id="gymlabs-training-view" className="space-y-8 select-none">
-      {/* Editorial Header / HUD Telemetry */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-6 border-b-2 border-zinc-800">
+    <div id="gymlabs-training-view" className="space-y-6 font-mono select-none">
+      {/* Header Banner */}
+      <div className="p-5 bg-zinc-950 border border-zinc-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-[10px] font-mono uppercase tracking-widest text-[#00F0FF] font-bold">
-              // LABCORE 2026 : MOTOR DE PERIODIZAÇÃO DETERMINÍSTICA
+            <span className="text-[10px] uppercase tracking-wider text-zinc-400 font-bold">
+              Motor de Periodização & Sobrecarga
             </span>
-            <span className="w-1.5 h-1.5 bg-[#00F0FF] animate-ping" />
+            <span className="text-[9px] px-1.5 py-0.2 bg-zinc-900 border border-zinc-700 text-zinc-300 font-bold">
+              AFERIÇÃO DETERMINÍSTICA
+            </span>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-black font-mono uppercase tracking-tight text-white">
-            Treinamento & Sobrecarga
+          <h1 className="text-xl lg:text-2xl font-black text-white tracking-tight uppercase">
+            Treinamento & Sobrecarga Progressiva
           </h1>
-          <p className="text-xs sm:text-sm text-zinc-400 font-mono mt-1">
-            Axiomas de Gabbett (ACWR), Epley/Brzycki (1RM), Tanaka (FCmáx) e Foster (Foster CR-10)
+          <p className="text-xs text-zinc-400 font-sans mt-0.5">
+            Métricas de Gabbett (ACWR), Epley/Brzycki (1RM), Tanaka (FCmáx) e Foster (Session-RPE).
           </p>
         </div>
 
@@ -204,129 +203,254 @@ export const TrainingView: React.FC = () => {
         <button
           type="button"
           onClick={() => setIsLogging(!isLogging)}
-          className="neo-box px-5 py-3 text-xs font-mono font-bold uppercase flex items-center justify-center gap-2 border-2 border-[#00F0FF] bg-black text-[#00F0FF] hover:bg-[#00F0FF] hover:text-black transition-all shadow-[4px_4px_0px_0px_rgba(0,240,255,0.3)] active:translate-x-0.5 active:translate-y-0.5"
+          className="px-4 py-2 bg-white text-black font-black text-xs uppercase hover:bg-zinc-200 transition-all flex items-center gap-2 cursor-pointer shadow-[2px_2px_0px_0px_rgba(255,255,255,0.4)] shrink-0"
         >
           {isLogging ? (
             <>
               <Pause className="w-4 h-4" />
-              <span>Fechar Console</span>
+              <span>FECHAR CONSOLE</span>
             </>
           ) : (
             <>
               <Play className="w-4 h-4 fill-current" />
-              <span>Registrar Sessão de Treino</span>
+              <span>REGISTRAR TREINO</span>
             </>
           )}
         </button>
       </div>
 
-      {/* Interactive Anatomical 3D / HUD Vector Canvas */}
+      {/* Prescribed Workout Plan by Personal Trainer (Gym Labs Connected) */}
+      {activePrescribedWorkoutPlan && (
+        <div className="p-5 bg-zinc-950 border border-blue-900/60 shadow-[0_0_20px_rgba(59,130,246,0.1)] space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-zinc-800">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 bg-blue-600 text-white font-black flex items-center justify-center text-xs">
+                PT
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-black text-white uppercase tracking-wider">
+                    FICHA PRESCRIÇÃO PERSONAL TRAINER // GYM LABS TRAINER
+                  </span>
+                  <span className="text-[9px] px-1.5 py-0.2 bg-blue-950 text-blue-300 border border-blue-800 font-bold uppercase">
+                    SINCRONIZADO
+                  </span>
+                </div>
+                <div className="text-[11px] text-zinc-400 font-mono">
+                  Prescrito por: <strong className="text-white">{activePrescribedWorkoutPlan.authorName}</strong> • {activePrescribedWorkoutPlan.title} (v{activePrescribedWorkoutPlan.version})
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const sess = activePrescribedWorkoutPlan.sessions[activePrescribedSessionIdx] || activePrescribedWorkoutPlan.sessions[0];
+                  if (sess) {
+                    setSessionTitle(sess.name);
+                    setDurationMinutes(sess.estimatedDurationMinutes || 60);
+                    if (sess.exercises.length > 0) {
+                      const firstEx = sess.exercises[0];
+                      const matched = exercises.find((e) => e.name.toLowerCase().includes(firstEx.exerciseName.toLowerCase()) || firstEx.exerciseName.toLowerCase().includes(e.name.toLowerCase()));
+                      if (matched) setSelectedExerciseId(matched.id);
+                      setLoggedSets(
+                        Array.from({ length: firstEx.sets }).map((_, i) => ({
+                          setNumber: i + 1,
+                          reps: parseInt(firstEx.reps) || 10,
+                          loadKg: firstEx.loadKg || 60,
+                          rpe: firstEx.rpeTarget || 8.5,
+                          completed: true,
+                        }))
+                      );
+                    }
+                    setIsLogging(true);
+                  }
+                }}
+                className="px-4 py-2 bg-white text-black font-black text-xs uppercase hover:bg-zinc-200 transition-all cursor-pointer flex items-center gap-1.5 shadow-md"
+              >
+                <Dumbbell className="w-3.5 h-3.5" />
+                <span>CARREGAR NA ESTEIRA DE TREINO</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Sessions Selector Tabs */}
+          <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-1">
+            {activePrescribedWorkoutPlan.sessions.map((sess, idx) => (
+              <button
+                key={sess.id}
+                type="button"
+                onClick={() => setActivePrescribedSessionIdx(idx)}
+                className={`px-3 py-1.5 text-xs font-bold uppercase border transition-colors shrink-0 flex items-center gap-1.5 cursor-pointer ${
+                  activePrescribedSessionIdx === idx
+                    ? 'bg-white text-black border-white'
+                    : 'bg-black text-zinc-400 border-zinc-800 hover:text-white'
+                }`}
+              >
+                <span>{sess.splitLetter}:</span>
+                <span className="truncate max-w-[180px]">{sess.name.replace(/Treino [A-Z]: /, '')}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Current Session Prescribed Exercises */}
+          {(() => {
+            const currentSess = activePrescribedWorkoutPlan.sessions[activePrescribedSessionIdx] || activePrescribedWorkoutPlan.sessions[0];
+            if (!currentSess) return null;
+            return (
+              <div className="space-y-3">
+                <div className="text-[11px] text-zinc-400 font-mono flex items-center justify-between">
+                  <span>{currentSess.name} • Duração estimada: {currentSess.estimatedDurationMinutes} min</span>
+                  <span className="text-zinc-500">{currentSess.exercises.length} exercícios</span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {currentSess.exercises.map((ex, i) => (
+                    <div key={ex.id || i} className="p-3 bg-black border border-zinc-900 space-y-1 text-xs">
+                      <div className="flex items-start justify-between">
+                        <span className="text-white font-bold uppercase">{ex.exerciseName}</span>
+                        <span className="text-[9px] px-1.5 py-0.2 bg-zinc-900 text-zinc-400 font-mono">
+                          {ex.muscleGroup}
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-zinc-400 font-mono">
+                        <span className="text-blue-400 font-bold">{ex.sets} séries</span> × <span className="text-white font-bold">{ex.reps} reps</span> • Carga:{' '}
+                        <span className="text-emerald-400 font-bold">{ex.loadKg || 0} kg</span> • Descanso:{' '}
+                        <span className="text-zinc-200">{ex.restSeconds}s</span> • Alvo: RPE {ex.rpeTarget}
+                      </div>
+                      {ex.notes && (
+                        <p className="text-[10px] text-zinc-500 font-sans italic pt-0.5">{ex.notes}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {activePrescribedWorkoutPlan.generalInstructions && (
+                  <p className="text-[11px] text-zinc-400 font-sans italic border-l-2 border-blue-600 pl-3 pt-1">
+                    "{activePrescribedWorkoutPlan.generalInstructions}"
+                  </p>
+                )}
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
+      {/* Interactive Anatomical Vector Canvas */}
       <BodyHudCanvas />
 
-      {/* Primary Telemetry Metrics Grid (Neo-Brutalist) */}
+      {/* Primary Telemetry Metrics Grid (Strict Monochrome) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* ACWR Metric */}
-        <div className="neo-box-thick p-5 relative">
-          <div className="flex items-center justify-between text-zinc-400 text-[10px] font-mono uppercase">
+        <div className="p-4 bg-zinc-950 border border-zinc-800 space-y-2">
+          <div className="flex items-center justify-between text-zinc-400 text-[10px] uppercase font-bold">
             <span>Razão Carga Aguda:Crônica</span>
-            <ProvenanceBadge provenance="DETERMINISTIC_CALCULATION" size="sm" />
+            <span className="text-white border border-zinc-700 px-1 text-[9px]">ACWR</span>
           </div>
-          <div className="text-3xl font-black font-mono text-white mt-2">
-            {acwrMetrics.ratio !== null ? acwrMetrics.ratio.toFixed(2) : 'DADOS INSUF.'}
+          <div className="text-3xl font-black text-white">
+            {acwrMetrics.ratio !== null ? acwrMetrics.ratio.toFixed(2) : 'EM AQUISIÇÃO'}
           </div>
-          <div className="flex items-center justify-between mt-3 pt-2 border-t border-zinc-900 text-[11px] font-mono">
-            <span className="text-[#39FF14] font-bold">{acwrMetrics.status}</span>
-            <span className="text-zinc-500">Gabbett (2016)</span>
+          <div className="flex items-center justify-between pt-2 border-t border-zinc-900 text-[11px]">
+            <span className="text-white font-bold">{acwrMetrics.status}</span>
+            <span className="text-zinc-500 font-sans">Gabbett (2016)</span>
           </div>
         </div>
 
         {/* 7-day Acute Workload */}
-        <div className="neo-box-thick p-5">
-          <div className="flex items-center justify-between text-zinc-400 text-[10px] font-mono uppercase">
+        <div className="p-4 bg-zinc-950 border border-zinc-800 space-y-2">
+          <div className="flex items-center justify-between text-zinc-400 text-[10px] uppercase font-bold">
             <span>Carga Aguda (7 Dias)</span>
-            <span className="text-[#00F0FF] font-mono font-bold">AGUDO</span>
+            <span className="text-zinc-300 border border-zinc-700 px-1 text-[9px]">AGUDO</span>
           </div>
-          <div className="text-3xl font-black font-mono text-[#00F0FF] mt-2">
-            {Math.round(acwrMetrics.acuteLoad7d || 0)} <span className="text-xs text-zinc-400 font-normal">AU</span>
+          <div className="text-3xl font-black text-white">
+            {Math.round(acwrMetrics.acuteLoad7d || 0)} <span className="text-xs text-zinc-500 font-normal">UA</span>
           </div>
-          <div className="mt-3 pt-2 border-t border-zinc-900 text-[11px] font-mono text-zinc-400">
+          <div className="pt-2 border-t border-zinc-900 text-[11px] text-zinc-400 font-sans">
             Soma semanal dos últimos 7 dias
           </div>
         </div>
 
         {/* 28-day Chronic Workload */}
-        <div className="neo-box-thick p-5">
-          <div className="flex items-center justify-between text-zinc-400 text-[10px] font-mono uppercase">
+        <div className="p-4 bg-zinc-950 border border-zinc-800 space-y-2">
+          <div className="flex items-center justify-between text-zinc-400 text-[10px] uppercase font-bold">
             <span>Carga Crônica (28 Dias)</span>
-            <span className="text-[#39FF14] font-mono font-bold">FITNESS</span>
+            <span className="text-zinc-300 border border-zinc-700 px-1 text-[9px]">FITNESS</span>
           </div>
-          <div className="text-3xl font-black font-mono text-[#39FF14] mt-2">
-            {Math.round(acwrMetrics.chronicLoad28d || 0)} <span className="text-xs text-zinc-400 font-normal">AU</span>
+          <div className="text-3xl font-black text-white">
+            {Math.round(acwrMetrics.chronicLoad28d || 0)} <span className="text-xs text-zinc-500 font-normal">UA</span>
           </div>
-          <div className="mt-3 pt-2 border-t border-zinc-900 text-[11px] font-mono text-zinc-400">
+          <div className="pt-2 border-t border-zinc-900 text-[11px] text-zinc-400 font-sans">
             Capacidade adaptativa basal 28d
           </div>
         </div>
 
         {/* Histórico Registrado */}
-        <div className="neo-box-thick p-5">
-          <div className="flex items-center justify-between text-zinc-400 text-[10px] font-mono uppercase">
-            <span>Histórico Registrado</span>
-            <span className={`font-mono text-xs font-bold ${acwrMetrics.dataSufficient ? 'text-[#39FF14]' : 'text-[#FFB800]'}`}>
-              {acwrMetrics.dataSufficient ? 'SUFICIENTE' : 'EM AQUISIÇÃO'}
+        <div className="p-4 bg-zinc-950 border border-zinc-800 space-y-2">
+          <div className="flex items-center justify-between text-zinc-400 text-[10px] uppercase font-bold">
+            <span>Janela Amostral</span>
+            <span className="text-white font-bold text-[10px]">
+              {acwrMetrics.dataSufficient ? 'CALIBRADO' : 'COLETANDO'}
             </span>
           </div>
-          <div className="text-3xl font-black font-mono text-white mt-2">
+          <div className="text-3xl font-black text-white">
             {acwrMetrics.daysRecorded} <span className="text-xs text-zinc-500 font-normal">/ 28 dias</span>
           </div>
-          <div className="mt-3 pt-2 border-t border-zinc-900 text-[11px] font-mono text-zinc-400">
-            Janela ideal: 0.80 - 1.30 ACWR
+          <div className="pt-2 border-t border-zinc-900 text-[11px] text-zinc-400 font-sans">
+            Zona ótima: 0.80 - 1.30 ACWR
           </div>
         </div>
       </div>
+
+      {/* Gym Attendance & Monthly Plan Module */}
+      <GymAttendanceCalendar />
 
       {/* Active Session Logger Drawer */}
       {isLogging && (
         <form
           id="active-session-form"
           onSubmit={handleFinishSession}
-          className="neo-box-thick p-6 bg-black border-2 border-[#00F0FF] space-y-6 shadow-[6px_6px_0px_0px_rgba(0,240,255,0.25)]"
+          className="p-5 bg-black border border-white space-y-5 shadow-[4px_4px_0px_0px_rgba(255,255,255,0.4)]"
         >
-          <div className="flex items-center justify-between pb-4 border-b border-zinc-800">
+          <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
             <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 bg-[#00F0FF] animate-pulse inline-block" />
-              <h3 className="font-mono text-base font-bold text-white uppercase tracking-tight">
+              <span className="w-2 h-2 bg-white inline-block" />
+              <h3 className="text-sm font-bold text-white uppercase tracking-tight">
                 Console de Ingestão de Treinamento // Foster Session-RPE
               </h3>
             </div>
-            <span className="text-xs font-mono text-[#00F0FF] border border-[#00F0FF] px-2 py-0.5">
-              TELEMETRIA AO VIVO
-            </span>
+            <button
+              type="button"
+              onClick={() => setIsLogging(false)}
+              className="text-zinc-400 hover:text-white cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 font-mono">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <label className="block text-xs uppercase text-zinc-400 mb-1">Título da Sessão</label>
+              <label className="block text-[10px] uppercase text-zinc-400 mb-1 font-bold">Título da Sessão</label>
               <input
                 type="text"
                 value={sessionTitle}
                 onChange={(e) => setSessionTitle(e.target.value)}
-                className="w-full px-3 py-2 bg-[#050505] border border-zinc-800 text-xs text-white focus:border-[#00F0FF] focus:outline-none"
+                className="w-full p-2 bg-zinc-950 border border-zinc-700 text-xs text-white outline-none focus:border-white font-mono"
               />
             </div>
             <div>
-              <label className="block text-xs uppercase text-zinc-400 mb-1">Duração (minutos)</label>
+              <label className="block text-[10px] uppercase text-zinc-400 mb-1 font-bold">Duração (minutos)</label>
               <input
                 type="number"
                 min="5"
                 max="240"
                 value={durationMinutes}
                 onChange={(e) => setDurationMinutes(Number(e.target.value))}
-                className="w-full px-3 py-2 bg-[#050505] border border-zinc-800 text-xs text-white focus:border-[#00F0FF] focus:outline-none"
+                className="w-full p-2 bg-zinc-950 border border-zinc-700 text-xs text-white outline-none focus:border-white font-mono"
               />
             </div>
             <div>
-              <label className="block text-xs uppercase text-zinc-400 mb-1">
+              <label className="block text-[10px] uppercase text-zinc-400 mb-1 font-bold">
                 RPE da Sessão (1-10 Foster CR-10)
               </label>
               <input
@@ -336,21 +460,21 @@ export const TrainingView: React.FC = () => {
                 step="0.5"
                 value={sessionRpe}
                 onChange={(e) => setSessionRpe(Number(e.target.value))}
-                className="w-full px-3 py-2 bg-[#050505] border border-zinc-800 text-xs text-white focus:border-[#00F0FF] focus:outline-none"
+                className="w-full p-2 bg-zinc-950 border border-zinc-700 text-xs text-white outline-none focus:border-white font-mono"
               />
             </div>
           </div>
 
           {/* Exercise & Set Builder */}
-          <div className="space-y-4 pt-2">
+          <div className="space-y-3 pt-2 border-t border-zinc-900">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-white uppercase font-mono tracking-wider">
-                Exercício Composto Alvo:
+              <label className="text-xs font-bold text-white uppercase tracking-wider">
+                Exercício Alvo:
               </label>
               <button
                 type="button"
                 onClick={handleAddSet}
-                className="px-2.5 py-1 neo-box text-xs text-[#00F0FF] border border-[#00F0FF] hover:bg-[#00F0FF] hover:text-black font-mono font-bold flex items-center gap-1 transition-all"
+                className="px-2.5 py-1 bg-white text-black text-xs font-bold uppercase hover:bg-zinc-200 transition-all flex items-center gap-1 cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Adicionar Série</span>
@@ -358,16 +482,16 @@ export const TrainingView: React.FC = () => {
             </div>
 
             {/* Pattern Filter */}
-            <div className="flex flex-wrap gap-1.5 items-center font-mono">
-              <Filter className="w-3.5 h-3.5 text-zinc-500" />
+            <div className="flex flex-wrap gap-1 items-center">
+              <Filter className="w-3.5 h-3.5 text-zinc-500 mr-1" />
               {['ALL', 'SQUAT', 'HINGE', 'HORIZONTAL_PUSH', 'VERTICAL_PUSH', 'HORIZONTAL_PULL', 'VERTICAL_PULL'].map((pat) => (
                 <button
                   key={pat}
                   type="button"
                   onClick={() => setPatternFilter(pat)}
-                  className={`px-2 py-0.5 text-[10px] transition-colors ${
+                  className={`px-2 py-0.5 text-[10px] transition-colors cursor-pointer uppercase font-bold ${
                     patternFilter === pat
-                      ? 'bg-[#00F0FF] text-black font-bold'
+                      ? 'bg-white text-black'
                       : 'bg-black border border-zinc-800 text-zinc-400 hover:text-white'
                   }`}
                 >
@@ -379,7 +503,7 @@ export const TrainingView: React.FC = () => {
             <select
               value={selectedExerciseId}
               onChange={(e) => setSelectedExerciseId(e.target.value)}
-              className="w-full px-3 py-2 bg-[#050505] border border-zinc-800 text-xs text-white font-mono focus:border-[#00F0FF] focus:outline-none"
+              className="w-full p-2 bg-zinc-950 border border-zinc-700 text-xs text-white outline-none focus:border-white font-mono"
             >
               {filteredExercises.map((ex) => (
                 <option key={ex.id} value={ex.id}>
@@ -389,8 +513,8 @@ export const TrainingView: React.FC = () => {
             </select>
 
             {/* Set Table */}
-            <div className="space-y-2 font-mono">
-              <div className="grid grid-cols-12 gap-2 text-[10px] text-zinc-500 uppercase px-2">
+            <div className="space-y-1.5">
+              <div className="grid grid-cols-12 gap-2 text-[10px] text-zinc-500 uppercase px-2 font-bold">
                 <span className="col-span-2">Série</span>
                 <span className="col-span-3">Carga (kg)</span>
                 <span className="col-span-3">Repetições</span>
@@ -401,7 +525,7 @@ export const TrainingView: React.FC = () => {
               {loggedSets.map((st, idx) => (
                 <div
                   key={idx}
-                  className="grid grid-cols-12 gap-2 items-center p-2 bg-[#050505] border border-zinc-800"
+                  className="grid grid-cols-12 gap-2 items-center p-2 bg-zinc-950 border border-zinc-800"
                 >
                   <span className="col-span-2 text-xs font-bold text-white">#0{st.setNumber}</span>
                   <input
@@ -411,7 +535,7 @@ export const TrainingView: React.FC = () => {
                     step="0.5"
                     value={st.loadKg}
                     onChange={(e) => handleUpdateSet(idx, 'loadKg', Number(e.target.value))}
-                    className="col-span-3 px-2 py-1 bg-black border border-zinc-800 text-xs text-white text-center focus:border-[#00F0FF] focus:outline-none font-bold"
+                    className="col-span-3 p-1 bg-black border border-zinc-800 text-xs text-white text-center outline-none focus:border-white font-bold"
                   />
                   <input
                     type="number"
@@ -419,7 +543,7 @@ export const TrainingView: React.FC = () => {
                     max="100"
                     value={st.reps}
                     onChange={(e) => handleUpdateSet(idx, 'reps', Number(e.target.value))}
-                    className="col-span-3 px-2 py-1 bg-black border border-zinc-800 text-xs text-white text-center focus:border-[#00F0FF] focus:outline-none font-bold"
+                    className="col-span-3 p-1 bg-black border border-zinc-800 text-xs text-white text-center outline-none focus:border-white font-bold"
                   />
                   <input
                     type="number"
@@ -428,12 +552,12 @@ export const TrainingView: React.FC = () => {
                     step="0.5"
                     value={st.rpe}
                     onChange={(e) => handleUpdateSet(idx, 'rpe', Number(e.target.value))}
-                    className="col-span-3 px-2 py-1 bg-black border border-zinc-800 text-xs text-[#00F0FF] text-center focus:border-[#00F0FF] focus:outline-none font-bold"
+                    className="col-span-3 p-1 bg-black border border-zinc-800 text-xs text-white text-center outline-none focus:border-white font-bold"
                   />
                   <button
                     type="button"
                     onClick={() => handleRemoveSet(idx)}
-                    className="col-span-1 text-right text-zinc-500 hover:text-[#FF0055] text-xs font-bold"
+                    className="col-span-1 text-right text-zinc-500 hover:text-white text-sm font-bold cursor-pointer"
                   >
                     ×
                   </button>
@@ -442,55 +566,55 @@ export const TrainingView: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-zinc-800">
+          <div className="flex justify-end gap-2 pt-3 border-t border-zinc-800">
             <button
               type="button"
               onClick={() => setIsLogging(false)}
-              className="px-4 py-2 neo-box text-xs font-mono text-zinc-400 hover:text-white"
+              className="px-4 py-2 border border-zinc-700 text-xs text-zinc-400 hover:text-white cursor-pointer uppercase"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="px-6 py-2 neo-box bg-[#00F0FF] text-black font-mono font-bold text-xs uppercase hover:bg-cyan-300 shadow-[3px_3px_0px_0px_rgba(0,240,255,0.4)]"
+              className="px-5 py-2 bg-white text-black font-black text-xs uppercase hover:bg-zinc-200 transition-all cursor-pointer shadow-[2px_2px_0px_0px_rgba(255,255,255,0.4)]"
             >
-              Gravar Sessão no Enclave
+              Gravar Sessão no Histórico
             </button>
           </div>
         </form>
       )}
 
       {/* PR VAULT (4 VECTORS OF PERSONAL RECORDS) */}
-      <div className="neo-box-thick p-6 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-zinc-800 gap-2">
+      <div className="p-5 bg-black border border-zinc-800 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-zinc-900 gap-2">
           <div className="flex items-center gap-2">
-            <Trophy className="w-5 h-5 text-[#FFB800]" />
-            <h3 className="font-mono text-sm font-bold uppercase tracking-wider text-white">
-              PR Vault // Cofre de Recordes Pessoais (4 Vetores)
+            <Trophy className="w-4 h-4 text-white" />
+            <h3 className="text-xs font-bold uppercase tracking-wider text-white">
+              Cofre de Recordes Pessoais (PR Vault)
             </h3>
           </div>
-          <span className="text-[10px] font-mono text-[#FFB800] border border-[#FFB800] px-2 py-0.5">
+          <span className="text-[10px] text-zinc-400 border border-zinc-800 px-2 py-0.5">
             DETERMINÍSTICO // 0 DADOS INVENTADOS
           </span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
           {prVault.slice(0, 4).map((record) => (
-            <div key={record.exerciseName} className="p-4 bg-[#050505] border border-zinc-800 space-y-3 font-mono">
-              <span className="text-xs font-bold text-white truncate block">{record.exerciseName}</span>
+            <div key={record.exerciseName} className="p-3 bg-zinc-950 border border-zinc-800 space-y-2.5">
+              <span className="text-xs font-bold text-white truncate block uppercase">{record.exerciseName}</span>
 
               {/* Vector 1: Max Absolute Load */}
               <div className="p-2 bg-black border border-zinc-900">
-                <span className="text-[9px] uppercase text-zinc-500 block">1. Carga Absoluta Máxima</span>
-                <span className="text-xl font-bold text-[#FFB800]">{record.maxAbsoluteLoadKg} kg</span>
+                <span className="text-[9px] uppercase text-zinc-500 block font-bold">1. Carga Absoluta Máxima</span>
+                <span className="text-lg font-black text-white">{record.maxAbsoluteLoadKg} kg</span>
               </div>
 
               {/* Vector 2: Max Single-Set Volume */}
               <div className="p-2 bg-black border border-zinc-900">
-                <span className="text-[9px] uppercase text-zinc-500 block">2. Maior Volume por Série</span>
-                <span className="text-base font-bold text-[#00F0FF]">
+                <span className="text-[9px] uppercase text-zinc-500 block font-bold">2. Maior Volume por Série</span>
+                <span className="text-sm font-bold text-white">
                   {record.maxSetVolumeKg.volumeKg} kg{' '}
-                  <span className="text-[10px] text-zinc-400 font-normal">
+                  <span className="text-[10px] text-zinc-500 font-normal">
                     ({record.maxSetVolumeKg.reps}r @ {record.maxSetVolumeKg.loadKg}kg)
                   </span>
                 </span>
@@ -498,17 +622,17 @@ export const TrainingView: React.FC = () => {
 
               {/* Vector 3: Max Estimated 1RM */}
               <div className="p-2 bg-black border border-zinc-900">
-                <span className="text-[9px] uppercase text-zinc-500 block">3. 1RM Submáxima (Epley)</span>
-                <span className="text-base font-bold text-[#39FF14]">
+                <span className="text-[9px] uppercase text-zinc-500 block font-bold">3. 1RM Submáxima (Epley)</span>
+                <span className="text-sm font-bold text-white">
                   {record.maxEstimated1RmKg.estimated1Rm} kg
                 </span>
               </div>
 
               {/* Vector 4: Peak Rep Records */}
-              <div className="text-[10px] text-zinc-400">
-                <span>Data do Recorde: </span>
-                <strong className="text-zinc-200">
-                  {new Date(record.maxLoadDate).toLocaleDateString()}
+              <div className="text-[10px] text-zinc-500">
+                <span>Data: </span>
+                <strong className="text-zinc-300">
+                  {new Date(record.maxLoadDate).toLocaleDateString('pt-BR')}
                 </strong>
               </div>
             </div>
@@ -516,12 +640,12 @@ export const TrainingView: React.FC = () => {
         </div>
       </div>
 
-      {/* DETERMINISTIC PROGRESSIVE OVERLOAD ENGINE (STRICT >= 2 SESSIONS RULE) */}
-      <div className="neo-box-thick p-6 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-zinc-800 gap-2">
+      {/* PROGRESSIVE OVERLOAD ENGINE */}
+      <div className="p-5 bg-black border border-zinc-800 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-zinc-900 gap-2">
           <div className="flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-[#00F0FF]" />
-            <h3 className="font-mono text-sm font-bold uppercase tracking-wider text-white">
+            <TrendingUp className="w-4 h-4 text-white" />
+            <h3 className="text-xs font-bold uppercase tracking-wider text-white">
               Motor de Sobrecarga Progressiva Determinística
             </h3>
           </div>
@@ -529,7 +653,7 @@ export const TrainingView: React.FC = () => {
             <select
               value={overloadTargetExercise}
               onChange={(e) => setOverloadTargetExercise(e.target.value)}
-              className="px-2 py-1 bg-black border border-zinc-700 text-xs font-mono text-white focus:border-[#00F0FF] focus:outline-none"
+              className="p-1.5 bg-black border border-zinc-700 text-xs font-mono text-white outline-none focus:border-white"
             >
               {exercises.map((ex) => (
                 <option key={ex.id} value={ex.name}>
@@ -541,64 +665,46 @@ export const TrainingView: React.FC = () => {
         </div>
 
         {/* Evaluation Banner */}
-        <div
-          className={`p-4 border font-mono ${
-            overloadResult.status === 'PROGRESSÃO'
-              ? 'border-[#39FF14] bg-[#39FF14]/5 text-white'
-              : overloadResult.status === 'DADOS INSUFICIENTES'
-              ? 'border-[#FFB800] bg-[#FFB800]/5 text-[#FFB800]'
-              : overloadResult.status === 'REGRESSÃO' || overloadResult.status === 'ESTAGNAÇÃO'
-              ? 'border-[#FF0055] bg-[#FF0055]/5 text-white'
-              : 'border-zinc-700 bg-zinc-950 text-white'
-          }`}
-        >
-          <div className="flex items-center justify-between pb-2 border-b border-zinc-800/80">
+        <div className="p-4 border border-zinc-800 bg-zinc-950">
+          <div className="flex items-center justify-between pb-2 border-b border-zinc-900">
             <div className="flex items-center gap-2">
-              <span className="text-xs uppercase text-zinc-400">Classificação:</span>
-              <span
-                className={`text-sm font-black px-2 py-0.5 border ${
-                  overloadResult.status === 'PROGRESSÃO'
-                    ? 'border-[#39FF14] text-[#39FF14]'
-                    : overloadResult.status === 'DADOS INSUFICIENTES'
-                    ? 'border-[#FFB800] text-[#FFB800]'
-                    : 'border-[#FF0055] text-[#FF0055]'
-                }`}
-              >
+              <span className="text-[10px] uppercase text-zinc-400 font-bold">Classificação:</span>
+              <span className="text-xs font-black px-2 py-0.5 border border-white text-white">
                 {overloadResult.status}
               </span>
             </div>
-            <span className="text-[10px] text-zinc-400">
-              Sessões Analisadas: <strong>{overloadResult.totalSessionsRecorded}</strong>
+            <span className="text-[10px] text-zinc-500">
+              Sessões Analisadas: <strong className="text-white">{overloadResult.totalSessionsRecorded}</strong>
             </span>
           </div>
 
-          <p className="text-xs text-zinc-300 mt-2 leading-relaxed">
+          <p className="text-xs text-zinc-300 mt-2 font-sans leading-relaxed">
             {overloadResult.reasoning}
           </p>
 
           {overloadResult.status !== 'DADOS INSUFICIENTES' && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3 pt-3 border-t border-zinc-800 text-xs">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3 pt-3 border-t border-zinc-900 text-xs">
               <div>
-                <span className="text-[9px] text-zinc-500 uppercase block">Delta Pico Carga:</span>
-                <strong className={overloadResult.loadDeltaKg >= 0 ? 'text-[#39FF14]' : 'text-[#FF0055]'}>
+                <span className="text-[9px] text-zinc-500 uppercase block">Delta Carga:</span>
+                <strong className="text-white">
                   {overloadResult.loadDeltaKg >= 0 ? `+${overloadResult.loadDeltaKg}` : overloadResult.loadDeltaKg} kg
                 </strong>
               </div>
               <div>
                 <span className="text-[9px] text-zinc-500 uppercase block">Delta Tonelagem:</span>
-                <strong className={overloadResult.tonnageDeltaKg >= 0 ? 'text-[#00F0FF]' : 'text-[#FF0055]'}>
+                <strong className="text-white">
                   {overloadResult.tonnageDeltaKg >= 0 ? `+${overloadResult.tonnageDeltaKg}` : overloadResult.tonnageDeltaKg} kg
                 </strong>
               </div>
               <div>
                 <span className="text-[9px] text-zinc-500 uppercase block">Sessão Anterior:</span>
-                <strong className="text-zinc-300">
+                <strong className="text-zinc-400">
                   {overloadResult.previousSession?.maxLoadKg || 0} kg max
                 </strong>
               </div>
               <div>
                 <span className="text-[9px] text-zinc-500 uppercase block">Sessão Recente:</span>
-                <strong className="text-[#00F0FF]">
+                <strong className="text-white">
                   {overloadResult.currentSession?.maxLoadKg || 0} kg max
                 </strong>
               </div>
@@ -608,33 +714,33 @@ export const TrainingView: React.FC = () => {
       </div>
 
       {/* TANAKA & KARVONEN CARDIO ZONES ENGINE */}
-      <div className="neo-box-thick p-6 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-zinc-800 gap-2">
+      <div className="p-5 bg-black border border-zinc-800 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-zinc-900 gap-2">
           <div className="flex items-center gap-2">
-            <Heart className="w-5 h-5 text-[#FF0055]" />
-            <h3 className="font-mono text-sm font-bold uppercase tracking-wider text-white">
+            <Heart className="w-4 h-4 text-white" />
+            <h3 className="text-xs font-bold uppercase tracking-wider text-white">
               Zonas Cardiovasculares // Tanaka et al. (2001) & Karvonen
             </h3>
           </div>
-          <span className="text-[10px] font-mono text-[#00F0FF] border border-[#00F0FF] px-2 py-0.5">
+          <span className="text-[10px] text-zinc-400 border border-zinc-800 px-2 py-0.5">
             FCmáx: {tanakaKarvonen.result.maxHeartRateBpm} BPM // FCR: {tanakaKarvonen.result.heartRateReserveBpm} BPM
           </span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 font-mono">
+        <div className="grid grid-cols-1 sm:grid-cols-5 gap-2.5">
           {tanakaKarvonen.result.zones.map((z) => (
             <div
               key={z.zone}
-              className="p-3 bg-[#050505] border border-zinc-800 space-y-2 hover:border-[#00F0FF] transition-all"
+              className="p-3 bg-zinc-950 border border-zinc-800 space-y-1.5"
             >
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-[#00F0FF]">{z.zone}</span>
+                <span className="text-xs font-bold text-white">{z.zone}</span>
                 <span className="text-[10px] text-zinc-500">{z.targetPctRange}</span>
               </div>
-              <div className="text-lg font-bold text-white">
-                {z.minBpm} - {z.maxBpm} <span className="text-[10px] text-zinc-500">BPM</span>
+              <div className="text-base font-black text-white">
+                {z.minBpm} - {z.maxBpm} <span className="text-[10px] text-zinc-500 font-normal">BPM</span>
               </div>
-              <p className="text-[10px] text-zinc-400 leading-tight">
+              <p className="text-[10px] text-zinc-400 leading-tight font-sans">
                 {z.metabolicFocus}
               </p>
             </div>
@@ -645,44 +751,44 @@ export const TrainingView: React.FC = () => {
       {/* SUBMAXIMAL 1RM EXTRAPOLATION & REST TIMER GRID */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Submaximal 1RM Calculator */}
-        <div className="neo-box-thick p-6 space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
+        <div className="p-5 bg-black border border-zinc-800 space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-zinc-900">
             <div className="flex items-center gap-2">
-              <Flame className="w-5 h-5 text-[#FFB800]" />
-              <h3 className="font-mono text-sm font-bold uppercase tracking-wider text-white">
-                Calculadora Submáxima de 1RM (Epley / Brzycki)
+              <Flame className="w-4 h-4 text-white" />
+              <h3 className="text-xs font-bold uppercase tracking-wider text-white">
+                Calculadora Submáxima de 1RM (Epley)
               </h3>
             </div>
-            <span className="text-[10px] font-mono text-[#FFB800] border border-[#FFB800] px-2 py-0.5">
+            <span className="text-[10px] text-zinc-400 border border-zinc-800 px-2 py-0.5">
               EPLEY 1985
             </span>
           </div>
 
-          <div className="grid grid-cols-3 gap-3 font-mono">
+          <div className="grid grid-cols-3 gap-2">
             <div>
-              <label className="text-[10px] uppercase text-zinc-500 block mb-1">Carga (kg)</label>
+              <label className="text-[10px] uppercase text-zinc-500 block mb-1 font-bold">Carga (kg)</label>
               <input
                 type="number"
                 min="20"
                 max="500"
                 value={calcLoad}
                 onChange={(e) => setCalcLoad(Number(e.target.value))}
-                className="w-full px-2 py-1.5 bg-black border border-zinc-800 text-sm font-bold text-white focus:border-[#FFB800] focus:outline-none"
+                className="w-full p-2 bg-zinc-950 border border-zinc-800 text-xs font-bold text-white outline-none focus:border-white"
               />
             </div>
             <div>
-              <label className="text-[10px] uppercase text-zinc-500 block mb-1">Repetições</label>
+              <label className="text-[10px] uppercase text-zinc-500 block mb-1 font-bold">Repetições</label>
               <input
                 type="number"
                 min="1"
                 max="12"
                 value={calcReps}
                 onChange={(e) => setCalcReps(Number(e.target.value))}
-                className="w-full px-2 py-1.5 bg-black border border-zinc-800 text-sm font-bold text-white focus:border-[#FFB800] focus:outline-none"
+                className="w-full p-2 bg-zinc-950 border border-zinc-800 text-xs font-bold text-white outline-none focus:border-white"
               />
             </div>
             <div>
-              <label className="text-[10px] uppercase text-zinc-500 block mb-1">RPE (Borg)</label>
+              <label className="text-[10px] uppercase text-zinc-500 block mb-1 font-bold">RPE (Borg)</label>
               <input
                 type="number"
                 min="6"
@@ -690,22 +796,22 @@ export const TrainingView: React.FC = () => {
                 step="0.5"
                 value={calcRpe}
                 onChange={(e) => setCalcRpe(Number(e.target.value))}
-                className="w-full px-2 py-1.5 bg-black border border-zinc-800 text-sm font-bold text-[#00F0FF] focus:border-[#00F0FF] focus:outline-none"
+                className="w-full p-2 bg-zinc-950 border border-zinc-800 text-xs font-bold text-white outline-none focus:border-white"
               />
             </div>
           </div>
 
           {estimated1RMResult.result ? (
             <>
-              <div className="p-4 bg-black border border-zinc-800 flex items-center justify-between font-mono">
+              <div className="p-3 bg-zinc-950 border border-zinc-800 flex items-center justify-between">
                 <div>
-                  <span className="text-[10px] text-zinc-500 uppercase block">1RM Estimada (Epley):</span>
-                  <div className="text-3xl font-black text-[#FFB800]">
+                  <span className="text-[10px] text-zinc-500 uppercase block font-bold">1RM Estimada (Epley):</span>
+                  <div className="text-2xl font-black text-white">
                     {estimated1RMResult.result.estimated1RmKg} <span className="text-xs text-zinc-500 font-normal">kg</span>
                   </div>
                 </div>
                 <div className="text-right">
-                  <span className="text-[10px] text-zinc-500 uppercase block">Faixa de Dispersão (±3%):</span>
+                  <span className="text-[10px] text-zinc-500 uppercase block font-bold">Dispersão (±3%):</span>
                   <span className="text-xs text-zinc-300 font-bold">
                     {Math.round(estimated1RMResult.result.estimated1RmKg * 0.97)} - {Math.round(estimated1RMResult.result.estimated1RmKg * 1.03)} kg
                   </span>
@@ -713,15 +819,15 @@ export const TrainingView: React.FC = () => {
               </div>
 
               {/* Intensity Spectrum Table */}
-              <div className="grid grid-cols-4 gap-2 font-mono text-center text-xs">
+              <div className="grid grid-cols-4 gap-2 text-center text-xs">
                 {[
                   { pct: 90, reps: '3-4 reps' },
                   { pct: 85, reps: '5-6 reps' },
                   { pct: 80, reps: '7-8 reps' },
                   { pct: 75, reps: '9-10 reps' },
                 ].map((t) => (
-                  <div key={t.pct} className="p-2 bg-[#050505] border border-zinc-800">
-                    <span className="text-[10px] text-zinc-500 block">{t.pct}% 1RM</span>
+                  <div key={t.pct} className="p-2 bg-zinc-950 border border-zinc-800">
+                    <span className="text-[10px] text-zinc-500 block font-bold">{t.pct}% 1RM</span>
                     <strong className="text-white">
                       {Math.round(estimated1RMResult.result!.estimated1RmKg * (t.pct / 100))} kg
                     </strong>
@@ -731,34 +837,30 @@ export const TrainingView: React.FC = () => {
               </div>
             </>
           ) : (
-            <div className="p-4 bg-black border border-zinc-800 text-xs text-zinc-500 font-mono text-center">
+            <div className="p-4 bg-zinc-950 border border-zinc-800 text-xs text-zinc-500 text-center">
               Insira carga e repetições válidas para extrapolação submáxima.
             </div>
           )}
         </div>
 
-        {/* Inter-set Rest Chronometer & Autoregulation */}
-        <div className="neo-box-thick p-6 space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
+        {/* Inter-set Rest Chronometer */}
+        <div className="p-5 bg-black border border-zinc-800 space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-zinc-900">
             <div className="flex items-center gap-2">
-              <Clock className="w-5 h-5 text-[#00F0FF]" />
-              <h3 className="font-mono text-sm font-bold uppercase tracking-wider text-white">
-                Cronômetro de Recuperação Entre Séries
+              <Clock className="w-4 h-4 text-white" />
+              <h3 className="text-xs font-bold uppercase tracking-wider text-white">
+                Cronômetro de Descanso Entre Séries
               </h3>
             </div>
-            <span className="text-[10px] font-mono text-[#00F0FF] border border-[#00F0FF] px-2 py-0.5">
+            <span className="text-[10px] text-zinc-400 border border-zinc-800 px-2 py-0.5">
               AUTORREGULAÇÃO
             </span>
           </div>
 
-          <div className="p-6 bg-black border border-zinc-800 flex items-center justify-between font-mono">
+          <div className="p-4 bg-zinc-950 border border-zinc-800 flex items-center justify-between">
             <div>
-              <span className="text-[10px] uppercase text-zinc-500 block">Tempo Restante</span>
-              <div
-                className={`text-5xl font-black ${
-                  timerRemaining === 0 ? 'text-[#39FF14] animate-pulse' : 'text-white'
-                }`}
-              >
+              <span className="text-[10px] uppercase text-zinc-500 block font-bold">Tempo Restante</span>
+              <div className="text-4xl font-black text-white">
                 {Math.floor(timerRemaining / 60)}:{(timerRemaining % 60).toString().padStart(2, '0')}
               </div>
             </div>
@@ -767,11 +869,7 @@ export const TrainingView: React.FC = () => {
               <button
                 type="button"
                 onClick={handleToggleTimer}
-                className={`px-4 py-3 neo-box font-bold text-xs flex items-center gap-1.5 transition-all ${
-                  isTimerRunning
-                    ? 'bg-[#FFB800] text-black border border-[#FFB800]'
-                    : 'bg-[#00F0FF] text-black border border-[#00F0FF] shadow-[2px_2px_0px_0px_rgba(0,240,255,0.4)]'
-                }`}
+                className="px-4 py-2.5 bg-white text-black font-bold text-xs uppercase hover:bg-zinc-200 transition-all flex items-center gap-1.5 cursor-pointer shadow-[2px_2px_0px_0px_rgba(255,255,255,0.4)]"
               >
                 {isTimerRunning ? (
                   <>
@@ -788,7 +886,7 @@ export const TrainingView: React.FC = () => {
               <button
                 type="button"
                 onClick={handleResetTimer}
-                className="p-3 neo-box bg-[#050505] text-zinc-300 hover:text-white"
+                className="p-2.5 border border-zinc-700 bg-black text-zinc-300 hover:text-white cursor-pointer"
                 title="Resetar"
               >
                 <RotateCcw className="w-4 h-4" />
@@ -797,24 +895,23 @@ export const TrainingView: React.FC = () => {
           </div>
 
           {/* Quick Presets */}
-          <div className="flex flex-wrap items-center gap-2 font-mono">
-            <span className="text-[10px] text-zinc-500 uppercase">Presets:</span>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-[10px] text-zinc-500 uppercase font-bold">Presets:</span>
             {[
               { label: '30s (Metabólico)', sec: 30 },
               { label: '60s (Acessório)', sec: 60 },
               { label: '90s (Hipertrofia)', sec: 90 },
               { label: '120s (Composto)', sec: 120 },
               { label: '180s (Força)', sec: 180 },
-              { label: '300s (Potência Máx)', sec: 300 },
             ].map((p) => (
               <button
                 key={p.sec}
                 type="button"
                 onClick={() => handleStartTimer(p.sec)}
-                className={`px-2.5 py-1 text-[10px] transition-colors ${
+                className={`px-2 py-1 text-[10px] transition-colors cursor-pointer uppercase font-bold ${
                   restSeconds === p.sec
-                    ? 'bg-[#00F0FF] text-black font-bold'
-                    : 'bg-black border border-zinc-800 text-zinc-400 hover:text-white'
+                    ? 'bg-white text-black'
+                    : 'bg-zinc-950 border border-zinc-800 text-zinc-400 hover:text-white'
                 }`}
               >
                 {p.label}

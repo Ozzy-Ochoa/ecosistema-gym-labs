@@ -1,9 +1,9 @@
 import React from 'react';
 import { DataProvenance, ProvenanceType } from '../../types/provenance';
-import { ShieldCheck, Cpu, Sparkles, HelpCircle, TestTube, AlertCircle } from 'lucide-react';
+import { ShieldCheck, Cpu, Sparkles, HelpCircle, TestTube } from 'lucide-react';
 
 interface ProvenanceBadgeProps {
-  provenance: DataProvenance;
+  provenance?: DataProvenance | string | null;
   size?: 'sm' | 'md';
   onClick?: () => void;
 }
@@ -13,59 +13,94 @@ export const ProvenanceBadge: React.FC<ProvenanceBadgeProps> = ({ provenance, si
     switch (type) {
       case 'REAL':
         return {
-          label: 'REAL',
-          color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
+          label: 'DADO REAL',
+          color: 'bg-black text-white border-white',
           icon: ShieldCheck,
         };
       case 'CALCULATED':
         return {
-          label: 'CALCULATED',
-          color: 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30',
+          label: 'CALCULADO',
+          color: 'bg-zinc-950 text-white border-zinc-500',
           icon: Cpu,
         };
       case 'ESTIMATED':
         return {
-          label: 'ESTIMATED',
-          color: 'bg-amber-500/10 text-amber-300 border-amber-500/30',
+          label: 'ESTIMADO',
+          color: 'bg-zinc-950 text-zinc-300 border-zinc-700',
           icon: Sparkles,
         };
       case 'DEMO':
         return {
-          label: 'DEMO DATA',
-          color: 'bg-violet-500/15 text-violet-300 border-violet-500/40',
+          label: 'DEMO',
+          color: 'bg-zinc-950 text-zinc-400 border-zinc-800',
           icon: TestTube,
         };
       case 'INFERRED':
         return {
-          label: 'INFERRED',
-          color: 'bg-blue-500/10 text-blue-300 border-blue-500/30',
+          label: 'INFERIDO',
+          color: 'bg-zinc-950 text-zinc-400 border-zinc-800',
           icon: Sparkles,
         };
       case 'UNKNOWN':
       default:
         return {
-          label: 'NO DATA',
-          color: 'bg-slate-800 text-slate-400 border-slate-700',
+          label: 'SEM DADOS',
+          color: 'bg-zinc-950 text-zinc-500 border-zinc-800',
           icon: HelpCircle,
         };
     }
   };
 
-  const config = getBadgeConfig(provenance.type);
+  // Normalize provenance input safely whether it is an object, string, or undefined/null
+  let resolvedType: ProvenanceType = 'UNKNOWN';
+  let resolvedSource = 'GYM LABS Core';
+  let resolvedMethod = 'Fórmula Determinística';
+
+  if (typeof provenance === 'string') {
+    const rawUpper = provenance.toUpperCase();
+    if (rawUpper.includes('REAL')) {
+      resolvedType = 'REAL';
+    } else if (rawUpper.includes('CALCUL') || rawUpper.includes('DETERMINISTIC')) {
+      resolvedType = 'CALCULATED';
+    } else if (rawUpper.includes('ESTIMAT')) {
+      resolvedType = 'ESTIMATED';
+    } else if (rawUpper.includes('DEMO')) {
+      resolvedType = 'DEMO';
+    } else if (rawUpper.includes('INFER')) {
+      resolvedType = 'INFERRED';
+    } else {
+      resolvedType = 'CALCULATED';
+    }
+    resolvedSource = provenance;
+  } else if (provenance && typeof provenance === 'object') {
+    if (provenance.type) {
+      resolvedType = provenance.type;
+    }
+    if (provenance.source) {
+      resolvedSource = provenance.source;
+    }
+    if ((provenance as any).method || (provenance as any).calculationMethod) {
+      resolvedMethod = (provenance as any).method || (provenance as any).calculationMethod;
+    }
+  }
+
+  const config = getBadgeConfig(resolvedType);
   const Icon = config.icon;
-  const padding = size === 'sm' ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-1 text-xs';
+  const padding = size === 'sm' ? 'px-1.5 py-0.5 text-[9px]' : 'px-2 py-1 text-[11px]';
+  const typeKey = (resolvedType || 'unknown').toString().toLowerCase();
 
   return (
     <span
-      id={`provenance-badge-${provenance.type.toLowerCase()}`}
+      id={`provenance-badge-${typeKey}`}
       onClick={onClick}
-      title={`${provenance.type}: ${provenance.source} (${provenance.confidence} confidence)`}
-      className={`inline-flex items-center gap-1 font-mono tracking-wider font-semibold uppercase rounded-md border ${config.color} ${padding} transition-all duration-150 ${
-        onClick ? 'cursor-pointer hover:scale-105' : ''
+      className={`inline-flex items-center gap-1 font-mono font-bold uppercase tracking-wider border select-none ${config.color} ${padding} ${
+        onClick ? 'cursor-pointer hover:bg-white hover:text-black transition-colors' : ''
       }`}
+      title={`Fonte: ${resolvedSource} | Método: ${resolvedMethod}`}
     >
       <Icon className={size === 'sm' ? 'w-2.5 h-2.5' : 'w-3 h-3'} />
       <span>{config.label}</span>
     </span>
   );
 };
+

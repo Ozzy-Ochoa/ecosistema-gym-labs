@@ -2,13 +2,35 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { dataStore } from '../repositories/GymLabsDataStore';
 import { UserIdentity, UserProfile, CountryConfiguration, SavedUserAccount, RegisterUserData } from '../types/user';
 import { BodyCompositionRecord, CircumferenceRecord } from '../types/body';
-import { Exercise, TrainingSession, ACWRResult } from '../types/training';
+import { Exercise, TrainingSession, ACWRResult, DayAttendance } from '../types/training';
+import { SystemNotification } from '../types/notification';
 import { MealEntry, HydrationLog, FoodItem } from '../types/nutrition';
 import { SleepSession, SubjectiveWellnessLog, GLRecoveryScore } from '../types/recovery';
 import { ConsentGrant } from '../types/consent';
 import { AuditRecord } from '../types/audit';
 import { ProfessionalProfile } from '../types/professional';
 import { Organization } from '../types/organization';
+import {
+  NutriPatient,
+  NutriConsultation,
+  NutriAssessment,
+  NutriMealPlan,
+  NutriFinanceTransaction,
+  NutriLibraryItem,
+} from '../types/nutri';
+import {
+  TrainerStudent,
+  TrainerWorkoutPlan,
+  TrainerAssessment,
+  TrainerScheduleAppointment,
+  TrainerFinanceTransaction,
+} from '../types/trainer';
+import {
+  HealthTeamMember,
+  InterProfessionalConsent,
+  ChatMessage,
+  ProfessionalInvitation,
+} from '../types/ecosystem';
 import { JURISDICTIONS } from '../data/seedData';
 import { calculateACWR, DailyLoadRecord } from '../science/trainingLoad';
 import { computeGLRecoveryScore } from '../science/recoveryScore';
@@ -54,6 +76,11 @@ interface GymLabsContextType {
   isAuthenticated: boolean;
   authView: 'landing' | 'login' | 'register' | 'app';
   setAuthView: (view: 'landing' | 'login' | 'register' | 'app') => void;
+  authProduct: 'USER' | 'PROFESSIONAL' | 'GYM';
+  setAuthProduct: (product: 'USER' | 'PROFESSIONAL' | 'GYM') => void;
+  goToLoginWithProduct: (product?: 'USER' | 'PROFESSIONAL' | 'GYM') => void;
+  goToRegisterWithProduct: (product?: 'USER' | 'PROFESSIONAL' | 'GYM') => void;
+  quickAccessSampleAccount: (role: 'USER' | 'COACH' | 'NUTRITIONIST' | 'GYM') => boolean;
   login: (credentials: { email?: string; password?: string; pin?: string; accountId?: string }) => { success: boolean; error?: string };
   register: (data: RegisterUserData) => { success: boolean; error?: string };
   logout: () => void;
@@ -76,6 +103,7 @@ interface GymLabsContextType {
   // Identity & Profile
   identity: UserIdentity;
   updateIdentity: (updates: Partial<UserIdentity>) => void;
+  updateAccountEmail: (newEmail: string, currentPassword?: string) => { success: boolean; error?: string };
   profile: UserProfile;
   updateProfile: (updates: Partial<UserProfile>) => void;
   activeJurisdiction: CountryConfiguration;
@@ -91,6 +119,10 @@ interface GymLabsContextType {
   addCustomExercise: (exercise: Exercise) => void;
   trainingSessions: TrainingSession[];
   addTrainingSession: (session: TrainingSession) => void;
+  attendanceLogs: DayAttendance[];
+  setDayAttendance: (attendance: DayAttendance) => void;
+  scheduledDaysOfWeek: number[];
+  setScheduledDaysOfWeek: (days: number[]) => void;
   acwrMetrics: ACWRResult;
 
   // PR Vault & Progressive Overload Engine
@@ -155,6 +187,78 @@ interface GymLabsContextType {
   inspectionModal: DeterministicCalculationResult<any> | null;
   openCalculationInspector: (calc: DeterministicCalculationResult<any>) => void;
   closeCalculationInspector: () => void;
+
+  // System Notifications & Periodic Compatibility Verification
+  notifications: SystemNotification[];
+  unreadNotificationsCount: number;
+  activePopupNotification: SystemNotification | null;
+  dismissPopupNotification: (id: string) => void;
+  markNotificationAsRead: (id: string) => void;
+  markAllNotificationsAsRead: () => void;
+  removeNotification: (id: string) => void;
+  clearAllNotifications: () => void;
+  isNotificationCenterOpen: boolean;
+  setIsNotificationCenterOpen: (open: boolean) => void;
+  isQuickVerifyModalOpen: boolean;
+  setIsQuickVerifyModalOpen: (open: boolean) => void;
+  confirmDataCompatibility: (updates?: {
+    weightKg?: number;
+    heightCm?: number;
+    biologicalSex?: 'MALE' | 'FEMALE';
+    activityLevel?: any;
+  }) => void;
+  triggerPeriodicCheckSimulation: () => void;
+
+  // Gym Labs Nutri Professional System
+  nutriPatients: NutriPatient[];
+  saveNutriPatient: (p: NutriPatient) => void;
+  deleteNutriPatient: (id: string) => void;
+  nutriConsultations: NutriConsultation[];
+  saveNutriConsultation: (cst: NutriConsultation) => void;
+  nutriAssessments: NutriAssessment[];
+  saveNutriAssessment: (as: NutriAssessment) => void;
+  nutriMealPlans: NutriMealPlan[];
+  saveNutriMealPlan: (plan: NutriMealPlan) => void;
+  publishNutriMealPlan: (id: string) => void;
+  nutriFinances: NutriFinanceTransaction[];
+  saveNutriFinance: (tx: NutriFinanceTransaction) => void;
+  deleteNutriFinance: (id: string) => void;
+  nutriLibrary: NutriLibraryItem[];
+  saveNutriLibraryItem: (item: NutriLibraryItem) => void;
+
+  // Gym Labs Trainer Professional System
+  trainerStudents: TrainerStudent[];
+  saveTrainerStudent: (s: TrainerStudent) => void;
+  deleteTrainerStudent: (id: string) => void;
+  trainerWorkoutPlans: TrainerWorkoutPlan[];
+  saveTrainerWorkoutPlan: (plan: TrainerWorkoutPlan) => void;
+  publishTrainerWorkoutPlan: (id: string) => void;
+  trainerAssessments: TrainerAssessment[];
+  saveTrainerAssessment: (as: TrainerAssessment) => void;
+  trainerAppointments: TrainerScheduleAppointment[];
+  saveTrainerAppointment: (app: TrainerScheduleAppointment) => void;
+  trainerFinances: TrainerFinanceTransaction[];
+  saveTrainerFinance: (tx: TrainerFinanceTransaction) => void;
+  deleteTrainerFinance: (id: string) => void;
+
+  // Ecosystem, Health Team & Chat Communication
+  healthTeamMembers: HealthTeamMember[];
+  saveHealthTeamMember: (m: HealthTeamMember) => void;
+  removeHealthTeamMember: (id: string) => void;
+  interProfessionalConsents: InterProfessionalConsent[];
+  saveInterProfessionalConsent: (c: InterProfessionalConsent) => void;
+  chatMessages: ChatMessage[];
+  sendChatMessage: (msg: Omit<ChatMessage, 'id' | 'timestamp'>) => ChatMessage;
+  markChatAsRead: (conversationId: string, currentUserId: string) => void;
+  invitations: ProfessionalInvitation[];
+  createInvitation: (inv: Omit<ProfessionalInvitation, 'id' | 'createdAt' | 'code' | 'status'>) => ProfessionalInvitation;
+  acceptInvitation: (codeOrId: string) => boolean;
+  activePrescribedMealPlan: NutriMealPlan | undefined;
+  activePrescribedWorkoutPlan: TrainerWorkoutPlan | undefined;
+  activeChatRecipient: { id: string; name: string; role: string } | null;
+  setActiveChatRecipient: (r: { id: string; name: string; role: string } | null) => void;
+  isChatOpen: boolean;
+  setIsChatOpen: (open: boolean) => void;
 }
 
 const GymLabsContext = createContext<GymLabsContextType | null>(null);
@@ -169,6 +273,8 @@ export const GymLabsProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [circumferences, setCircumferences] = useState<CircumferenceRecord[]>(dataStore.getCircumferences());
   const [exercises, setExercises] = useState<Exercise[]>(dataStore.getExercises());
   const [trainingSessions, setTrainingSessions] = useState<TrainingSession[]>(dataStore.getTrainingSessions());
+  const [attendanceLogs, setAttendanceLogs] = useState<DayAttendance[]>(dataStore.getAttendanceLogs());
+  const [scheduledDaysOfWeek, setScheduledDaysOfWeekState] = useState<number[]>(dataStore.getScheduledDaysOfWeek());
   const [meals, setMeals] = useState<MealEntry[]>(dataStore.getMeals());
   const [foods] = useState<FoodItem[]>(dataStore.getFoods());
   const [hydration, setHydration] = useState<HydrationLog[]>(dataStore.getHydration());
@@ -193,6 +299,239 @@ export const GymLabsProvider: React.FC<{ children: React.ReactNode }> = ({ child
   // Modal Inspector
   const [inspectionModal, setInspectionModal] = useState<DeterministicCalculationResult<any> | null>(null);
 
+  // System Notifications & Periodic Compatibility Verification State
+  const [notifications, setNotifications] = useState<SystemNotification[]>(dataStore.getNotifications());
+  const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState<boolean>(false);
+  const [isQuickVerifyModalOpen, setIsQuickVerifyModalOpen] = useState<boolean>(false);
+
+  const refreshNotifications = useCallback(() => {
+    setNotifications(dataStore.getNotifications());
+  }, []);
+
+  const unreadNotificationsCount = useMemo(() => {
+    return notifications.filter((n) => !n.read).length;
+  }, [notifications]);
+
+  // Active popup notification (shown on screen if not dismissed)
+  const activePopupNotification = useMemo(() => {
+    const unDismissed = notifications.filter((n) => !n.dismissedPopup);
+    const mandatory = unDismissed.find((n) => n.type === 'MANDATORY_DATA');
+    if (mandatory) return mandatory;
+    const periodic = unDismissed.find((n) => n.type === 'PERIODIC_CHECK');
+    if (periodic) return periodic;
+    return unDismissed[0] || null;
+  }, [notifications]);
+
+  const dismissPopupNotification = useCallback((id: string) => {
+    dataStore.dismissNotificationPopup(id);
+    refreshNotifications();
+  }, [refreshNotifications]);
+
+  const markNotificationAsRead = useCallback((id: string) => {
+    dataStore.markNotificationAsRead(id);
+    refreshNotifications();
+  }, [refreshNotifications]);
+
+  const markAllNotificationsAsRead = useCallback(() => {
+    dataStore.markAllNotificationsAsRead();
+    refreshNotifications();
+  }, [refreshNotifications]);
+
+  const removeNotification = useCallback((id: string) => {
+    dataStore.removeNotification(id);
+    refreshNotifications();
+  }, [refreshNotifications]);
+
+  const clearAllNotifications = useCallback(() => {
+    dataStore.clearAllNotifications();
+    refreshNotifications();
+  }, [refreshNotifications]);
+
+  const confirmDataCompatibility = useCallback((updates?: {
+    weightKg?: number;
+    heightCm?: number;
+    biologicalSex?: 'MALE' | 'FEMALE';
+    activityLevel?: any;
+  }) => {
+    dataStore.confirmDataCompatibility(updates);
+    setIdentityState(dataStore.getIdentity());
+    setProfileState(dataStore.getProfile());
+    setBodyRecords(dataStore.getBodyRecords());
+    refreshNotifications();
+  }, [refreshNotifications]);
+
+  const triggerPeriodicCheckSimulation = useCallback(() => {
+    dataStore.triggerPeriodicCheckSimulation();
+    refreshNotifications();
+  }, [refreshNotifications]);
+
+  // Nutri State
+  const [nutriPatients, setNutriPatients] = useState<NutriPatient[]>(dataStore.getNutriPatients());
+  const [nutriConsultations, setNutriConsultations] = useState<NutriConsultation[]>(dataStore.getNutriConsultations());
+  const [nutriAssessments, setNutriAssessments] = useState<NutriAssessment[]>(dataStore.getNutriAssessments());
+  const [nutriMealPlans, setNutriMealPlans] = useState<NutriMealPlan[]>(dataStore.getNutriMealPlans());
+  const [nutriFinances, setNutriFinances] = useState<NutriFinanceTransaction[]>(dataStore.getNutriFinances());
+  const [nutriLibrary, setNutriLibrary] = useState<NutriLibraryItem[]>(dataStore.getNutriLibrary());
+
+  // Trainer State
+  const [trainerStudents, setTrainerStudents] = useState<TrainerStudent[]>(dataStore.getTrainerStudents());
+  const [trainerWorkoutPlans, setTrainerWorkoutPlans] = useState<TrainerWorkoutPlan[]>(dataStore.getTrainerWorkoutPlans());
+  const [trainerAssessments, setTrainerAssessments] = useState<TrainerAssessment[]>(dataStore.getTrainerAssessments());
+  const [trainerAppointments, setTrainerAppointments] = useState<TrainerScheduleAppointment[]>(dataStore.getTrainerAppointments());
+  const [trainerFinances, setTrainerFinances] = useState<TrainerFinanceTransaction[]>(dataStore.getTrainerFinances());
+
+  // Ecosystem State
+  const [healthTeamMembers, setHealthTeamMembers] = useState<HealthTeamMember[]>(dataStore.getHealthTeamMembers());
+  const [interProfessionalConsents, setInterProfessionalConsents] = useState<InterProfessionalConsent[]>(dataStore.getInterProfessionalConsents());
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>(dataStore.getChatMessages());
+  const [invitations, setInvitations] = useState<ProfessionalInvitation[]>(dataStore.getInvitations());
+  const [activeChatRecipient, setActiveChatRecipient] = useState<{ id: string; name: string; role: string } | null>(null);
+  const [isChatOpen, setIsChatOpen] = useState<boolean>(false);
+
+  // Sync callbacks - Nutri
+  const saveNutriPatient = useCallback((p: NutriPatient) => {
+    dataStore.saveNutriPatient(p);
+    setNutriPatients(dataStore.getNutriPatients());
+  }, []);
+
+  const deleteNutriPatient = useCallback((id: string) => {
+    dataStore.deleteNutriPatient(id);
+    setNutriPatients(dataStore.getNutriPatients());
+  }, []);
+
+  const saveNutriConsultation = useCallback((c: NutriConsultation) => {
+    dataStore.saveNutriConsultation(c);
+    setNutriConsultations(dataStore.getNutriConsultations());
+    setNutriPatients(dataStore.getNutriPatients());
+  }, []);
+
+  const saveNutriAssessment = useCallback((a: NutriAssessment) => {
+    dataStore.saveNutriAssessment(a);
+    setNutriAssessments(dataStore.getNutriAssessments());
+    setNutriPatients(dataStore.getNutriPatients());
+  }, []);
+
+  const saveNutriMealPlan = useCallback((plan: NutriMealPlan) => {
+    dataStore.saveNutriMealPlan(plan);
+    setNutriMealPlans(dataStore.getNutriMealPlans());
+    setNutriPatients(dataStore.getNutriPatients());
+  }, []);
+
+  const publishNutriMealPlan = useCallback((id: string) => {
+    dataStore.publishNutriMealPlan(id);
+    setNutriMealPlans(dataStore.getNutriMealPlans());
+    setNutriPatients(dataStore.getNutriPatients());
+  }, []);
+
+  const saveNutriFinance = useCallback((tx: NutriFinanceTransaction) => {
+    dataStore.saveNutriFinance(tx);
+    setNutriFinances(dataStore.getNutriFinances());
+  }, []);
+
+  const deleteNutriFinance = useCallback((id: string) => {
+    dataStore.deleteNutriFinance(id);
+    setNutriFinances(dataStore.getNutriFinances());
+  }, []);
+
+  const saveNutriLibraryItem = useCallback((item: NutriLibraryItem) => {
+    dataStore.saveNutriLibraryItem(item);
+    setNutriLibrary(dataStore.getNutriLibrary());
+  }, []);
+
+  // Trainer Callbacks
+  const saveTrainerStudent = useCallback((s: TrainerStudent) => {
+    dataStore.saveTrainerStudent(s);
+    setTrainerStudents(dataStore.getTrainerStudents());
+  }, []);
+
+  const deleteTrainerStudent = useCallback((id: string) => {
+    dataStore.deleteTrainerStudent(id);
+    setTrainerStudents(dataStore.getTrainerStudents());
+  }, []);
+
+  const saveTrainerWorkoutPlan = useCallback((p: TrainerWorkoutPlan) => {
+    dataStore.saveTrainerWorkoutPlan(p);
+    setTrainerWorkoutPlans(dataStore.getTrainerWorkoutPlans());
+    setTrainerStudents(dataStore.getTrainerStudents());
+  }, []);
+
+  const publishTrainerWorkoutPlan = useCallback((id: string) => {
+    dataStore.publishTrainerWorkoutPlan(id);
+    setTrainerWorkoutPlans(dataStore.getTrainerWorkoutPlans());
+    setTrainerStudents(dataStore.getTrainerStudents());
+  }, []);
+
+  const saveTrainerAssessment = useCallback((a: TrainerAssessment) => {
+    dataStore.saveTrainerAssessment(a);
+    setTrainerAssessments(dataStore.getTrainerAssessments());
+    setTrainerStudents(dataStore.getTrainerStudents());
+  }, []);
+
+  const saveTrainerAppointment = useCallback((app: TrainerScheduleAppointment) => {
+    dataStore.saveTrainerAppointment(app);
+    setTrainerAppointments(dataStore.getTrainerAppointments());
+  }, []);
+
+  const saveTrainerFinance = useCallback((tx: TrainerFinanceTransaction) => {
+    dataStore.saveTrainerFinance(tx);
+    setTrainerFinances(dataStore.getTrainerFinances());
+  }, []);
+
+  const deleteTrainerFinance = useCallback((id: string) => {
+    dataStore.deleteTrainerFinance(id);
+    setTrainerFinances(dataStore.getTrainerFinances());
+  }, []);
+
+  // Ecosystem Callbacks
+  const saveHealthTeamMember = useCallback((m: HealthTeamMember) => {
+    dataStore.saveHealthTeamMember(m);
+    setHealthTeamMembers(dataStore.getHealthTeamMembers());
+  }, []);
+
+  const removeHealthTeamMember = useCallback((id: string) => {
+    dataStore.removeHealthTeamMember(id);
+    setHealthTeamMembers(dataStore.getHealthTeamMembers());
+  }, []);
+
+  const saveInterProfessionalConsent = useCallback((c: InterProfessionalConsent) => {
+    dataStore.saveInterProfessionalConsent(c);
+    setInterProfessionalConsents(dataStore.getInterProfessionalConsents());
+  }, []);
+
+  const sendChatMessage = useCallback((msg: Omit<ChatMessage, 'id' | 'timestamp'>) => {
+    const sent = dataStore.sendChatMessage(msg);
+    setChatMessages(dataStore.getChatMessages());
+    return sent;
+  }, []);
+
+  const markChatAsRead = useCallback((convId: string, userId: string) => {
+    dataStore.markChatAsRead(convId, userId);
+    setChatMessages(dataStore.getChatMessages());
+  }, []);
+
+  const createInvitation = useCallback((inv: Omit<ProfessionalInvitation, 'id' | 'createdAt' | 'code' | 'status'>) => {
+    const created = dataStore.createInvitation(inv);
+    setInvitations(dataStore.getInvitations());
+    return created;
+  }, []);
+
+  const acceptInvitation = useCallback((codeOrId: string) => {
+    const accepted = dataStore.acceptInvitation(codeOrId);
+    if (accepted) {
+      setInvitations(dataStore.getInvitations());
+    }
+    return accepted;
+  }, []);
+
+  // Active Prescribed Plans for Aluno
+  const activePrescribedMealPlan = useMemo(() => {
+    return dataStore.getActivePrescribedMealPlanForStudent(identity.id);
+  }, [identity.id, nutriMealPlans]);
+
+  const activePrescribedWorkoutPlan = useMemo(() => {
+    return dataStore.getActivePrescribedWorkoutPlanForStudent(identity.id);
+  }, [identity.id, trainerWorkoutPlans]);
+
   // Multi-Account Switcher State
   const [savedAccounts, setSavedAccounts] = useState<SavedUserAccount[]>(dataStore.getSavedAccounts());
   const [activeAccountId, setActiveAccountId] = useState<string>(dataStore.getActiveAccountId());
@@ -203,6 +542,28 @@ export const GymLabsProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [authView, setAuthView] = useState<'landing' | 'login' | 'register' | 'app'>(
     dataStore.getIsAuthenticated() ? 'app' : 'landing'
   );
+  const [authProduct, setAuthProduct] = useState<'USER' | 'PROFESSIONAL' | 'GYM'>('USER');
+
+  const goToLoginWithProduct = (product?: 'USER' | 'PROFESSIONAL' | 'GYM') => {
+    if (product) setAuthProduct(product);
+    setAuthView('login');
+  };
+
+  const goToRegisterWithProduct = (product?: 'USER' | 'PROFESSIONAL' | 'GYM') => {
+    if (product) setAuthProduct(product);
+    setAuthView('register');
+  };
+
+  const quickAccessSampleAccount = (role: 'USER' | 'COACH' | 'NUTRITIONIST' | 'GYM'): boolean => {
+    const res = dataStore.quickAccessSampleAccount(role);
+    if (res.success) {
+      setIsAuthenticated(true);
+      setAuthView('app');
+      refreshAllState();
+      return true;
+    }
+    return false;
+  };
 
   const refreshAllState = useCallback(() => {
     setIsAuthenticated(dataStore.getIsAuthenticated());
@@ -214,12 +575,30 @@ export const GymLabsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setCircumferences(dataStore.getCircumferences());
     setExercises(dataStore.getExercises());
     setTrainingSessions(dataStore.getTrainingSessions());
+    setAttendanceLogs(dataStore.getAttendanceLogs());
+    setScheduledDaysOfWeekState(dataStore.getScheduledDaysOfWeek());
     setMeals(dataStore.getMeals());
     setHydration(dataStore.getHydration());
     setSleepSessions(dataStore.getSleepSessions());
     setWellnessLogs(dataStore.getWellnessLogs());
     setConsents(dataStore.getConsents());
     setAuditLogs(dataStore.getAuditLogs());
+    setNotifications(dataStore.getNotifications());
+    setNutriPatients(dataStore.getNutriPatients());
+    setNutriConsultations(dataStore.getNutriConsultations());
+    setNutriAssessments(dataStore.getNutriAssessments());
+    setNutriMealPlans(dataStore.getNutriMealPlans());
+    setNutriFinances(dataStore.getNutriFinances());
+    setNutriLibrary(dataStore.getNutriLibrary());
+    setTrainerStudents(dataStore.getTrainerStudents());
+    setTrainerWorkoutPlans(dataStore.getTrainerWorkoutPlans());
+    setTrainerAssessments(dataStore.getTrainerAssessments());
+    setTrainerAppointments(dataStore.getTrainerAppointments());
+    setTrainerFinances(dataStore.getTrainerFinances());
+    setHealthTeamMembers(dataStore.getHealthTeamMembers());
+    setInterProfessionalConsents(dataStore.getInterProfessionalConsents());
+    setChatMessages(dataStore.getChatMessages());
+    setInvitations(dataStore.getInvitations());
   }, []);
 
   const login = (credentials: { email?: string; password?: string; pin?: string; accountId?: string }) => {
@@ -256,6 +635,7 @@ export const GymLabsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setActiveAccountId(dataStore.getActiveAccountId());
       setIdentityState(dataStore.getIdentity());
       setProfileState(dataStore.getProfile());
+      setNotifications(dataStore.getNotifications());
       const acc = dataStore.getSavedAccounts().find((a) => a.id === accountId);
       if (acc?.pin) {
         setEnclavePin(acc.pin);
@@ -309,11 +689,25 @@ export const GymLabsProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const updateIdentity = (updates: Partial<UserIdentity>) => {
     dataStore.updateIdentity(updates);
     setIdentityState(dataStore.getIdentity());
+    dataStore.checkAndGenerateSystemNotifications();
+    setNotifications(dataStore.getNotifications());
+  };
+
+  const updateAccountEmail = (newEmail: string, currentPassword?: string): { success: boolean; error?: string } => {
+    const res = dataStore.updateAccountEmail(activeAccountId, newEmail, currentPassword);
+    if (res.success) {
+      setIdentityState(dataStore.getIdentity());
+      setSavedAccounts(dataStore.getSavedAccounts());
+      setAuditLogs(dataStore.getAuditLogs());
+    }
+    return res;
   };
 
   const updateProfile = (updates: Partial<UserProfile>) => {
     dataStore.updateProfile(updates);
     setProfileState(dataStore.getProfile());
+    dataStore.checkAndGenerateSystemNotifications();
+    setNotifications(dataStore.getNotifications());
   };
 
   const addBodyRecord = (record: BodyCompositionRecord) => {
@@ -337,7 +731,19 @@ export const GymLabsProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const addTrainingSession = (session: TrainingSession) => {
     dataStore.addTrainingSession(session);
     setTrainingSessions(dataStore.getTrainingSessions());
+    setAttendanceLogs(dataStore.getAttendanceLogs());
     setAuditLogs(dataStore.getAuditLogs());
+  };
+
+  const setDayAttendance = (attendance: DayAttendance) => {
+    dataStore.setDayAttendance(attendance);
+    setAttendanceLogs(dataStore.getAttendanceLogs());
+    setAuditLogs(dataStore.getAuditLogs());
+  };
+
+  const setScheduledDaysOfWeek = (days: number[]) => {
+    dataStore.setScheduledDaysOfWeek(days);
+    setScheduledDaysOfWeekState(dataStore.getScheduledDaysOfWeek());
   };
 
   const addMeal = (meal: MealEntry) => {
@@ -556,6 +962,11 @@ export const GymLabsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         isAuthenticated,
         authView,
         setAuthView,
+        authProduct,
+        setAuthProduct,
+        goToLoginWithProduct,
+        goToRegisterWithProduct,
+        quickAccessSampleAccount,
         login,
         register,
         logout,
@@ -572,6 +983,7 @@ export const GymLabsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         closeAccountModal,
         identity,
         updateIdentity,
+        updateAccountEmail,
         profile,
         updateProfile,
         activeJurisdiction,
@@ -584,6 +996,10 @@ export const GymLabsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         addCustomExercise,
         trainingSessions,
         addTrainingSession,
+        attendanceLogs,
+        setDayAttendance,
+        scheduledDaysOfWeek,
+        setScheduledDaysOfWeek,
         acwrMetrics,
         prVault,
         evaluateOverload,
@@ -632,6 +1048,65 @@ export const GymLabsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         inspectionModal,
         openCalculationInspector,
         closeCalculationInspector,
+        notifications,
+        unreadNotificationsCount,
+        activePopupNotification,
+        dismissPopupNotification,
+        markNotificationAsRead,
+        markAllNotificationsAsRead,
+        removeNotification,
+        clearAllNotifications,
+        isNotificationCenterOpen,
+        setIsNotificationCenterOpen,
+        isQuickVerifyModalOpen,
+        setIsQuickVerifyModalOpen,
+        confirmDataCompatibility,
+        triggerPeriodicCheckSimulation,
+        nutriPatients,
+        saveNutriPatient,
+        deleteNutriPatient,
+        nutriConsultations,
+        saveNutriConsultation,
+        nutriAssessments,
+        saveNutriAssessment,
+        nutriMealPlans,
+        saveNutriMealPlan,
+        publishNutriMealPlan,
+        nutriFinances,
+        saveNutriFinance,
+        deleteNutriFinance,
+        nutriLibrary,
+        saveNutriLibraryItem,
+        trainerStudents,
+        saveTrainerStudent,
+        deleteTrainerStudent,
+        trainerWorkoutPlans,
+        saveTrainerWorkoutPlan,
+        publishTrainerWorkoutPlan,
+        trainerAssessments,
+        saveTrainerAssessment,
+        trainerAppointments,
+        saveTrainerAppointment,
+        trainerFinances,
+        saveTrainerFinance,
+        deleteTrainerFinance,
+        healthTeamMembers,
+        saveHealthTeamMember,
+        removeHealthTeamMember,
+        interProfessionalConsents,
+        saveInterProfessionalConsent,
+        chatMessages,
+        sendChatMessage,
+        markChatAsRead,
+        invitations,
+        createInvitation,
+        acceptInvitation,
+        activePrescribedMealPlan,
+        activePrescribedWorkoutPlan,
+        activeChatRecipient,
+        setActiveChatRecipient,
+        isChatOpen,
+        setIsChatOpen,
       }}
     >
       {children}

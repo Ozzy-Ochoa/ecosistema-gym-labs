@@ -2,9 +2,8 @@ import React, { useState } from 'react';
 import { useGymLabs } from '../../context/GymLabsContext';
 import { MetricCard } from '../common/MetricCard';
 import { ProvenanceBadge } from '../common/ProvenanceBadge';
-import { EmptyState } from '../common/EmptyState';
 import { BodyCompositionRecord, CircumferenceRecord } from '../../types/body';
-import { User, Plus, Scale, Activity, Ruler, Calendar, ShieldCheck, Info } from 'lucide-react';
+import { User, Plus, Scale, Activity, Ruler, Calendar, Info, X } from 'lucide-react';
 
 export const BodyView: React.FC = () => {
   const {
@@ -19,10 +18,10 @@ export const BodyView: React.FC = () => {
 
   const [showLogModal, setShowLogModal] = useState(false);
   const [showCircModal, setShowCircModal] = useState(false);
-  const [weightKg, setWeightKg] = useState<number>(80);
+  const [weightKg, setWeightKg] = useState<number>(identity.weightKg || 80);
   const [bodyFatPct, setBodyFatPct] = useState<string>('');
   const [measurementMethod, setMeasurementMethod] = useState<BodyCompositionRecord['method']>('BIA_HOME');
-  const [sourceName, setSourceName] = useState('Smart Scale');
+  const [sourceName, setSourceName] = useState('Balança de Bioimpedância');
 
   // Circumference state
   const [waistCm, setWaistCm] = useState(82);
@@ -53,7 +52,7 @@ export const BodyView: React.FC = () => {
         unit: 'cm',
         provenance: {
           type: 'REAL',
-          source: 'ISAK Anthropometric Tape',
+          source: 'Fita Antropométrica ISAK',
           recordedAt: new Date().toISOString(),
           confidence: 'HIGH',
         },
@@ -63,7 +62,7 @@ export const BodyView: React.FC = () => {
         unit: 'cm',
         provenance: {
           type: 'REAL',
-          source: 'ISAK Anthropometric Tape',
+          source: 'Fita Antropométrica ISAK',
           recordedAt: new Date().toISOString(),
           confidence: 'HIGH',
         },
@@ -73,7 +72,7 @@ export const BodyView: React.FC = () => {
         unit: 'cm',
         provenance: {
           type: 'REAL',
-          source: 'ISAK Anthropometric Tape',
+          source: 'Fita Antropométrica ISAK',
           recordedAt: new Date().toISOString(),
           confidence: 'HIGH',
         },
@@ -83,7 +82,7 @@ export const BodyView: React.FC = () => {
         unit: 'cm',
         provenance: {
           type: 'REAL',
-          source: 'ISAK Anthropometric Tape',
+          source: 'Fita Antropométrica ISAK',
           recordedAt: new Date().toISOString(),
           confidence: 'HIGH',
         },
@@ -93,14 +92,14 @@ export const BodyView: React.FC = () => {
         unit: 'cm',
         provenance: {
           type: 'REAL',
-          source: 'ISAK Anthropometric Tape',
+          source: 'Fita Antropométrica ISAK',
           recordedAt: new Date().toISOString(),
           confidence: 'HIGH',
         },
       },
       provenance: {
         type: 'REAL',
-        source: 'Self-Measured ISAK Tension Tape',
+        source: 'Fita Antropométrica ISAK',
         recordedAt: new Date().toISOString(),
         confidence: 'HIGH',
       },
@@ -110,35 +109,34 @@ export const BodyView: React.FC = () => {
     setShowCircModal(false);
   };
 
-  const handleSaveBodyRecord = (e: React.FormEvent) => {
+  const handleSaveBodyLog = (e: React.FormEvent) => {
     e.preventDefault();
-    const bfNum = bodyFatPct !== '' ? Number(bodyFatPct) : undefined;
-    const leanMass = bfNum ? Number((weightKg * (1 - bfNum / 100)).toFixed(1)) : undefined;
+    const bfNumber = bodyFatPct ? parseFloat(bodyFatPct) : undefined;
+    const leanMass = bfNumber ? Number((weightKg * (1 - bfNumber / 100)).toFixed(1)) : undefined;
 
     const newRecord: BodyCompositionRecord = {
-      id: `body-${Date.now()}`,
+      id: `rec-${Date.now()}`,
       userId: identity.id,
       timestamp: new Date().toISOString(),
       weightKg: {
         value: weightKg,
         unit: 'kg',
         provenance: {
-          type: measurementMethod === 'SELF_REPORT' ? 'ESTIMATED' : 'REAL',
+          type: 'REAL',
           source: sourceName,
           recordedAt: new Date().toISOString(),
           confidence: 'HIGH',
         },
       },
-      bodyFatPercent: bfNum
+      bodyFatPercent: bfNumber
         ? {
-            value: bfNum,
+            value: bfNumber,
             unit: '%',
             provenance: {
-              type: measurementMethod.startsWith('BIA') || measurementMethod === 'CALCULATED_NAVY' ? 'ESTIMATED' : 'REAL',
-              source: `${measurementMethod} Assessment`,
+              type: measurementMethod === 'DEXA' ? 'REAL' : 'ESTIMATED',
+              source: sourceName,
               recordedAt: new Date().toISOString(),
               confidence: measurementMethod === 'DEXA' ? 'HIGH' : 'MEDIUM',
-              limitations: measurementMethod.startsWith('BIA') ? ['Subject to hydration level fluctuation.'] : undefined,
             },
           }
         : undefined,
@@ -148,7 +146,7 @@ export const BodyView: React.FC = () => {
             unit: 'kg',
             provenance: {
               type: 'CALCULATED',
-              source: 'Weight * (1 - BodyFatPercent)',
+              source: 'Peso * (1 - % Gordura)',
               recordedAt: new Date().toISOString(),
               confidence: 'MEDIUM',
             },
@@ -168,133 +166,142 @@ export const BodyView: React.FC = () => {
   };
 
   return (
-    <div id="gymlabs-body-view" className="space-y-6 max-w-7xl mx-auto">
+    <div id="gymlabs-body-view" className="space-y-6 font-mono select-none">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 rounded-3xl bg-[#0F172A] border border-slate-800">
+      <div className="p-5 bg-zinc-950 border border-zinc-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-xs font-mono font-bold uppercase tracking-wider text-cyan-400">
-              Anthropometry & Composition
+            <span className="text-[10px] uppercase tracking-wider text-zinc-400 font-bold">
+              Antropometria & Composição Corporal
             </span>
             <ProvenanceBadge
               provenance={{
                 type: 'REAL',
-                source: 'Validated Biometric Inputs',
+                source: 'Registros Fidedignos',
                 recordedAt: new Date().toISOString(),
                 confidence: 'HIGH',
               }}
               size="sm"
             />
           </div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-white tracking-tight">
-            Body System & Composition
+          <h1 className="text-xl lg:text-2xl font-black text-white tracking-tight uppercase">
+            Composição e Antropometria
           </h1>
-          <p className="text-xs text-slate-400 max-w-xl">
-            Multi-compartment anthropometric monitoring, DEXA calibration, and circumference tracking with strict provenance separation between measured and estimated metrics.
+          <p className="text-xs text-zinc-400 font-sans max-w-xl">
+            Monitoramento de massa corporal, percentual lipídico e perímetros com distinção rigorosa de proveniência de dados.
           </p>
         </div>
 
-        <button
-          id="open-body-log-modal-btn"
-          onClick={() => setShowLogModal(true)}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-black text-xs font-bold shadow-lg shadow-cyan-500/25 transition-all active:scale-95 shrink-0"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Record Measurement</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowCircModal(true)}
+            className="px-3 py-2 border border-zinc-700 bg-black text-white text-xs font-bold uppercase hover:border-white transition-all flex items-center gap-1.5 cursor-pointer"
+          >
+            <Ruler className="w-3.5 h-3.5" />
+            <span>FITA DE PERÍMETROS</span>
+          </button>
+          <button
+            id="open-body-log-modal-btn"
+            type="button"
+            onClick={() => setShowLogModal(true)}
+            className="px-4 py-2 bg-white text-black text-xs font-black uppercase hover:bg-zinc-200 transition-all flex items-center gap-1.5 cursor-pointer shadow-[2px_2px_0px_0px_rgba(255,255,255,0.4)]"
+          >
+            <Plus className="w-4 h-4" />
+            <span>REGISTRAR PESAGEM</span>
+          </button>
+        </div>
       </div>
 
       {/* KPI Cards: Current Weight, Body Fat, Lean Mass, BMI */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
           id="body-metric-weight"
-          title="Total Body Mass"
-          value={latestRecord?.weightKg?.value || null}
+          title="Massa Corporal Total"
+          value={latestRecord?.weightKg?.value || identity.weightKg || null}
           unit="kg"
-          subtitle={latestRecord ? `Method: ${latestRecord.method}` : 'No verified weigh-ins'}
+          subtitle={latestRecord ? `Método: ${latestRecord.method}` : 'Sem pesagens recentes'}
           provenance={latestRecord?.weightKg?.provenance}
           icon={Scale}
         />
 
         <MetricCard
           id="body-metric-body-fat"
-          title="Body Fat Percentage"
+          title="Percentual de Gordura"
           value={latestRecord?.bodyFatPercent?.value || null}
           unit="%"
           subtitle={
             latestRecord?.bodyFatPercent
-              ? `Source: ${latestRecord.bodyFatPercent.provenance.source}`
-              : 'Untested / Unknown'
+              ? `Fonte: ${latestRecord.bodyFatPercent.provenance.source}`
+              : 'Não aferido'
           }
           provenance={latestRecord?.bodyFatPercent?.provenance}
-          accentColor="amber"
           icon={Activity}
         />
 
         <MetricCard
           id="body-metric-lean-mass"
-          title="Calculated Lean Mass"
+          title="Massa Livre de Gordura"
           value={latestRecord?.leanMassKg?.value || null}
           unit="kg"
-          subtitle="Fat-Free Mass (FFM)"
+          subtitle="Massa Magra (FFM)"
           provenance={latestRecord?.leanMassKg?.provenance}
-          accentColor="emerald"
           icon={User}
         />
 
         <MetricCard
           id="body-metric-bmi"
-          title="Quetelet Index (BMI)"
+          title="Índice de Quetelet (IMC)"
           value={bmiCalculation.result?.bmi || null}
           unit="kg/m²"
-          subtitle={`Classification: ${bmiCalculation.result?.category || 'Unknown'}`}
+          subtitle={`Classificação: ${bmiCalculation.result?.category || 'Indeterminado'}`}
           provenance={bmiCalculation.provenance}
           onClickInspect={() => openCalculationInspector(bmiCalculation)}
         />
       </div>
 
-      {/* Main Grid: Body Composition History & Anatomical Map */}
+      {/* Main Grid: Body Composition History & Circumferences */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left 2 Cols: Measurement History Table */}
-        <div className="lg:col-span-2 p-6 rounded-3xl bg-[#0F172A] border border-slate-800 space-y-4">
-          <div className="flex items-center justify-between">
+        <div className="lg:col-span-2 p-5 bg-black border border-zinc-800 space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-zinc-900">
             <div>
-              <h3 className="text-base font-bold text-white">Anthropometric Log History</h3>
-              <p className="text-xs text-slate-400">Chronological ledger with verification provenance</p>
+              <h3 className="text-sm font-bold text-white uppercase">Histórico de Pesagens & Biometria</h3>
+              <p className="text-xs text-zinc-400 font-sans">Livro-razão cronológico com carimbo de proveniência</p>
             </div>
-            <span className="text-xs font-mono text-slate-400">{bodyRecords.length} records</span>
+            <span className="text-xs text-zinc-500 font-bold">{bodyRecords.length} REGISTROS</span>
           </div>
 
           {bodyRecords.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="border-b border-slate-800 text-[10px] font-mono text-slate-400 uppercase">
-                    <th className="py-2.5 px-3">Date</th>
-                    <th className="py-2.5 px-3">Weight</th>
-                    <th className="py-2.5 px-3">Body Fat</th>
-                    <th className="py-2.5 px-3">Lean Mass</th>
-                    <th className="py-2.5 px-3">Methodology</th>
-                    <th className="py-2.5 px-3">Provenance</th>
+                  <tr className="border-b border-zinc-800 text-[10px] text-zinc-400 uppercase">
+                    <th className="py-2 px-3">Data</th>
+                    <th className="py-2 px-3">Peso</th>
+                    <th className="py-2 px-3">% Gordura</th>
+                    <th className="py-2 px-3">Massa Magra</th>
+                    <th className="py-2 px-3">Metodologia</th>
+                    <th className="py-2 px-3">Proveniência</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/60 font-mono">
+                <tbody className="divide-y divide-zinc-900">
                   {bodyRecords.map((record) => (
-                    <tr key={record.id} className="hover:bg-slate-900/40 transition-colors">
-                      <td className="py-3 px-3 text-slate-300">
-                        {new Date(record.timestamp).toLocaleDateString()}
+                    <tr key={record.id} className="hover:bg-zinc-950 transition-colors">
+                      <td className="py-2.5 px-3 text-zinc-300">
+                        {new Date(record.timestamp).toLocaleDateString('pt-BR')}
                       </td>
-                      <td className="py-3 px-3 font-bold text-white">
+                      <td className="py-2.5 px-3 font-bold text-white">
                         {record.weightKg.value} {record.weightKg.unit}
                       </td>
-                      <td className="py-3 px-3 text-slate-300">
-                        {record.bodyFatPercent?.value ? `${record.bodyFatPercent.value}%` : 'UNKNOWN'}
+                      <td className="py-2.5 px-3 text-zinc-300">
+                        {record.bodyFatPercent?.value ? `${record.bodyFatPercent.value}%` : '---'}
                       </td>
-                      <td className="py-3 px-3 text-emerald-400">
-                        {record.leanMassKg?.value ? `${record.leanMassKg.value} kg` : 'UNKNOWN'}
+                      <td className="py-2.5 px-3 text-zinc-200 font-bold">
+                        {record.leanMassKg?.value ? `${record.leanMassKg.value} kg` : '---'}
                       </td>
-                      <td className="py-3 px-3 text-slate-400 text-[11px]">{record.method}</td>
-                      <td className="py-3 px-3">
+                      <td className="py-2.5 px-3 text-zinc-400 text-[11px]">{record.method}</td>
+                      <td className="py-2.5 px-3">
                         <ProvenanceBadge provenance={record.provenance} size="sm" />
                       </td>
                     </tr>
@@ -303,87 +310,91 @@ export const BodyView: React.FC = () => {
               </table>
             </div>
           ) : (
-            <EmptyState
-              title="No Body Measurements Recorded"
-              description="Record your morning fasted body weight and composition data to unlock metabolic BMR and body recomposition analytics."
-              protocolTip="Weigh yourself immediately upon waking after voiding the bladder, once or multiple times weekly under identical hydration conditions."
-              actionLabel="Add First Measurement"
-              onAction={() => setShowLogModal(true)}
-              icon={Scale}
-            />
+            <div className="p-8 text-center border border-dashed border-zinc-800 text-zinc-500 space-y-2">
+              <Scale className="w-8 h-8 mx-auto text-zinc-600" />
+              <div className="text-xs font-bold text-white uppercase">Nenhum registro biométrico cadastrado</div>
+              <p className="text-xs text-zinc-400 font-sans max-w-sm mx-auto">
+                Registre seu peso de jejum matinal para ativar as fórmulas de taxa metabólica basal.
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowLogModal(true)}
+                className="mt-2 px-4 py-1.5 bg-white text-black text-xs font-bold uppercase hover:bg-zinc-200 transition-all cursor-pointer"
+              >
+                REGISTRAR PESO AGORA
+              </button>
+            </div>
           )}
         </div>
 
-        {/* Right 1 Col: Circumference Tracker & Anatomical Protocol */}
-        <div className="p-6 rounded-3xl bg-[#0F172A] border border-slate-800 space-y-4">
-          <div className="flex items-center justify-between">
+        {/* Right 1 Col: Circumference Tracker & Ratios */}
+        <div className="p-5 bg-black border border-zinc-800 space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-zinc-900">
             <div className="flex items-center gap-2">
-              <Ruler className="w-5 h-5 text-cyan-400" />
-              <h3 className="font-bold text-white text-sm uppercase font-mono tracking-wider">
-                Circumferences
+              <Ruler className="w-4 h-4 text-white" />
+              <h3 className="font-bold text-white text-xs uppercase tracking-wider">
+                Perímetros Corporais
               </h3>
             </div>
             <button
               onClick={() => setShowCircModal(true)}
-              className="text-xs font-mono text-cyan-400 hover:text-cyan-300 flex items-center gap-1"
+              className="text-[10px] text-zinc-400 hover:text-white flex items-center gap-1 cursor-pointer font-bold uppercase"
             >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Log Tape</span>
+              <Plus className="w-3 h-3" />
+              <span>Inserir Fita</span>
             </button>
           </div>
 
-          <p className="text-xs text-slate-400">
-            Tape measurements provide hypertrophy tracking free from scale hydration fluctuations.
-          </p>
+          <div className="flex items-center gap-2">
+            <span className="text-[9px] px-1.5 py-0.2 bg-zinc-900 border border-zinc-700 text-zinc-300 font-bold uppercase">
+              OPCIONAL
+            </span>
+            <p className="text-xs text-zinc-400 font-sans">
+              Medidas corporais são opcionais e podem ser preenchidas ou atualizadas a qualquer momento.
+            </p>
+          </div>
 
           <div className="space-y-2">
             {[
-              { label: 'Waist (Umbilical)', value: latestCirc?.waistCm?.value, unit: 'cm' },
-              { label: 'Chest (Mesosternal)', value: latestCirc?.chestCm?.value, unit: 'cm' },
-              { label: 'Hip (Max Gluteal)', value: latestCirc?.hipCm?.value, unit: 'cm' },
-              { label: 'Arm (Flexed Biceps)', value: latestCirc?.leftArmCm?.value, unit: 'cm' },
-              { label: 'Thigh (Mid-Trochanteric)', value: latestCirc?.leftThighCm?.value, unit: 'cm' },
+              { label: 'Cintura (Umbilical)', value: latestCirc?.waistCm?.value, unit: 'cm' },
+              { label: 'Tórax (Mesosternal)', value: latestCirc?.chestCm?.value, unit: 'cm' },
+              { label: 'Quadril (Glúteo Máx.)', value: latestCirc?.hipCm?.value, unit: 'cm' },
+              { label: 'Braço (Bíceps Contraído)', value: latestCirc?.leftArmCm?.value, unit: 'cm' },
+              { label: 'Coxa (Medial)', value: latestCirc?.leftThighCm?.value, unit: 'cm' },
             ].map((circ, i) => (
               <div
                 key={i}
-                className="flex items-center justify-between p-2 rounded-xl bg-[#070A12] border border-slate-800"
+                className="flex items-center justify-between p-2.5 bg-zinc-950 border border-zinc-800"
               >
-                <span className="text-xs text-slate-400 font-medium">{circ.label}</span>
-                <span className="font-mono text-xs font-bold text-cyan-300">
-                  {circ.value !== undefined && circ.value !== null ? `${circ.value} ${circ.unit}` : 'UNKNOWN'}
+                <span className="text-xs text-zinc-400 font-sans">{circ.label}</span>
+                <span className="text-xs font-bold text-white">
+                  {circ.value !== undefined && circ.value !== null ? `${circ.value} ${circ.unit}` : '---'}
                 </span>
               </div>
             ))}
           </div>
 
-          {/* Cardiometabolic Risk Ratios (Ashwell / WHO) */}
-          <div className="pt-2 border-t border-slate-800 space-y-2">
-            <span className="text-[10px] font-mono text-slate-400 uppercase font-semibold block">
-              Cardiometabolic Risk Indices
+          {/* Cardiometabolic Risk Ratios (Ashwell / OMS) */}
+          <div className="pt-3 border-t border-zinc-900 space-y-2">
+            <span className="text-[10px] text-zinc-400 uppercase font-bold block">
+              Índices Cardiometabólicos
             </span>
             <div className="grid grid-cols-2 gap-2">
-              <div className="p-2.5 rounded-xl bg-[#070A12] border border-slate-800">
-                <span className="text-[10px] text-slate-400 block font-mono">Waist-to-Height (WHtR)</span>
-                <span className={`text-base font-bold font-mono ${whtr < 0.5 ? 'text-emerald-400' : 'text-amber-400'}`}>
-                  {whtr}
+              <div className="p-2.5 bg-zinc-950 border border-zinc-800">
+                <span className="text-[10px] text-zinc-400 block font-sans">Cintura/Estatura</span>
+                <span className="text-base font-black text-white">
+                  {whtr || '---'}
                 </span>
-                <span className="text-[9px] text-slate-500 block">Target: &lt; 0.50 (Ashwell)</span>
+                <span className="text-[9px] text-zinc-500 block font-sans">Ref: &lt; 0.50 (Ashwell)</span>
               </div>
-              <div className="p-2.5 rounded-xl bg-[#070A12] border border-slate-800">
-                <span className="text-[10px] text-slate-400 block font-mono">Waist-to-Hip (WHR)</span>
-                <span className={`text-base font-bold font-mono ${whr < 0.9 ? 'text-emerald-400' : 'text-amber-400'}`}>
-                  {whr}
+              <div className="p-2.5 bg-zinc-950 border border-zinc-800">
+                <span className="text-[10px] text-zinc-400 block font-sans">Cintura/Quadril</span>
+                <span className="text-base font-black text-white">
+                  {whr || '---'}
                 </span>
-                <span className="text-[9px] text-slate-500 block">WHO: &le; 0.90 (M) / 0.85 (F)</span>
+                <span className="text-[9px] text-zinc-500 block font-sans">OMS: &le; 0.90 (M)</span>
               </div>
             </div>
-          </div>
-
-          <div className="p-3 rounded-xl bg-slate-900/70 border border-slate-800 text-[11px] text-slate-400 flex items-start gap-2">
-            <Info className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
-            <span>
-              ISAK standardized anthropometry dictates constant tension measuring tapes applied without skin indentation.
-            </span>
           </div>
         </div>
       </div>
@@ -392,86 +403,91 @@ export const BodyView: React.FC = () => {
       {showCircModal && (
         <div
           id="circ-log-modal-overlay"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90"
         >
-          <div className="bg-[#0F172A] border border-cyan-500/30 rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4">
-            <h3 className="text-base font-bold text-white">Log Anatomical Circumferences</h3>
-            <p className="text-xs text-slate-400">
-              Record precision tape measurements (cm) using ISAK surface landmark protocols.
-            </p>
+          <div className="bg-black border border-white p-6 w-full max-w-md shadow-[4px_4px_0px_0px_rgba(255,255,255,0.4)] space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-zinc-800">
+              <h3 className="text-sm font-bold text-white uppercase">Registrar Perímetros (Fita)</h3>
+              <button
+                onClick={() => setShowCircModal(false)}
+                className="text-zinc-400 hover:text-white cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
 
             <form onSubmit={handleSaveCircumferences} className="space-y-3 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-300 mb-1 font-medium">Waist / Umbilical (cm)</label>
+                  <label className="block text-zinc-400 uppercase text-[10px] mb-1 font-bold">Cintura (cm)</label>
                   <input
                     type="number"
                     step="0.1"
                     required
                     value={waistCm}
                     onChange={(e) => setWaistCm(Number(e.target.value))}
-                    className="w-full px-3 py-2 rounded-xl bg-[#070A12] border border-slate-800 text-white font-mono text-sm focus:border-cyan-400 focus:outline-none"
+                    className="w-full p-2 bg-black border border-zinc-700 text-white outline-none focus:border-white font-mono"
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-300 mb-1 font-medium">Hip / Gluteal (cm)</label>
+                  <label className="block text-zinc-400 uppercase text-[10px] mb-1 font-bold">Quadril (cm)</label>
                   <input
                     type="number"
                     step="0.1"
                     required
                     value={hipCm}
                     onChange={(e) => setHipCm(Number(e.target.value))}
-                    className="w-full px-3 py-2 rounded-xl bg-[#070A12] border border-slate-800 text-white font-mono text-sm focus:border-cyan-400 focus:outline-none"
+                    className="w-full p-2 bg-black border border-zinc-700 text-white outline-none focus:border-white font-mono"
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-300 mb-1 font-medium">Chest / Mesosternal (cm)</label>
+                  <label className="block text-zinc-400 uppercase text-[10px] mb-1 font-bold">Tórax (cm)</label>
                   <input
                     type="number"
                     step="0.1"
                     required
                     value={chestCm}
                     onChange={(e) => setChestCm(Number(e.target.value))}
-                    className="w-full px-3 py-2 rounded-xl bg-[#070A12] border border-slate-800 text-white font-mono text-sm focus:border-cyan-400 focus:outline-none"
+                    className="w-full p-2 bg-black border border-zinc-700 text-white outline-none focus:border-white font-mono"
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-300 mb-1 font-medium">Arm / Flexed Biceps (cm)</label>
+                  <label className="block text-zinc-400 uppercase text-[10px] mb-1 font-bold">Braço (cm)</label>
                   <input
                     type="number"
                     step="0.1"
                     required
                     value={armCm}
                     onChange={(e) => setArmCm(Number(e.target.value))}
-                    className="w-full px-3 py-2 rounded-xl bg-[#070A12] border border-slate-800 text-white font-mono text-sm focus:border-cyan-400 focus:outline-none"
+                    className="w-full p-2 bg-black border border-zinc-700 text-white outline-none focus:border-white font-mono"
                   />
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-slate-300 mb-1 font-medium">Thigh / Mid-Trochanteric (cm)</label>
+                  <label className="block text-zinc-400 uppercase text-[10px] mb-1 font-bold">Coxa (cm)</label>
                   <input
                     type="number"
                     step="0.1"
                     required
                     value={thighCm}
                     onChange={(e) => setThighCm(Number(e.target.value))}
-                    className="w-full px-3 py-2 rounded-xl bg-[#070A12] border border-slate-800 text-white font-mono text-sm focus:border-cyan-400 focus:outline-none"
+                    className="w-full p-2 bg-black border border-zinc-700 text-white outline-none focus:border-white font-mono"
                   />
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-800">
                 <button
                   type="button"
                   onClick={() => setShowCircModal(false)}
-                  className="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white"
+                  className="px-3 py-1.5 border border-zinc-700 text-zinc-400 hover:text-white cursor-pointer"
                 >
-                  Cancel
+                  Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-black font-semibold"
+                  className="px-4 py-1.5 bg-white text-black font-bold uppercase hover:bg-zinc-200 cursor-pointer"
                 >
-                  Save Circumferences
+                  Salvar
                 </button>
               </div>
             </form>
@@ -479,85 +495,87 @@ export const BodyView: React.FC = () => {
         </div>
       )}
 
-      {/* Log Body Record Modal */}
+      {/* Log Body Weight Modal */}
       {showLogModal && (
         <div
           id="body-log-modal-overlay"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90"
         >
-          <div className="bg-[#0F172A] border border-cyan-500/30 rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4">
-            <h3 className="text-base font-bold text-white">Record Body Composition</h3>
-            <p className="text-xs text-slate-400">
-              Enter verified measurements. Specify the methodology to ensure truthful provenance classification.
-            </p>
+          <div className="bg-black border border-white p-6 w-full max-w-md shadow-[4px_4px_0px_0px_rgba(255,255,255,0.4)] space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-zinc-800">
+              <h3 className="text-sm font-bold text-white uppercase">Registrar Pesagem / Biometria</h3>
+              <button
+                onClick={() => setShowLogModal(false)}
+                className="text-zinc-400 hover:text-white cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
 
-            <form onSubmit={handleSaveBodyRecord} className="space-y-4 text-xs">
+            <form onSubmit={handleSaveBodyLog} className="space-y-3 text-xs">
               <div>
-                <label className="block text-slate-300 mb-1 font-medium">Body Weight (kg)</label>
+                <label className="block text-zinc-400 uppercase text-[10px] mb-1 font-bold">Peso Corporal (kg) *</label>
                 <input
                   type="number"
                   step="0.1"
                   required
                   value={weightKg}
                   onChange={(e) => setWeightKg(Number(e.target.value))}
-                  className="w-full px-3 py-2 rounded-xl bg-[#070A12] border border-slate-800 text-white font-mono text-sm focus:border-cyan-400 focus:outline-none"
+                  className="w-full p-2 bg-black border border-zinc-700 text-white outline-none focus:border-white font-mono"
                 />
               </div>
 
               <div>
-                <label className="block text-slate-300 mb-1 font-medium">Body Fat % (Optional)</label>
+                <label className="block text-zinc-400 uppercase text-[10px] mb-1 font-bold">% de Gordura (Opcional)</label>
                 <input
                   type="number"
                   step="0.1"
-                  min="3"
-                  max="60"
-                  placeholder="Leave empty if not measured"
+                  placeholder="Ex: 14.5"
                   value={bodyFatPct}
                   onChange={(e) => setBodyFatPct(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-[#070A12] border border-slate-800 text-white font-mono text-sm focus:border-cyan-400 focus:outline-none"
+                  className="w-full p-2 bg-black border border-zinc-700 text-white outline-none focus:border-white font-mono"
                 />
               </div>
 
               <div>
-                <label className="block text-slate-300 mb-1 font-medium">Measurement Methodology</label>
+                <label className="block text-zinc-400 uppercase text-[10px] mb-1 font-bold">Método Utilizado</label>
                 <select
                   value={measurementMethod}
                   onChange={(e) => setMeasurementMethod(e.target.value as any)}
-                  className="w-full px-3 py-2 rounded-xl bg-[#070A12] border border-slate-800 text-white focus:border-cyan-400 focus:outline-none"
+                  className="w-full p-2 bg-black border border-zinc-700 text-white outline-none focus:border-white"
                 >
-                  <option value="BIA_HOME">Bioelectrical Impedance (Home Smart Scale)</option>
-                  <option value="BIA_PROFESSIONAL">Clinical BIA (InBody / Seca Multi-Frequency)</option>
-                  <option value="DEXA">Dual-Energy X-ray Absorptiometry (DEXA Scan)</option>
-                  <option value="SKINFOLD_7_SITE">Caliper Skinfold 7-Site Protocol (Jackson-Pollock)</option>
-                  <option value="CALCULATED_NAVY">US Navy Circumference Model</option>
-                  <option value="SELF_REPORT">Self-Report / Visual Approximation</option>
+                  <option value="BIA_HOME">Bioimpedância Residencial (Balança)</option>
+                  <option value="BIA_CLINICAL">Bioimpedância Clínica (InBody / Seca)</option>
+                  <option value="SKINFOLD">Adipometria (Dobras Cutâneas ISAK)</option>
+                  <option value="DEXA">Densitometria DXA (Padrão-Ouro)</option>
+                  <option value="SCALE_ONLY">Apenas Balança Convencional</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-slate-300 mb-1 font-medium">Source / Device Description</label>
+                <label className="block text-zinc-400 uppercase text-[10px] mb-1 font-bold">Origem / Aparelho</label>
                 <input
                   type="text"
                   value={sourceName}
                   onChange={(e) => setSourceName(e.target.value)}
-                  placeholder="e.g. InBody 770 Clinical or Withings Scale"
-                  className="w-full px-3 py-2 rounded-xl bg-[#070A12] border border-slate-800 text-white focus:border-cyan-400 focus:outline-none"
+                  placeholder="Ex: Balança Tanita / InBody 270"
+                  className="w-full p-2 bg-black border border-zinc-700 text-white outline-none focus:border-white"
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-800">
                 <button
                   type="button"
                   onClick={() => setShowLogModal(false)}
-                  className="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white"
+                  className="px-3 py-1.5 border border-zinc-700 text-zinc-400 hover:text-white cursor-pointer"
                 >
-                  Cancel
+                  Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-black font-semibold"
+                  className="px-4 py-1.5 bg-white text-black font-bold uppercase hover:bg-zinc-200 cursor-pointer"
                 >
-                  Save Measurement
+                  Salvar Registro
                 </button>
               </div>
             </form>

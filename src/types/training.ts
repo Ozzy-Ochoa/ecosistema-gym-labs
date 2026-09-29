@@ -77,3 +77,38 @@ export interface ACWRResult {
   dataSufficient: boolean;
   daysRecorded: number;
 }
+
+export type AttendanceStatus = 'ATTENDED' | 'MISSED' | 'INCOMPLETE' | 'REST' | 'PLANNED';
+
+export type WorkoutSplitType =
+  | 'PUSH'
+  | 'PULL'
+  | 'LEGS'
+  | 'UPPER'
+  | 'LOWER'
+  | 'FULL_BODY'
+  | 'CARDIO_MOBILITY'
+  | 'REST_DAY';
+
+export interface DayAttendance {
+  date: string; // YYYY-MM-DD
+  status: AttendanceStatus;
+  workoutType: WorkoutSplitType;
+  title: string;
+  notes?: string;
+  durationMinutes?: number;
+  volumeKg?: number;
+  updatedAt?: string;
+}
+
+export interface MonthAttendanceSummary {
+  year: number;
+  month: number; // 0-11
+  totalPlannedDays: number;
+  attendedDays: number;
+  missedDays: number;
+  incompleteDays: number;
+  restDays: number;
+  attendanceRatePct: number;
+  currentStreak: number;
+}

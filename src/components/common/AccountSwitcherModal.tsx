@@ -5,16 +5,15 @@ import {
   UserCheck,
   UserPlus,
   X,
-  CheckCircle2,
   Lock,
   ArrowRight,
-  ShieldCheck,
   Dumbbell,
   Trash2,
-  Sparkles,
-  AlertCircle
+  AlertCircle,
+  Award,
+  Building2
 } from 'lucide-react';
-import { SavedUserAccount, UserRole } from '../../types/user';
+import { SavedUserAccount } from '../../types/user';
 
 export const AccountSwitcherModal: React.FC = () => {
   const {
@@ -78,235 +77,339 @@ export const AccountSwitcherModal: React.FC = () => {
   return (
     <div
       id="account-switcher-overlay"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md select-none"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 select-none font-mono"
       onClick={closeAccountModal}
     >
       <div
         id="account-switcher-container"
-        className="relative w-full max-w-2xl bg-[#050505] border-2 border-zinc-800 neo-box-thick shadow-2xl overflow-hidden text-white flex flex-col max-h-[90vh]"
+        className="relative w-full max-w-2xl bg-black border border-white p-6 shadow-[4px_4px_0px_0px_rgba(255,255,255,0.4)] text-white flex flex-col max-h-[90vh] space-y-4"
         onClick={(e) => e.stopPropagation()}
       >
         {/* HUD Top Bar */}
-        <div className="flex items-center justify-between px-6 py-4 border-b-2 border-zinc-800 bg-black">
+        <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 neo-box border border-[#00F0FF] flex items-center justify-center bg-[#00F0FF]/10 text-[#00F0FF]">
+            <div className="w-8 h-8 border border-white flex items-center justify-center bg-white text-black font-bold">
               <Users className="w-4 h-4" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="font-mono font-black text-sm uppercase tracking-wider text-white">
-                  Seletor de Perfis // Logins Locais
+                <h3 className="font-bold text-sm uppercase text-white">
+                  Gerenciador de Perfis // Logins Locais
                 </h3>
-                <span className="text-[10px] font-mono px-2 py-0.5 bg-[#00F0FF]/10 text-[#00F0FF] border border-[#00F0FF]/30 font-bold">
+                <span className="text-[10px] px-1.5 py-0.2 bg-zinc-900 border border-zinc-700 text-zinc-300 font-bold">
                   {savedAccounts.length} {savedAccounts.length === 1 ? 'CONTA' : 'CONTAS'}
                 </span>
               </div>
-              <p className="text-[11px] font-mono text-zinc-400">
-                Gym Labs Labcore • Portal do Usuário Final & Atleta
+              <p className="text-[10px] text-zinc-500">
+                Gym Labs // Alternância de contas no mesmo dispositivo
               </p>
             </div>
           </div>
           <button
             type="button"
             onClick={closeAccountModal}
-            className="p-1.5 border border-zinc-700 hover:border-white text-zinc-400 hover:text-white transition-colors"
+            className="p-1 border border-zinc-700 hover:border-white text-zinc-400 hover:text-white transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Prototype Scope Banner */}
-        <div className="px-6 py-2.5 bg-zinc-950 border-b border-zinc-900 text-xs font-mono text-zinc-400 flex items-center justify-between">
-          <span className="flex items-center gap-1.5 text-zinc-300">
-            <Sparkles className="w-3.5 h-3.5 text-[#00F0FF]" />
-            Ambiente exclusivo para o Usuário Final (Pessoa Física).
-          </span>
-          <span className="text-[10px] text-zinc-500 hidden sm:inline">
-            Personais & Nutricionistas acessam apps dedicados
-          </span>
-        </div>
-
         {/* Main Body */}
-        <div className="p-6 overflow-y-auto space-y-4">
+        <div className="overflow-y-auto space-y-4 pr-1">
           {!isAddingNew ? (
             <>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] font-mono uppercase tracking-widest text-zinc-400 font-bold">
-                  Contas Disponíveis neste Dispositivo
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] uppercase tracking-wider text-zinc-400 font-bold">
+                  Contas Salvas neste Dispositivo
                 </span>
                 <button
                   type="button"
                   onClick={() => setIsAddingNew(true)}
-                  className="px-3 py-1 neo-box text-xs font-mono font-bold text-[#00F0FF] border border-[#00F0FF] hover:bg-[#00F0FF] hover:text-black flex items-center gap-1.5 transition-all"
+                  className="px-3 py-1.5 bg-white text-black text-xs font-bold uppercase hover:bg-zinc-200 transition-all flex items-center gap-1.5 cursor-pointer"
                 >
                   <UserPlus className="w-3.5 h-3.5" />
-                  <span>ADICIONAR OUTRA CONTA</span>
+                  <span>CRIAR OUTRO PERFIL</span>
                 </button>
               </div>
 
-              {/* Account Cards */}
-              <div className="space-y-3 font-mono">
-                {savedAccounts.map((acc) => {
-                  const isCurrent = acc.id === activeAccountId;
-                  return (
-                    <div
-                      key={acc.id}
-                      onClick={() => !isCurrent && handleSelectAccount(acc.id)}
-                      className={`p-4 border-2 transition-all cursor-pointer relative group ${
-                        isCurrent
-                          ? 'border-[#00F0FF] bg-[#00F0FF]/5 shadow-[3px_3px_0px_0px_rgba(0,240,255,0.3)]'
-                          : 'border-zinc-800 bg-black hover:border-zinc-500 hover:bg-zinc-950'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-center gap-3">
-                          {/* Avatar block */}
+              {/* Account Cards Grouped by Product */}
+              <div className="space-y-4 font-mono">
+                {/* 1. Atletas */}
+                {savedAccounts.some((a) => a.role === 'USER') && (
+                  <div className="space-y-2">
+                    <div className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                      <Dumbbell className="w-3.5 h-3.5 text-white" />
+                      <span>App do Atleta // Convencional</span>
+                    </div>
+                    {savedAccounts
+                      .filter((a) => a.role === 'USER')
+                      .map((acc) => {
+                        const isCurrent = acc.id === activeAccountId;
+                        return (
                           <div
-                            className={`w-11 h-11 neo-box flex items-center justify-center font-bold text-sm uppercase ${
+                            key={acc.id}
+                            onClick={() => !isCurrent && handleSelectAccount(acc.id)}
+                            className={`p-3.5 border transition-all cursor-pointer relative ${
                               isCurrent
-                                ? 'bg-black text-[#00F0FF] border-2 border-[#00F0FF]'
-                                : 'bg-zinc-900 text-zinc-300 border border-zinc-700'
+                                ? 'border-white bg-zinc-950 shadow-[2px_2px_0px_0px_rgba(255,255,255,0.4)]'
+                                : 'border-zinc-800 bg-black hover:border-zinc-500'
                             }`}
                           >
-                            {acc.name.substring(0, 2).toUpperCase()}
-                          </div>
-
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-bold text-white uppercase">
-                                {acc.name}
-                              </span>
-                              {isCurrent && (
-                                <span className="text-[9px] px-1.5 py-0.5 bg-[#39FF14] text-black font-black uppercase tracking-wider">
-                                  CONTA ATIVA
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-xs text-zinc-400 mt-0.5">{acc.email}</p>
-                            {acc.tagline && (
-                              <p className="text-[10px] text-zinc-500 mt-0.5 font-sans">
-                                {acc.tagline}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Right Stats & Action */}
-                        <div className="text-right flex flex-col items-end justify-between">
-                          <div className="flex items-center gap-2 text-[10px] text-zinc-400">
-                            {acc.weightKg && <span>{acc.weightKg} kg</span>}
-                            {acc.heightCm && <span>• {acc.heightCm} cm</span>}
-                            <span className="px-1.5 py-0.5 bg-zinc-900 text-zinc-300 border border-zinc-800">
-                              {acc.primaryGoal || 'TREINO'}
-                            </span>
-                          </div>
-
-                          <div className="mt-3 flex items-center gap-2">
-                            {savedAccounts.length > 1 && !isCurrent && (
-                              <button
-                                type="button"
-                                title="Remover conta do dispositivo"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (confirm(`Remover perfil de ${acc.name} deste dispositivo?`)) {
-                                    removeSavedAccount(acc.id);
-                                  }
-                                }}
-                                className="p-1 text-zinc-600 hover:text-[#FF0055] transition-colors"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-
-                            {isCurrent ? (
-                              <div className="flex items-center gap-1.5 text-xs text-[#39FF14] font-bold">
-                                <CheckCircle2 className="w-4 h-4" />
-                                <span>EM USO</span>
+                            <div className="flex items-start justify-between">
+                              <div className="flex items-start gap-3">
+                                <div className="w-9 h-9 border border-zinc-700 bg-black flex items-center justify-center font-bold text-xs text-white">
+                                  {acc.name ? acc.name.substring(0, 2).toUpperCase() : 'GL'}
+                                </div>
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <h4 className="font-bold text-xs uppercase text-white">{acc.name}</h4>
+                                    {isCurrent && (
+                                      <span className="text-[9px] px-1.5 py-0.2 bg-white text-black font-bold uppercase">
+                                        ATIVO
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className="text-[11px] text-zinc-400 font-sans block">{acc.email}</span>
+                                  <div className="text-[10px] text-zinc-500 mt-0.5">
+                                    {acc.tagline || 'Usuário Convencional'}
+                                  </div>
+                                </div>
                               </div>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => handleSelectAccount(acc.id)}
-                                className="px-3 py-1 neo-box text-xs font-bold text-white group-hover:border-[#00F0FF] group-hover:text-[#00F0FF] flex items-center gap-1 transition-all"
-                              >
-                                <span>ENTRAR</span>
-                                <ArrowRight className="w-3 h-3" />
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
 
-                      {/* Footer micro-info */}
-                      <div className="mt-3 pt-2 border-t border-zinc-900/80 flex items-center justify-between text-[10px] text-zinc-500">
-                        <span>PIN de Acesso: {acc.pin || '2026'}</span>
-                        <span>Último Acesso: {acc.lastActiveAt || 'Recente'}</span>
-                      </div>
+                              <div className="flex items-center gap-2">
+                                {savedAccounts.length > 1 && !isCurrent && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      removeSavedAccount(acc.id);
+                                    }}
+                                    className="p-1.5 text-zinc-500 hover:text-white border border-transparent hover:border-zinc-700 cursor-pointer"
+                                    title="Remover perfil do dispositivo"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                                {!isCurrent && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSelectAccount(acc.id)}
+                                    className="px-2.5 py-1 bg-white text-black text-xs font-bold uppercase hover:bg-zinc-200 transition-all cursor-pointer"
+                                  >
+                                    ACESSAR
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
+
+                {/* 2. Profissionais */}
+                {savedAccounts.some((a) => a.role === 'COACH' || a.role === 'NUTRITIONIST') && (
+                  <div className="space-y-2">
+                    <div className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                      <Award className="w-3.5 h-3.5 text-white" />
+                      <span>App Pro Suite // Personais & Nutricionistas</span>
                     </div>
-                  );
-                })}
+                    {savedAccounts
+                      .filter((a) => a.role === 'COACH' || a.role === 'NUTRITIONIST')
+                      .map((acc) => {
+                        const isCurrent = acc.id === activeAccountId;
+                        return (
+                          <div
+                            key={acc.id}
+                            onClick={() => !isCurrent && handleSelectAccount(acc.id)}
+                            className={`p-3.5 border transition-all cursor-pointer relative ${
+                              isCurrent
+                                ? 'border-white bg-zinc-950 shadow-[2px_2px_0px_0px_rgba(255,255,255,0.4)]'
+                                : 'border-zinc-800 bg-black hover:border-zinc-500'
+                            }`}
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex items-start gap-3">
+                                <div className="w-9 h-9 border border-zinc-700 bg-black flex items-center justify-center font-bold text-xs text-white">
+                                  {acc.role === 'COACH' ? 'PT' : 'NT'}
+                                </div>
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <h4 className="font-bold text-xs uppercase text-white">{acc.name}</h4>
+                                    {isCurrent && (
+                                      <span className="text-[9px] px-1.5 py-0.2 bg-white text-black font-bold uppercase">
+                                        ATIVO
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className="text-[11px] text-zinc-400 font-sans block">{acc.email}</span>
+                                  <div className="text-[10px] text-zinc-500 mt-0.5">
+                                    {acc.tagline || (acc.role === 'COACH' ? 'Personal Trainer' : 'Nutricionista')}
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                {savedAccounts.length > 1 && !isCurrent && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      removeSavedAccount(acc.id);
+                                    }}
+                                    className="p-1.5 text-zinc-500 hover:text-white border border-transparent hover:border-zinc-700 cursor-pointer"
+                                    title="Remover perfil do dispositivo"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                                {!isCurrent && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSelectAccount(acc.id)}
+                                    className="px-2.5 py-1 bg-white text-black text-xs font-bold uppercase hover:bg-zinc-200 transition-all cursor-pointer"
+                                  >
+                                    ACESSAR
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
+
+                {/* 3. Academias */}
+                {savedAccounts.some((a) => a.role === 'GYM') && (
+                  <div className="space-y-2">
+                    <div className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                      <Building2 className="w-3.5 h-3.5 text-white" />
+                      <span>App Enterprise Hub // Academias & Unidades</span>
+                    </div>
+                    {savedAccounts
+                      .filter((a) => a.role === 'GYM')
+                      .map((acc) => {
+                        const isCurrent = acc.id === activeAccountId;
+                        return (
+                          <div
+                            key={acc.id}
+                            onClick={() => !isCurrent && handleSelectAccount(acc.id)}
+                            className={`p-3.5 border transition-all cursor-pointer relative ${
+                              isCurrent
+                                ? 'border-white bg-zinc-950 shadow-[2px_2px_0px_0px_rgba(255,255,255,0.4)]'
+                                : 'border-zinc-800 bg-black hover:border-zinc-500'
+                            }`}
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex items-start gap-3">
+                                <div className="w-9 h-9 border border-zinc-700 bg-black flex items-center justify-center font-bold text-xs text-white">
+                                  GYM
+                                </div>
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <h4 className="font-bold text-xs uppercase text-white">{acc.name}</h4>
+                                    {isCurrent && (
+                                      <span className="text-[9px] px-1.5 py-0.2 bg-white text-black font-bold uppercase">
+                                        ATIVO
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className="text-[11px] text-zinc-400 font-sans block">{acc.email}</span>
+                                  <div className="text-[10px] text-zinc-500 mt-0.5">
+                                    {acc.tagline || 'Academia / Centro de Treino'}
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                {savedAccounts.length > 1 && !isCurrent && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      removeSavedAccount(acc.id);
+                                    }}
+                                    className="p-1.5 text-zinc-500 hover:text-white border border-transparent hover:border-zinc-700 cursor-pointer"
+                                    title="Remover perfil do dispositivo"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                                {!isCurrent && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSelectAccount(acc.id)}
+                                    className="px-2.5 py-1 bg-white text-black text-xs font-bold uppercase hover:bg-zinc-200 transition-all cursor-pointer"
+                                  >
+                                    ACESSAR
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
               </div>
             </>
           ) : (
-            /* Add New Athlete Form */
-            <form onSubmit={handleCreateAccount} className="space-y-4 font-mono">
-              <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
-                <span className="text-xs uppercase font-bold text-[#00F0FF]">
-                  // Novo Perfil de Usuário Final
-                </span>
+            <form onSubmit={handleCreateAccount} className="space-y-4">
+              <div className="flex items-center justify-between pb-2 border-b border-zinc-800">
+                <span className="text-xs font-bold uppercase text-white">Novo Perfil de Usuário</span>
                 <button
                   type="button"
                   onClick={() => setIsAddingNew(false)}
-                  className="text-xs text-zinc-400 hover:text-white"
+                  className="text-xs text-zinc-400 hover:text-white cursor-pointer"
                 >
-                  Voltar para lista
+                  Cancelar
                 </button>
               </div>
 
               {errorMsg && (
-                <div className="p-3 border border-[#FF0055] bg-[#FF0055]/10 text-[#FF0055] text-xs flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                  <span>{errorMsg}</span>
+                <div className="p-2 border border-white text-xs text-white">
+                  {errorMsg}
                 </div>
               )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                 <div>
-                  <label className="block text-[10px] uppercase text-zinc-400 font-bold mb-1">
-                    Nome Completo
+                  <label className="block text-zinc-400 uppercase text-[10px] mb-1 font-bold">
+                    Nome Completo *
                   </label>
                   <input
                     type="text"
                     required
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
-                    placeholder="Ex: Lucas Ferreira"
-                    className="w-full p-2.5 bg-black border border-zinc-700 text-white font-mono text-sm focus:border-[#00F0FF] outline-none"
+                    placeholder="Ex: Carlos Oliveira"
+                    className="w-full p-2.5 bg-black border border-zinc-700 text-white outline-none focus:border-white"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[10px] uppercase text-zinc-400 font-bold mb-1">
-                    E-mail do Atleta
+                  <label className="block text-zinc-400 uppercase text-[10px] mb-1 font-bold">
+                    E-mail *
                   </label>
                   <input
                     type="email"
                     required
                     value={newEmail}
                     onChange={(e) => setNewEmail(e.target.value)}
-                    placeholder="lucas@exemplo.com"
-                    className="w-full p-2.5 bg-black border border-zinc-700 text-white font-mono text-sm focus:border-[#00F0FF] outline-none"
+                    placeholder="carlos@exemplo.com"
+                    className="w-full p-2.5 bg-black border border-zinc-700 text-white outline-none focus:border-white"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[10px] uppercase text-zinc-400 font-bold mb-1">
+                  <label className="block text-zinc-400 uppercase text-[10px] mb-1 font-bold">
                     Sexo Biológico
                   </label>
                   <select
                     value={newSex}
                     onChange={(e) => setNewSex(e.target.value as any)}
-                    className="w-full p-2.5 bg-black border border-zinc-700 text-white font-mono text-sm focus:border-[#00F0FF] outline-none"
+                    className="w-full p-2.5 bg-black border border-zinc-700 text-white outline-none focus:border-white"
                   >
                     <option value="MALE">Masculino</option>
                     <option value="FEMALE">Feminino</option>
@@ -314,87 +417,54 @@ export const AccountSwitcherModal: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-[10px] uppercase text-zinc-400 font-bold mb-1">
-                    Objetivo Primário
-                  </label>
-                  <select
-                    value={newGoal}
-                    onChange={(e) => setNewGoal(e.target.value as any)}
-                    className="w-full p-2.5 bg-black border border-zinc-700 text-white font-mono text-sm focus:border-[#00F0FF] outline-none"
-                  >
-                    <option value="HYPERTROPHY">Hipertrofia Muscular</option>
-                    <option value="STRENGTH">Força Máxima</option>
-                    <option value="FAT_LOSS">Composição Corporal / Queima de Gordura</option>
-                    <option value="LONGEVITY">Saúde & Longevidade</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] uppercase text-zinc-400 font-bold mb-1">
-                    Peso Atual (kg)
+                  <label className="block text-zinc-400 uppercase text-[10px] mb-1 font-bold">
+                    PIN Numérico (4 Dígitos)
                   </label>
                   <input
-                    type="number"
-                    value={newWeight}
-                    onChange={(e) => setNewWeight(Number(e.target.value))}
-                    step="0.5"
-                    className="w-full p-2.5 bg-black border border-zinc-700 text-white font-mono text-sm focus:border-[#00F0FF] outline-none"
+                    type="text"
+                    maxLength={4}
+                    value={newPin}
+                    onChange={(e) => setNewPin(e.target.value)}
+                    className="w-full p-2.5 bg-black border border-zinc-700 text-white outline-none focus:border-white"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[10px] uppercase text-zinc-400 font-bold mb-1">
+                  <label className="block text-zinc-400 uppercase text-[10px] mb-1 font-bold">
+                    Peso (kg)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={newWeight}
+                    onChange={(e) => setNewWeight(Number(e.target.value))}
+                    className="w-full p-2.5 bg-black border border-zinc-700 text-white outline-none focus:border-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-zinc-400 uppercase text-[10px] mb-1 font-bold">
                     Altura (cm)
                   </label>
                   <input
                     type="number"
                     value={newHeight}
                     onChange={(e) => setNewHeight(Number(e.target.value))}
-                    className="w-full p-2.5 bg-black border border-zinc-700 text-white font-mono text-sm focus:border-[#00F0FF] outline-none"
-                  />
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label className="block text-[10px] uppercase text-zinc-400 font-bold mb-1">
-                    PIN do Enclave (4 dígitos para desbloqueio rápido)
-                  </label>
-                  <input
-                    type="password"
-                    maxLength={4}
-                    value={newPin}
-                    onChange={(e) => setNewPin(e.target.value)}
-                    placeholder="2026"
-                    className="w-full p-2.5 bg-black border border-zinc-700 text-white font-mono text-sm focus:border-[#00F0FF] outline-none tracking-widest text-center"
+                    className="w-full p-2.5 bg-black border border-zinc-700 text-white outline-none focus:border-white"
                   />
                 </div>
               </div>
 
-              <div className="pt-2 flex items-center justify-end gap-3 border-t border-zinc-800">
-                <button
-                  type="button"
-                  onClick={() => setIsAddingNew(false)}
-                  className="px-4 py-2 border border-zinc-700 text-zinc-300 hover:text-white text-xs font-bold"
-                >
-                  CANCELAR
-                </button>
+              <div className="pt-2">
                 <button
                   type="submit"
-                  className="px-5 py-2 neo-box bg-[#00F0FF] text-black font-mono font-black text-xs uppercase hover:bg-white transition-all shadow-[2px_2px_0px_0px_rgba(0,240,255,0.4)]"
+                  className="w-full py-3 bg-white text-black font-black text-xs uppercase hover:bg-zinc-200 transition-all cursor-pointer"
                 >
-                  CRIAR & SELECIONAR CONTA
+                  CRIAR & SALVAR PERFIL
                 </button>
               </div>
             </form>
           )}
-        </div>
-
-        {/* Footer Guidance */}
-        <div className="p-4 bg-black border-t-2 border-zinc-800 text-[11px] font-mono text-zinc-500 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-zinc-400">
-            <ShieldCheck className="w-4 h-4 text-[#39FF14]" />
-            <span>Partições locais criptografadas individualmente (AES-256-GCM)</span>
-          </div>
-          <span>Labcore 2026</span>
         </div>
       </div>
     </div>
