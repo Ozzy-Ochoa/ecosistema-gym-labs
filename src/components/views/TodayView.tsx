@@ -39,6 +39,7 @@ export const TodayView: React.FC = () => {
     bodyRecords,
     circumferences,
     tanakaKarvonen,
+    todayTrainingCalories,
   } = useGymLabs();
 
   // Biometrics
@@ -171,7 +172,7 @@ export const TodayView: React.FC = () => {
           </div>
         </div>
 
-        {/* 2. Deterministic Energy Balance (BMR & TDEE) */}
+        {/* 2. Deterministic Energy Balance (BMR & TDEE + Workout Burn) */}
         <div
           onClick={() => setCurrentTab('nutrition')}
           className="p-5 bg-zinc-950 border border-zinc-800 hover:border-white transition-all cursor-pointer space-y-2.5 group"
@@ -179,22 +180,33 @@ export const TodayView: React.FC = () => {
           <div className="flex items-center justify-between text-zinc-400 text-[10px] uppercase font-bold">
             <span className="flex items-center gap-1.5">
               <Flame className="w-3.5 h-3.5 text-white" />
-              <span>Gasto Energético (TDEE)</span>
+              <span>Gasto Energético Diário</span>
             </span>
-            <span className="text-[10px] text-zinc-400">MIFFLIN</span>
+            <span className="text-[10px] text-emerald-400 font-bold font-mono">
+              {todayTrainingCalories > 0 ? `+${todayTrainingCalories} kcal TREINO` : 'MIFFLIN'}
+            </span>
           </div>
 
           <div className="flex items-baseline justify-between">
             <div className="text-3xl sm:text-4xl font-black text-white">
-              {baseTdee}{' '}
-              <span className="text-xs text-zinc-500 font-normal">kcal/dia</span>
+              {baseTdee + todayTrainingCalories}{' '}
+              <span className="text-xs text-zinc-500 font-normal">kcal total</span>
             </div>
+            {todayTrainingCalories > 0 && (
+              <span className="text-[9px] px-1.5 py-0.5 bg-emerald-950 text-emerald-300 border border-emerald-800 font-mono font-bold">
+                Treino Somado
+              </span>
+            )}
           </div>
 
           <div className="pt-2 border-t border-zinc-900 text-[11px] space-y-1">
             <div className="flex justify-between text-zinc-400">
-              <span>Metabolismo Basal (BMR):</span>
-              <strong className="text-white">{bmrCalculation.result || 1750} kcal</strong>
+              <span>Basal + Atividade (TDEE):</span>
+              <strong className="text-white">{baseTdee} kcal</strong>
+            </div>
+            <div className="flex justify-between text-zinc-400">
+              <span>Gasto Treino Hoje:</span>
+              <strong className="text-emerald-400">+{todayTrainingCalories} kcal</strong>
             </div>
             <div className="flex justify-between text-zinc-500 font-sans text-[10px]">
               <span>Meta c/ Objetivo ({goal}):</span>

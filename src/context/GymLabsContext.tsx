@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { dataStore } from '../repositories/GymLabsDataStore';
 import { UserIdentity, UserProfile, CountryConfiguration, SavedUserAccount, RegisterUserData } from '../types/user';
 import { BodyCompositionRecord, CircumferenceRecord } from '../types/body';
-import { Exercise, TrainingSession, ACWRResult, DayAttendance } from '../types/training';
+import { Exercise, TrainingSession, ACWRResult, DayAttendance, UserWorkoutRoutine } from '../types/training';
 import { SystemNotification } from '../types/notification';
 import { MealEntry, HydrationLog, FoodItem } from '../types/nutrition';
 import { SleepSession, SubjectiveWellnessLog, GLRecoveryScore } from '../types/recovery';
@@ -124,6 +124,12 @@ interface GymLabsContextType {
   scheduledDaysOfWeek: number[];
   setScheduledDaysOfWeek: (days: number[]) => void;
   acwrMetrics: ACWRResult;
+
+  // Conventional Athlete Workout Routine & Autonomous Training
+  userWorkoutRoutine: UserWorkoutRoutine;
+  saveUserWorkoutRoutine: (routine: UserWorkoutRoutine) => void;
+  resetToSuggestedRoutine: (goal?: string, days?: number) => void;
+  todayTrainingCalories: number;
 
   // PR Vault & Progressive Overload Engine
   prVault: PRVaultEntry[];
@@ -275,6 +281,7 @@ export const GymLabsProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [trainingSessions, setTrainingSessions] = useState<TrainingSession[]>(dataStore.getTrainingSessions());
   const [attendanceLogs, setAttendanceLogs] = useState<DayAttendance[]>(dataStore.getAttendanceLogs());
   const [scheduledDaysOfWeek, setScheduledDaysOfWeekState] = useState<number[]>(dataStore.getScheduledDaysOfWeek());
+  const [userWorkoutRoutine, setUserWorkoutRoutineState] = useState<UserWorkoutRoutine>(() => dataStore.getUserWorkoutRoutine());
   const [meals, setMeals] = useState<MealEntry[]>(dataStore.getMeals());
   const [foods] = useState<FoodItem[]>(dataStore.getFoods());
   const [hydration, setHydration] = useState<HydrationLog[]>(dataStore.getHydration());
@@ -599,6 +606,7 @@ export const GymLabsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setInterProfessionalConsents(dataStore.getInterProfessionalConsents());
     setChatMessages(dataStore.getChatMessages());
     setInvitations(dataStore.getInvitations());
+    setUserWorkoutRoutineState(dataStore.getUserWorkoutRoutine());
   }, []);
 
   const login = (credentials: { email?: string; password?: string; pin?: string; accountId?: string }) => {
@@ -745,6 +753,16 @@ export const GymLabsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     dataStore.setScheduledDaysOfWeek(days);
     setScheduledDaysOfWeekState(dataStore.getScheduledDaysOfWeek());
   };
+
+  const saveUserWorkoutRoutine = useCallback((routine: UserWorkoutRoutine) => {
+    dataStore.saveUserWorkoutRoutine(routine);
+    setUserWorkoutRoutineState(dataStore.getUserWorkoutRoutine());
+  }, []);
+
+  const resetToSuggestedRoutine = useCallback((goal?: string, days?: number) => {
+    const updated = dataStore.resetToSuggestedRoutine(goal, days);
+    setUserWorkoutRoutineState(updated);
+  }, []);
 
   const addMeal = (meal: MealEntry) => {
     dataStore.addMeal(meal);
@@ -918,6 +936,20 @@ export const GymLabsProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const bmiCalculation = calculateBMI(currentWeightKg, currentHeightCm);
 
+  // Today's training energy expenditure (MET ~6.0 for resistance training)
+  // Approximate caloric expenditure added to the user's daily burn
+  const todayDateStr = useMemo(() => new Date().toISOString().split('T')[0], []);
+  const todayTrainingCalories = useMemo(() => {
+    const userWeight = currentWeightKg || identity.weightKg || 75;
+    return trainingSessions
+      .filter((s) => s.startedAt.startsWith(todayDateStr))
+      .reduce((sum, s) => {
+        const mets = 6.0;
+        const durHours = (s.durationMinutes || 60) / 60;
+        return sum + Math.round(mets * userWeight * durHours);
+      }, 0);
+  }, [trainingSessions, currentWeightKg, identity.weightKg, todayDateStr]);
+
   // Tanaka & Karvonen zones
   const tanakaKarvonen = useMemo(() => {
     const restHr = latestSleep?.restingHeartRateBpm?.value || 58;
@@ -1001,6 +1033,10 @@ export const GymLabsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         scheduledDaysOfWeek,
         setScheduledDaysOfWeek,
         acwrMetrics,
+        userWorkoutRoutine,
+        saveUserWorkoutRoutine,
+        resetToSuggestedRoutine,
+        todayTrainingCalories,
         prVault,
         evaluateOverload,
         tanakaKarvonen,

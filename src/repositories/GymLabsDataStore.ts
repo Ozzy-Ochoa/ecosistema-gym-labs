@@ -1,6 +1,7 @@
 import { UserIdentity, UserProfile, SavedUserAccount, RegisterUserData } from '../types/user';
 import { BodyCompositionRecord, CircumferenceRecord } from '../types/body';
-import { Exercise, TrainingSession, DayAttendance } from '../types/training';
+import { Exercise, TrainingSession, DayAttendance, UserWorkoutRoutine } from '../types/training';
+import { createSuggestedWorkoutRoutine } from '../data/defaultUserRoutines';
 import { MealEntry, HydrationLog, FoodItem } from '../types/nutrition';
 import { SleepSession, SubjectiveWellnessLog } from '../types/recovery';
 import { ConsentGrant } from '../types/consent';
@@ -83,6 +84,7 @@ const STORAGE_KEYS = {
   INTER_CONSENTS: 'gymlabs_inter_consents_v1',
   CHAT_MESSAGES: 'gymlabs_chat_messages_v1',
   INVITATIONS: 'gymlabs_invitations_v1',
+  USER_WORKOUT_ROUTINE: 'gymlabs_user_workout_routine_v1',
 };
 
 // Default clean production user
@@ -163,6 +165,7 @@ export class GymLabsDataStore {
   private interProfessionalConsents: InterProfessionalConsent[] = [...DEFAULT_INTER_PROFESSIONAL_CONSENTS];
   private chatMessages: ChatMessage[] = [...DEFAULT_CHAT_MESSAGES];
   private invitations: ProfessionalInvitation[] = [];
+  private userWorkoutRoutine: UserWorkoutRoutine | null = null;
 
   private constructor() {
     this.loadState();
@@ -362,6 +365,15 @@ export class GymLabsDataStore {
       const invVal = localStorage.getItem(STORAGE_KEYS.INVITATIONS);
       if (invVal) {
         try { this.invitations = JSON.parse(invVal); } catch {}
+      }
+
+      // Load User Workout Routine (conventional athlete)
+      const routineVal = localStorage.getItem(STORAGE_KEYS.USER_WORKOUT_ROUTINE);
+      if (routineVal) {
+        try { this.userWorkoutRoutine = JSON.parse(routineVal); } catch { this.userWorkoutRoutine = null; }
+      }
+      if (!this.userWorkoutRoutine) {
+        this.userWorkoutRoutine = createSuggestedWorkoutRoutine(this.identity.id, this.profile.primaryGoal, 4);
       }
 
       // Check and update system notifications based on physiological parameters and periodic rules
@@ -928,6 +940,36 @@ export class GymLabsDataStore {
       volumeKg: session.calculatedVolumeKg.value,
       notes: `Sessão concluída com RPE ${session.sessionRpe}/10`,
     });
+  }
+
+  // Conventional Athlete Workout Routine Methods
+  public getUserWorkoutRoutine(): UserWorkoutRoutine {
+    if (!this.userWorkoutRoutine) {
+      this.userWorkoutRoutine = createSuggestedWorkoutRoutine(this.identity.id, this.profile.primaryGoal, 4);
+      this.persistUserWorkoutRoutine();
+    }
+    return { ...this.userWorkoutRoutine };
+  }
+
+  public saveUserWorkoutRoutine(routine: UserWorkoutRoutine): void {
+    this.userWorkoutRoutine = { ...routine, updatedAt: new Date().toISOString() };
+    this.persistUserWorkoutRoutine();
+    this.logAudit('CALCULATION_EXECUTED', 'ROUTINE_UPDATED', `Rotina: ${routine.title}, Sessões: ${routine.sessions.length}`);
+  }
+
+  public resetToSuggestedRoutine(goal?: string, days?: number): UserWorkoutRoutine {
+    const chosenGoal = goal || this.profile.primaryGoal || 'HYPERTROPHY';
+    const chosenDays = days || 4;
+    this.userWorkoutRoutine = createSuggestedWorkoutRoutine(this.identity.id, chosenGoal, chosenDays);
+    this.persistUserWorkoutRoutine();
+    this.logAudit('CALCULATION_EXECUTED', 'ROUTINE_RESET_SUGGESTED', `Meta: ${chosenGoal}, Dias: ${chosenDays}`);
+    return { ...this.userWorkoutRoutine };
+  }
+
+  private persistUserWorkoutRoutine(): void {
+    try {
+      localStorage.setItem(STORAGE_KEYS.USER_WORKOUT_ROUTINE, JSON.stringify(this.userWorkoutRoutine));
+    } catch {}
   }
 
   // Gym Attendance & Planning

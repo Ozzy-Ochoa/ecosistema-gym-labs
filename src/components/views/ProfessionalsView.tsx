@@ -135,23 +135,23 @@ export const ProfessionalsView: React.FC = () => {
 
   return (
     <div id="gymlabs-professionals-view" className="space-y-8 max-w-7xl mx-auto font-mono select-none">
-      {/* Header Banner - Explaining the Uber/iFood Model */}
+      {/* Header Banner - Equipe de Saúde Integrada */}
       <div className="p-6 bg-zinc-950 border border-zinc-800 space-y-4">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
               <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                PRO CONNECT // O MARKETPLACE DO FITNESS
+                PRO CONNECT // EQUIPE DE SAÚDE INTEGRADA
               </span>
               <span className="text-[9px] px-2 py-0.5 bg-white text-black font-black uppercase">
-                MODELO UBER & IFOOD
+                CONEXÃO PROFISSIONAL
               </span>
             </div>
             <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight uppercase">
-              Conecte Personal Trainer e Nutri num só App
+              Conecte Personal Trainer e Nutricionista num só App
             </h1>
             <p className="text-xs text-zinc-400 mt-1 max-w-3xl font-sans leading-relaxed">
-              O foco do Gym Labs é permitir que você gerencie treino e nutrição em um só lugar. Você pode treinar de forma independente no plano base ou <strong>contratar e conectar um profissional credenciado (CREF / CRN)</strong> com extrema facilidade, como pedir um Uber ou pedir no iFood!
+              O ecossistema Gym Labs permite que você treine de forma autônoma ou <strong>conecte-se a profissionais homologados (CREF / CRN)</strong> para receber fichas de treino periodizadas e planos alimentares calculados diretamente no seu celular.
             </p>
           </div>
 
@@ -228,7 +228,7 @@ export const ProfessionalsView: React.FC = () => {
         </div>
       )}
 
-      {/* PLANOS DE ACOMPANHAMENTO // O "CARDÁPIO" ESTILO UBER/IFOOD */}
+      {/* PLANOS DE ACOMPANHAMENTO PROFISSIONAL */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>

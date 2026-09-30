@@ -20,11 +20,15 @@ import {
   TrendingUp,
   X,
 } from 'lucide-react';
-import { Exercise, TrainingSession, TrainingSet } from '../../types/training';
+import { Exercise, TrainingSession, TrainingSet, UserRoutineSession } from '../../types/training';
+import { RoutineCustomizerModal } from './training/RoutineCustomizerModal';
+import { ActiveWorkoutRunnerModal } from './training/ActiveWorkoutRunnerModal';
+import { Sliders, Sparkles, CheckCircle2, ChevronRight, PlayCircle } from 'lucide-react';
 
 export const TrainingView: React.FC = () => {
   const {
     identity,
+    profile,
     trainingSessions,
     addTrainingSession,
     exercises,
@@ -34,9 +38,16 @@ export const TrainingView: React.FC = () => {
     tanakaKarvonen,
     openCalculationInspector,
     activePrescribedWorkoutPlan,
+    userWorkoutRoutine,
+    resetToSuggestedRoutine,
+    todayTrainingCalories,
   } = useGymLabs();
 
   const [activePrescribedSessionIdx, setActivePrescribedSessionIdx] = useState(0);
+  const [selectedRoutineSplitIdx, setSelectedRoutineSplitIdx] = useState(0);
+  const [isCustomizerOpen, setIsCustomizerOpen] = useState(false);
+  const [activeRunnerSession, setActiveRunnerSession] = useState<UserRoutineSession | null>(null);
+  const [viewAutonomousMode, setViewAutonomousMode] = useState(false);
 
   // Active Logger State
   const [isLogging, setIsLogging] = useState(false);
@@ -219,61 +230,78 @@ export const TrainingView: React.FC = () => {
         </button>
       </div>
 
-      {/* Prescribed Workout Plan by Personal Trainer (Gym Labs Connected) */}
-      {activePrescribedWorkoutPlan && (
-        <div className="p-5 bg-zinc-950 border border-blue-900/60 shadow-[0_0_20px_rgba(59,130,246,0.1)] space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-zinc-800">
+      {/* WORKOUT ROUTINE SECTION: PERSONAL TRAINER PLAN OR AUTONOMOUS SUGGESTED/CUSTOM PLAN */}
+      {activePrescribedWorkoutPlan && !viewAutonomousMode ? (
+        /* CONDITION 1: ATHLETE HAS PERSONAL TRAINER (PRESCRIBED & SYNCHRONIZED) */
+        <div className="p-5 bg-zinc-950 border border-blue-900/60 shadow-[0_0_20px_rgba(59,130,246,0.12)] space-y-4">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 border-b border-zinc-800">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-blue-600 text-white font-black flex items-center justify-center text-xs">
+              <div className="w-10 h-10 bg-blue-600 text-white font-black flex items-center justify-center text-sm shadow-md">
                 PT
               </div>
               <div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="text-xs font-black text-white uppercase tracking-wider">
-                    FICHA PRESCRIÇÃO PERSONAL TRAINER // GYM LABS TRAINER
+                    FICHA OFICIAL // PRESCRIÇÃO PERSONAL TRAINER
                   </span>
                   <span className="text-[9px] px-1.5 py-0.2 bg-blue-950 text-blue-300 border border-blue-800 font-bold uppercase">
-                    SINCRONIZADO
+                    PLANO CONTRATADO • SINCRONIZADO
                   </span>
                 </div>
                 <div className="text-[11px] text-zinc-400 font-mono">
-                  Prescrito por: <strong className="text-white">{activePrescribedWorkoutPlan.authorName}</strong> • {activePrescribedWorkoutPlan.title} (v{activePrescribedWorkoutPlan.version})
+                  Prescrito por: <strong className="text-white">{activePrescribedWorkoutPlan.authorName}</strong> (CREF) • {activePrescribedWorkoutPlan.title} (v{activePrescribedWorkoutPlan.version})
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={() => {
                   const sess = activePrescribedWorkoutPlan.sessions[activePrescribedSessionIdx] || activePrescribedWorkoutPlan.sessions[0];
                   if (sess) {
-                    setSessionTitle(sess.name);
-                    setDurationMinutes(sess.estimatedDurationMinutes || 60);
-                    if (sess.exercises.length > 0) {
-                      const firstEx = sess.exercises[0];
-                      const matched = exercises.find((e) => e.name.toLowerCase().includes(firstEx.exerciseName.toLowerCase()) || firstEx.exerciseName.toLowerCase().includes(e.name.toLowerCase()));
-                      if (matched) setSelectedExerciseId(matched.id);
-                      setLoggedSets(
-                        Array.from({ length: firstEx.sets }).map((_, i) => ({
-                          setNumber: i + 1,
-                          reps: parseInt(firstEx.reps) || 10,
-                          loadKg: firstEx.loadKg || 60,
-                          rpe: firstEx.rpeTarget || 8.5,
-                          completed: true,
-                        }))
-                      );
-                    }
-                    setIsLogging(true);
+                    const runnerSess: UserRoutineSession = {
+                      id: sess.id,
+                      splitLetter: sess.splitLetter,
+                      name: sess.name,
+                      daysOfWeek: [1],
+                      targetMuscles: sess.targetMuscles || ['Geral'],
+                      estimatedDurationMinutes: sess.estimatedDurationMinutes || 60,
+                      exercises: sess.exercises.map((ex, i) => ({
+                        id: ex.id || `pt-ex-${i}`,
+                        exerciseId: ex.exerciseId,
+                        exerciseName: ex.exerciseName,
+                        muscleGroup: ex.muscleGroup,
+                        sets: ex.sets,
+                        repsTarget: ex.reps,
+                        loadKgTarget: ex.loadKg,
+                        restSeconds: ex.restSeconds || 60,
+                        notes: ex.notes,
+                      })),
+                    };
+                    setActiveRunnerSession(runnerSess);
                   }
                 }}
-                className="px-4 py-2 bg-white text-black font-black text-xs uppercase hover:bg-zinc-200 transition-all cursor-pointer flex items-center gap-1.5 shadow-md"
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-black text-xs uppercase transition-all cursor-pointer flex items-center gap-2 shadow-lg"
               >
-                <Dumbbell className="w-3.5 h-3.5" />
-                <span>CARREGAR NA ESTEIRA DE TREINO</span>
+                <PlayCircle className="w-4 h-4 fill-current" />
+                <span>ATIVAR ESTE TREINO AGORA</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setViewAutonomousMode(true)}
+                className="px-3 py-2 border border-zinc-700 hover:border-zinc-500 text-zinc-400 hover:text-white text-[11px] font-bold uppercase transition-all cursor-pointer"
+                title="Ver como seria o treino se você treinasse de forma autônoma sem personal"
+              >
+                <span>Ver Modo Autônomo</span>
               </button>
             </div>
           </div>
+
+          <p className="text-[11px] text-zinc-400 font-sans italic border-l-2 border-blue-600 pl-2.5">
+            Condição ativa: Você possui acompanhamento com Personal Trainer. Sua ficha é calibrada pelo profissional e atualizada em tempo real conforme sua evolução.
+          </p>
 
           {/* Sessions Selector Tabs */}
           <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-1">
@@ -331,6 +359,175 @@ export const TrainingView: React.FC = () => {
                     "{activePrescribedWorkoutPlan.generalInstructions}"
                   </p>
                 )}
+              </div>
+            );
+          })()}
+        </div>
+      ) : (
+        /* CONDITION 2: CONVENTIONAL ATHLETE WORKOUT (SUGGESTED INTELIGENTE OU MONTADO PELO USUÁRIO) */
+        <div className="p-5 bg-zinc-950 border border-zinc-800 space-y-4">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 border-b border-zinc-800">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-white text-black font-black flex items-center justify-center text-sm shadow-md">
+                <Dumbbell className="w-5 h-5 text-black" />
+              </div>
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-sm sm:text-base font-black text-white uppercase tracking-tight">
+                    {userWorkoutRoutine.title}
+                  </h2>
+                  <span
+                    className={`text-[9px] px-1.5 py-0.2 border font-bold uppercase ${
+                      userWorkoutRoutine.source === 'SYSTEM_SUGGESTED'
+                        ? 'bg-emerald-950 text-emerald-300 border-emerald-800'
+                        : 'bg-zinc-900 text-zinc-300 border-zinc-700'
+                    }`}
+                  >
+                    {userWorkoutRoutine.source === 'SYSTEM_SUGGESTED'
+                      ? 'SUGERIDO PELO SISTEMA (EDITÁVEL)'
+                      : 'MONTADO POR VOCÊ'}
+                  </span>
+                </div>
+                <div className="text-[11px] text-zinc-400 font-mono mt-0.5">
+                  Dias agendados:{' '}
+                  <strong className="text-zinc-200">
+                    {userWorkoutRoutine.scheduledDaysOfWeek
+                      .map((d) => ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][d])
+                      .join(', ')}
+                  </strong>{' '}
+                  • {userWorkoutRoutine.sessions.length} divisões
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons: Ativar Treino & Personalizar */}
+            <div className="flex flex-wrap items-center gap-2">
+              {/* PRIMARY ACTION: ATIVAR TREINO DO DIA */}
+              <button
+                type="button"
+                onClick={() => {
+                  const currentSess =
+                    userWorkoutRoutine.sessions[selectedRoutineSplitIdx] ||
+                    userWorkoutRoutine.sessions[0];
+                  if (currentSess) {
+                    setActiveRunnerSession(currentSess);
+                  }
+                }}
+                className="px-4 py-2 bg-white text-black hover:bg-zinc-200 font-black text-xs uppercase transition-all cursor-pointer flex items-center gap-2 shadow-[2px_2px_0px_0px_rgba(255,255,255,0.4)]"
+              >
+                <PlayCircle className="w-4 h-4 fill-current text-black" />
+                <span>ATIVAR TREINO DO DIA</span>
+              </button>
+
+              {/* SECONDARY ACTION: EDITAR / MONTAR MEU TREINO */}
+              <button
+                type="button"
+                onClick={() => setIsCustomizerOpen(true)}
+                className="px-3 py-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-200 hover:text-white font-bold text-xs uppercase transition-all cursor-pointer flex items-center gap-1.5"
+                title="Editar exercícios, criar novos splits ou montar do zero"
+              >
+                <Sliders className="w-3.5 h-3.5" />
+                <span>Editar / Montar Treino</span>
+              </button>
+
+              {/* RESTAURAR SUGERIDO */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.confirm('Deseja restaurar o treino sugerido pelo algoritmo fisiológico?')) {
+                    resetToSuggestedRoutine(profile.primaryGoal, userWorkoutRoutine.scheduledDaysOfWeek.length || 4);
+                  }
+                }}
+                className="p-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-white cursor-pointer"
+                title="Restaurar treino sugerido pelo sistema"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+              </button>
+
+              {/* If athlete has personal trainer, button to return to personal trainer view */}
+              {activePrescribedWorkoutPlan && (
+                <button
+                  type="button"
+                  onClick={() => setViewAutonomousMode(false)}
+                  className="px-2.5 py-1.5 border border-blue-800 text-blue-400 hover:bg-blue-950 text-[10px] font-bold uppercase transition-colors"
+                >
+                  Voltar ao Treino do Personal
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Splits Tabs (Treino A, B, C...) */}
+          <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-1">
+            {userWorkoutRoutine.sessions.map((sess, idx) => (
+              <button
+                key={sess.id || idx}
+                type="button"
+                onClick={() => setSelectedRoutineSplitIdx(idx)}
+                className={`px-3 py-1.5 text-xs font-bold uppercase border transition-all shrink-0 flex items-center gap-1.5 cursor-pointer ${
+                  selectedRoutineSplitIdx === idx
+                    ? 'bg-white text-black border-white shadow-sm'
+                    : 'bg-black text-zinc-400 border-zinc-800 hover:text-white'
+                }`}
+              >
+                <span>{sess.splitLetter}:</span>
+                <span className="truncate max-w-[170px]">
+                  {sess.name.replace(/Treino [A-Z]: /, '')}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          {/* Current Selected Split Exercises */}
+          {(() => {
+            const currentSess =
+              userWorkoutRoutine.sessions[selectedRoutineSplitIdx] ||
+              userWorkoutRoutine.sessions[0];
+            if (!currentSess) return null;
+
+            return (
+              <div className="space-y-3">
+                <div className="text-[11px] text-zinc-400 font-mono flex items-center justify-between pb-1 border-b border-zinc-900">
+                  <span>
+                    {currentSess.name} • Duração estimada: {currentSess.estimatedDurationMinutes || 50} min
+                  </span>
+                  <span className="text-zinc-500 font-bold">
+                    {currentSess.exercises.length} exercícios configurados
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {currentSess.exercises.map((ex, i) => (
+                    <div
+                      key={ex.id || i}
+                      className="p-3 bg-black border border-zinc-900 hover:border-zinc-800 transition-colors space-y-1 text-xs"
+                    >
+                      <div className="flex items-start justify-between">
+                        <span className="text-white font-bold uppercase">{ex.exerciseName}</span>
+                        <span className="text-[9px] px-1.5 py-0.2 bg-zinc-900 text-zinc-400 font-mono">
+                          {ex.muscleGroup}
+                        </span>
+                      </div>
+
+                      <div className="text-[10px] text-zinc-400 font-mono">
+                        <span className="text-white font-bold">{ex.sets} séries</span> ×{' '}
+                        <span className="text-zinc-200 font-bold">{ex.repsTarget} reps</span> • Carga:{' '}
+                        <span className="text-emerald-400 font-bold">
+                          {ex.loadKgTarget !== null && ex.loadKgTarget !== undefined && ex.loadKgTarget > 0
+                            ? `${ex.loadKgTarget} kg`
+                            : 'Na hora do treino'}
+                        </span>{' '}
+                        • Descanso: <span className="text-zinc-300">{ex.restSeconds}s</span>
+                      </div>
+
+                      {ex.notes && (
+                        <p className="text-[10px] text-zinc-500 font-sans italic pt-0.5">
+                          Nota: {ex.notes}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
             );
           })()}
@@ -920,6 +1117,21 @@ export const TrainingView: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Routine Customizer & Split Builder Modal */}
+      <RoutineCustomizerModal
+        isOpen={isCustomizerOpen}
+        onClose={() => setIsCustomizerOpen(false)}
+      />
+
+      {/* Active Workout Console Runner Modal */}
+      {activeRunnerSession && (
+        <ActiveWorkoutRunnerModal
+          session={activeRunnerSession}
+          isOpen={!!activeRunnerSession}
+          onClose={() => setActiveRunnerSession(null)}
+        />
+      )}
     </div>
   );
 };

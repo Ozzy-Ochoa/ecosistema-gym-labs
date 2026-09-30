@@ -112,3 +112,35 @@ export interface MonthAttendanceSummary {
   attendanceRatePct: number;
   currentStreak: number;
 }
+
+export interface UserRoutineExercise {
+  id: string;
+  exerciseId: string;
+  exerciseName: string;
+  muscleGroup: string;
+  sets: number;
+  repsTarget: string; // e.g. "8-12" or "10"
+  loadKgTarget?: number | null; // Can be left blank for on-the-fly loading
+  restSeconds: number; // default 60s / 90s
+  notes?: string;
+}
+
+export interface UserRoutineSession {
+  id: string;
+  splitLetter: string; // 'A', 'B', 'C', 'D', 'E'
+  name: string; // e.g. "Treino A: Peito, Ombros e Tríceps (Push)"
+  daysOfWeek: number[]; // [1, 3, 5] -> 1=Seg, 2=Ter, 3=Qua, etc.
+  targetMuscles: string[];
+  estimatedDurationMinutes: number;
+  exercises: UserRoutineExercise[];
+}
+
+export interface UserWorkoutRoutine {
+  id: string;
+  userId: string;
+  title: string;
+  source: 'SYSTEM_SUGGESTED' | 'CUSTOM' | 'PRESCRIBED_PERSONAL';
+  scheduledDaysOfWeek: number[]; // e.g. [1, 2, 3, 4, 5]
+  sessions: UserRoutineSession[];
+  updatedAt: string;
+}
