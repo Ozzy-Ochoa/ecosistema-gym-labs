@@ -1,6 +1,8 @@
 import fs from 'fs';
 import path from 'path';
 
+export type ServerUserRole = 'USER' | 'COACH' | 'NUTRITIONIST' | 'GYM' | 'ADMIN' | 'ATHLETE';
+
 export interface UserRecord {
   id: string;
   email: string;
@@ -10,7 +12,8 @@ export interface UserRecord {
   twoFactorSecret?: string;
   twoFactorEnabled: boolean;
   pinHash?: string;
-  role: 'ATHLETE' | 'COACH' | 'PHYSIOLOGIST' | 'ADMIN';
+  role: ServerUserRole;
+  isDemo?: boolean;
   createdAt: string;
   updatedAt: string;
 }

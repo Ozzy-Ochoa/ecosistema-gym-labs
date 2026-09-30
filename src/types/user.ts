@@ -5,13 +5,9 @@ export type UserRole =
   | 'COACH' 
   | 'NUTRITIONIST' 
   | 'GYM'
-  | 'ADMIN'
-  | 'PROFESSIONAL' 
-  | 'ORGANIZATION_ADMIN' 
-  | 'STAFF' 
-  | 'SYSTEM_ADMIN';
+  | 'ADMIN';
 
-export type JurisdictionCode = 'US' | 'BR' | 'EU' | 'MX' | 'GLOBAL';
+export type JurisdictionCode = 'BR' | 'US' | 'EU' | 'MX' | 'GLOBAL';
 
 export type UnitSystem = 'METRIC' | 'IMPERIAL';
 
@@ -23,10 +19,11 @@ export interface UserIdentity {
   dateOfBirth?: string; // YYYY-MM-DD
   biologicalSex?: 'MALE' | 'FEMALE' | 'NOT_SPECIFIED';
   jurisdiction: JurisdictionCode;
-  language: 'en' | 'pt' | 'es';
+  language: 'pt' | 'en' | 'es';
   timezone: string;
   unitSystem: UnitSystem;
   role: UserRole;
+  isDemo?: boolean;
   createdAt: string;
   weightKg?: number;
   heightCm?: number;
@@ -50,7 +47,7 @@ export interface CountryConfiguration {
   healthDataClassification: 'SENSITIVE_PROTECTED' | 'SPECIAL_CATEGORY';
   unitsDefault: UnitSystem;
   taxRegistrationSupported: boolean;
-  status: 'AVAILABLE' | 'LIMITED' | 'BETA';
+  status: 'AVAILABLE' | 'LIMITED' | 'BETA' | 'FUTURE';
 }
 
 export interface SavedUserAccount {
@@ -59,6 +56,7 @@ export interface SavedUserAccount {
   email: string;
   preferredName?: string;
   role: UserRole;
+  isDemo?: boolean;
   biologicalSex?: 'MALE' | 'FEMALE' | 'NOT_SPECIFIED';
   dateOfBirth?: string;
   activityLevel?: 'SEDENTARY' | 'LIGHTLY_ACTIVE' | 'MODERATELY_ACTIVE' | 'VERY_ACTIVE' | 'EXTREMELY_ACTIVE';

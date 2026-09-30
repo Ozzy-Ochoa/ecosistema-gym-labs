@@ -8,16 +8,6 @@ export const DEFAULT_SAVED_ACCOUNTS: SavedUserAccount[] = [];
 
 export const JURISDICTIONS: CountryConfiguration[] = [
   {
-    code: 'US',
-    name: 'United States',
-    currency: 'USD ($)',
-    privacyRegime: 'HIPAA_CCPA',
-    healthDataClassification: 'SENSITIVE_PROTECTED',
-    unitsDefault: 'IMPERIAL',
-    taxRegistrationSupported: true,
-    status: 'AVAILABLE',
-  },
-  {
     code: 'BR',
     name: 'Brasil',
     currency: 'BRL (R$)',
@@ -28,6 +18,16 @@ export const JURISDICTIONS: CountryConfiguration[] = [
     status: 'AVAILABLE',
   },
   {
+    code: 'US',
+    name: 'United States',
+    currency: 'USD ($)',
+    privacyRegime: 'HIPAA_CCPA',
+    healthDataClassification: 'SENSITIVE_PROTECTED',
+    unitsDefault: 'IMPERIAL',
+    taxRegistrationSupported: true,
+    status: 'FUTURE',
+  },
+  {
     code: 'EU',
     name: 'European Union (GDPR Zone)',
     currency: 'EUR (€)',
@@ -35,7 +35,7 @@ export const JURISDICTIONS: CountryConfiguration[] = [
     healthDataClassification: 'SPECIAL_CATEGORY',
     unitsDefault: 'METRIC',
     taxRegistrationSupported: true,
-    status: 'AVAILABLE',
+    status: 'FUTURE',
   },
   {
     code: 'MX',
@@ -45,7 +45,7 @@ export const JURISDICTIONS: CountryConfiguration[] = [
     healthDataClassification: 'SENSITIVE_PROTECTED',
     unitsDefault: 'METRIC',
     taxRegistrationSupported: true,
-    status: 'BETA',
+    status: 'FUTURE',
   },
 ];
 

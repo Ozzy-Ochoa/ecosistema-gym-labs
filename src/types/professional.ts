@@ -5,6 +5,12 @@ export type VerificationStatus =
   | 'EXPIRED' 
   | 'SUSPENDED';
 
+export type VerificationEnvironment =
+  | 'DEMO_SIMULATION'
+  | 'OFFICIAL_REGISTRY'
+  | 'MANUAL_AUDIT'
+  | 'UNVERIFIED';
+
 export interface ProfessionalCredential {
   id: string;
   type: 'STATE_LICENSE' | 'BOARD_CERTIFICATION' | 'ACADEMIC_DEGREE' | 'ACCREDITED_CERT';
@@ -16,6 +22,7 @@ export interface ProfessionalCredential {
   expirationDate?: string;
   verificationSource: string;
   verificationTimestamp?: string;
+  verificationEnvironment?: VerificationEnvironment;
 }
 
 export interface ProfessionalProfile {
@@ -24,6 +31,8 @@ export interface ProfessionalProfile {
   title: string; // e.g. "Sports Scientist & CSCS Coach", "Clinical Exercise Physiologist"
   avatarUrl?: string;
   verificationStatus: VerificationStatus;
+  verificationEnvironment?: VerificationEnvironment;
+  isDemo?: boolean;
   credentials: ProfessionalCredential[];
   specialties: string[];
   activeClientsCount: number;

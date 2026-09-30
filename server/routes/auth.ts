@@ -55,6 +55,10 @@ router.post('/register', async (req: Request, res: Response) => {
     const passwordHash = hashPassword(password);
     const { plainTextKey, keyHash } = generateRecoveryKey();
 
+    const requestedRole = (role || 'USER').toUpperCase();
+    const normalizedRole = requestedRole === 'ATHLETE' ? 'USER' : requestedRole;
+    const finalRole = ['USER', 'COACH', 'NUTRITIONIST', 'GYM', 'ADMIN'].includes(normalizedRole) ? normalizedRole : 'USER';
+
     const newUser: UserRecord = {
       id: userId,
       email: email.toLowerCase(),
@@ -62,7 +66,8 @@ router.post('/register', async (req: Request, res: Response) => {
       passwordHash,
       recoveryKeyHash: keyHash,
       twoFactorEnabled: false,
-      role: ['ATHLETE', 'COACH', 'PHYSIOLOGIST', 'ADMIN'].includes(role) ? role : 'ATHLETE',
+      role: finalRole as any,
+      isDemo: false,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
