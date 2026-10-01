@@ -35,7 +35,7 @@ export const AccountSwitcherModal: React.FC = () => {
   const [newGoal, setNewGoal] = useState<'HYPERTROPHY' | 'STRENGTH' | 'FAT_LOSS' | 'LONGEVITY'>('HYPERTROPHY');
   const [newWeight, setNewWeight] = useState(78);
   const [newHeight, setNewHeight] = useState(175);
-  const [newPin, setNewPin] = useState('2026');
+  const [newPin, setNewPin] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
   if (!isAccountModalOpen) return null;
@@ -63,8 +63,9 @@ export const AccountSwitcherModal: React.FC = () => {
       primaryGoal: newGoal,
       weightKg: Number(newWeight),
       heightCm: Number(newHeight),
-      pin: newPin || '2026',
+      pin: newPin ? newPin.trim() : undefined,
       lastActiveAt: 'Recém-criado',
+      isDemo: false,
       tagline: `Atleta ${newGoal === 'HYPERTROPHY' ? 'Hipertrofia' : newGoal === 'FAT_LOSS' ? 'Composição Corporal' : newGoal === 'STRENGTH' ? 'Força' : 'Saúde & Longevidade'}`,
     };
 

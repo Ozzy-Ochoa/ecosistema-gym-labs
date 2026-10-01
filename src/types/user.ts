@@ -31,11 +31,11 @@ export interface UserIdentity {
 
 export interface UserProfile {
   userId: string;
-  activityLevel: 'SEDENTARY' | 'LIGHTLY_ACTIVE' | 'MODERATELY_ACTIVE' | 'VERY_ACTIVE' | 'EXTREMELY_ACTIVE';
+  activityLevel?: 'SEDENTARY' | 'LIGHTLY_ACTIVE' | 'MODERATELY_ACTIVE' | 'VERY_ACTIVE' | 'EXTREMELY_ACTIVE';
   primaryGoal?: 'HYPERTROPHY' | 'STRENGTH' | 'FAT_LOSS' | 'ENDURANCE' | 'LONGEVITY' | 'MOBILITY';
-  experienceYears: number;
-  trainingDaysPerWeekTarget: number;
-  dietaryRestrictions: string[];
+  experienceYears?: number;
+  trainingDaysPerWeekTarget?: number;
+  dietaryRestrictions?: string[];
   provenance: DataProvenance;
 }
 
@@ -47,7 +47,7 @@ export interface CountryConfiguration {
   healthDataClassification: 'SENSITIVE_PROTECTED' | 'SPECIAL_CATEGORY';
   unitsDefault: UnitSystem;
   taxRegistrationSupported: boolean;
-  status: 'AVAILABLE' | 'LIMITED' | 'BETA' | 'FUTURE';
+  status: 'AVAILABLE' | 'LIMITED' | 'BETA' | 'FUTURE' | 'NOT_AVAILABLE' | 'COMING_SOON';
 }
 
 export interface SavedUserAccount {

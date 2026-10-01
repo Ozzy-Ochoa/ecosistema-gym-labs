@@ -42,7 +42,7 @@ export const RegisterView: React.FC = () => {
   const [name, setName] = useState<string>('');
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
-  const [pin, setPin] = useState<string>('2026');
+  const [pin, setPin] = useState<string>('');
 
   // Professional Verification Fields
   const [crefNumber, setCrefNumber] = useState<string>('');
@@ -53,16 +53,16 @@ export const RegisterView: React.FC = () => {
   const [gymCnpj, setGymCnpj] = useState<string>('');
 
   // Mandatory Biometrics for Conventional User (Athlete)
-  const [biologicalSex, setBiologicalSex] = useState<'MALE' | 'FEMALE'>('MALE');
-  const [dateOfBirth, setDateOfBirth] = useState<string>('1998-05-20');
-  const [weightKg, setWeightKg] = useState<string>('75');
-  const [heightCm, setHeightCm] = useState<string>('175');
+  const [biologicalSex, setBiologicalSex] = useState<'MALE' | 'FEMALE' | ''>('');
+  const [dateOfBirth, setDateOfBirth] = useState<string>('');
+  const [weightKg, setWeightKg] = useState<string>('');
+  const [heightCm, setHeightCm] = useState<string>('');
   const [activityLevel, setActivityLevel] = useState<
-    'SEDENTARY' | 'LIGHTLY_ACTIVE' | 'MODERATELY_ACTIVE' | 'VERY_ACTIVE' | 'EXTREMELY_ACTIVE'
-  >('MODERATELY_ACTIVE');
+    'SEDENTARY' | 'LIGHTLY_ACTIVE' | 'MODERATELY_ACTIVE' | 'VERY_ACTIVE' | 'EXTREMELY_ACTIVE' | ''
+  >('');
   const [primaryGoal, setPrimaryGoal] = useState<
-    'HYPERTROPHY' | 'STRENGTH' | 'FAT_LOSS' | 'LONGEVITY' | 'ENDURANCE' | 'MOBILITY'
-  >('HYPERTROPHY');
+    'HYPERTROPHY' | 'STRENGTH' | 'FAT_LOSS' | 'LONGEVITY' | 'ENDURANCE' | 'MOBILITY' | ''
+  >('');
 
   // Optional Measurements for Conventional User (Circumferences)
   const [showOptionalMeasurements, setShowOptionalMeasurements] = useState<boolean>(false);
@@ -79,7 +79,7 @@ export const RegisterView: React.FC = () => {
   const calculatedBaselines = useMemo(() => {
     const w = parseFloat(weightKg);
     const h = parseFloat(heightCm);
-    if (!w || !h || isNaN(w) || isNaN(h) || w <= 0 || h <= 0) return null;
+    if (!w || !h || isNaN(w) || isNaN(h) || w <= 0 || h <= 0 || !biologicalSex) return null;
 
     let age = 26;
     if (dateOfBirth) {
@@ -187,9 +187,18 @@ export const RegisterView: React.FC = () => {
       return;
     }
 
-    if (password && password.length < 6) {
-      setErrorMsg('A senha de acesso deve ter no mínimo 6 caracteres.');
+    if (!password || password.trim().length < 6) {
+      setErrorMsg('A senha de acesso é obrigatória (mínimo 6 caracteres).');
       return;
+    }
+
+    let userPin: string | undefined = undefined;
+    if (pin && pin.trim().length > 0) {
+      if (!/^\d{4}$/.test(pin.trim())) {
+        setErrorMsg('O PIN rápido deve conter exatamente 4 dígitos numéricos.');
+        return;
+      }
+      userPin = pin.trim();
     }
 
     // 2. Role Specific Verification
@@ -302,15 +311,15 @@ export const RegisterView: React.FC = () => {
     const res = register({
       name: targetRole === 'GYM' ? `${gymName.trim()} (Resp: ${name.trim()})` : name.trim(),
       email: (email || '').trim().toLowerCase(),
-      password: password || 'password123',
-      pin: pin || '2026',
+      password: password.trim(),
+      pin: userPin,
       role: targetRole,
-      biologicalSex: targetRole === 'USER' ? biologicalSex : undefined,
-      dateOfBirth: targetRole === 'USER' ? dateOfBirth : undefined,
+      biologicalSex: targetRole === 'USER' && (biologicalSex === 'MALE' || biologicalSex === 'FEMALE') ? biologicalSex : undefined,
+      dateOfBirth: targetRole === 'USER' && dateOfBirth ? dateOfBirth : undefined,
       weightKg: targetRole === 'USER' ? parsedWeight : undefined,
       heightCm: targetRole === 'USER' ? parsedHeight : undefined,
-      activityLevel: targetRole === 'USER' ? activityLevel : undefined,
-      primaryGoal: targetRole === 'USER' ? primaryGoal : undefined,
+      activityLevel: targetRole === 'USER' && activityLevel ? (activityLevel as any) : undefined,
+      primaryGoal: targetRole === 'USER' && primaryGoal ? (primaryGoal as any) : undefined,
       measurements,
       professionalLicense,
       organizationName: targetRole === 'GYM' ? gymName.trim() : undefined,
@@ -585,7 +594,7 @@ export const RegisterView: React.FC = () => {
                   maxLength={4}
                   value={pin}
                   onChange={(e) => setPin(e.target.value)}
-                  placeholder="2026"
+                  placeholder="Opcional (4 dígitos)"
                   className="w-full px-3 py-2.5 bg-black border border-zinc-700 text-white focus:border-white outline-none font-mono text-xs"
                 />
               </div>
@@ -661,6 +670,7 @@ export const RegisterView: React.FC = () => {
                     onChange={(e) => setBiologicalSex(e.target.value as any)}
                     className="w-full px-3 py-2.5 bg-black border border-zinc-700 text-white focus:border-white outline-none text-xs font-mono"
                   >
+                    <option value="">Selecione o sexo biológico...</option>
                     <option value="MALE">Masculino (Cálculo BMR MSJ Homem)</option>
                     <option value="FEMALE">Feminino (Cálculo BMR MSJ Mulher)</option>
                   </select>
@@ -734,6 +744,7 @@ export const RegisterView: React.FC = () => {
                   onChange={(e) => setActivityLevel(e.target.value as any)}
                   className="w-full px-3 py-2.5 bg-black border border-zinc-700 text-white focus:border-white outline-none text-xs font-mono"
                 >
+                  <option value="">Selecione o nível de atividade física...</option>
                   <option value="SEDENTARY">Sedentário — Trabalho sentado, pouco/nenhum exercício (x1.20)</option>
                   <option value="LIGHTLY_ACTIVE">Levemente Ativo — Exercício leve ou caminhada 1 a 3 dias/semana (x1.375)</option>
                   <option value="MODERATELY_ACTIVE">Moderadamente Ativo — Treino de musculação/cardio 3 a 5 dias/semana (x1.55)</option>
@@ -752,6 +763,7 @@ export const RegisterView: React.FC = () => {
                   onChange={(e) => setPrimaryGoal(e.target.value as any)}
                   className="w-full px-3 py-2.5 bg-black border border-zinc-700 text-white focus:border-white outline-none text-xs font-mono"
                 >
+                  <option value="">Selecione o objetivo de treino...</option>
                   <option value="HYPERTROPHY">Hipertrofia Muscular (Ganho de Massa Magra)</option>
                   <option value="STRENGTH">Força Máxima (Progressão Neural & Cargas)</option>
                   <option value="FAT_LOSS">Emagrecimento / Definição (Déficit Calórico Orientado)</option>

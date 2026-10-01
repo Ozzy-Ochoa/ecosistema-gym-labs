@@ -112,8 +112,8 @@ const INITIAL_PROFILE: UserProfile = {
   trainingDaysPerWeekTarget: 5,
   dietaryRestrictions: [],
   provenance: {
-    type: 'REAL',
-    source: 'User Self-Configuration',
+    type: 'DEMO',
+    source: 'Demo Seed Profile',
     recordedAt: '2026-01-01T00:00:00Z',
     confidence: 'HIGH',
   },
@@ -243,13 +243,19 @@ export class GymLabsDataStore {
         // Sync with active account
         const activeAcc = this.savedAccounts.find((a) => a.id === this.activeAccountId);
         if (activeAcc) {
+          const isAccDemo = Boolean(activeAcc.isDemo);
           this.identity = {
             ...INITIAL_IDENTITY,
             id: activeAcc.id,
             name: activeAcc.name,
             preferredName: activeAcc.preferredName || activeAcc.name.split(' ')[0],
             email: activeAcc.email,
-            biologicalSex: activeAcc.biologicalSex || 'MALE',
+            biologicalSex: activeAcc.biologicalSex || (isAccDemo ? 'MALE' : 'NOT_SPECIFIED'),
+            dateOfBirth: activeAcc.dateOfBirth !== undefined ? activeAcc.dateOfBirth : (isAccDemo ? '1996-05-14' : undefined),
+            weightKg: activeAcc.weightKg !== undefined ? activeAcc.weightKg : (isAccDemo ? 82.5 : undefined),
+            heightCm: activeAcc.heightCm !== undefined ? activeAcc.heightCm : (isAccDemo ? 180 : undefined),
+            role: activeAcc.role || 'USER',
+            isDemo: isAccDemo,
           };
           localStorage.setItem(STORAGE_KEYS.USER_IDENTITY, JSON.stringify(this.identity));
         }
@@ -459,8 +465,8 @@ export class GymLabsDataStore {
     this.profile = {
       ...this.profile,
       userId: target.id,
-      activityLevel: target.activityLevel || this.profile.activityLevel || 'MODERATELY_ACTIVE',
-      primaryGoal: target.primaryGoal || 'HYPERTROPHY',
+      activityLevel: target.activityLevel || (isTargetDemo ? 'MODERATELY_ACTIVE' : undefined),
+      primaryGoal: target.primaryGoal || (isTargetDemo ? 'HYPERTROPHY' : undefined),
       provenance: {
         type: isTargetDemo ? 'DEMO' : 'REAL',
         source: isTargetDemo ? 'Demo Seed Profile' : 'User Registration',
@@ -648,12 +654,12 @@ export class GymLabsDataStore {
       email: data.email,
       preferredName: data.name.split(' ')[0],
       role: data.role || 'USER',
-      biologicalSex: data.biologicalSex || 'MALE',
-      dateOfBirth: data.dateOfBirth,
-      activityLevel: data.activityLevel || 'MODERATELY_ACTIVE',
-      primaryGoal: data.primaryGoal || 'HYPERTROPHY',
-      pin: data.pin || '2026',
-      password: data.password || 'password123',
+      biologicalSex: data.biologicalSex || undefined,
+      dateOfBirth: data.dateOfBirth || undefined,
+      activityLevel: data.activityLevel || undefined,
+      primaryGoal: data.primaryGoal || undefined,
+      pin: data.pin && data.pin.trim() ? data.pin.trim() : undefined,
+      password: data.password && data.password.trim() ? data.password.trim() : undefined,
       weightKg: data.weightKg,
       heightCm: data.heightCm,
       tagline:
@@ -668,6 +674,7 @@ export class GymLabsDataStore {
           : 'Usuário Convencional // Atleta',
       lastActiveAt: 'Agora',
       isCurrent: true,
+      isDemo: false,
     };
 
     this.addSavedAccount(newAccount);

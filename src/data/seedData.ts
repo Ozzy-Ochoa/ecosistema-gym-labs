@@ -96,7 +96,7 @@ export const JURISDICTIONS: CountryConfiguration[] = [
     healthDataClassification: 'SENSITIVE_PROTECTED',
     unitsDefault: 'IMPERIAL',
     taxRegistrationSupported: true,
-    status: 'FUTURE',
+    status: 'COMING_SOON',
   },
   {
     code: 'EU',
@@ -106,7 +106,7 @@ export const JURISDICTIONS: CountryConfiguration[] = [
     healthDataClassification: 'SPECIAL_CATEGORY',
     unitsDefault: 'METRIC',
     taxRegistrationSupported: true,
-    status: 'FUTURE',
+    status: 'COMING_SOON',
   },
   {
     code: 'MX',
@@ -116,6 +116,16 @@ export const JURISDICTIONS: CountryConfiguration[] = [
     healthDataClassification: 'SENSITIVE_PROTECTED',
     unitsDefault: 'METRIC',
     taxRegistrationSupported: true,
+    status: 'COMING_SOON',
+  },
+  {
+    code: 'GLOBAL',
+    name: 'Global / Internacional',
+    currency: 'USD ($)',
+    privacyRegime: 'GDPR',
+    healthDataClassification: 'SPECIAL_CATEGORY',
+    unitsDefault: 'METRIC',
+    taxRegistrationSupported: false,
     status: 'FUTURE',
   },
 ];

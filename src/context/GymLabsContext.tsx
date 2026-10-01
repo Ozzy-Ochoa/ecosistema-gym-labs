@@ -301,7 +301,10 @@ export const GymLabsProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   // Security Visor Lock Screen & 2FA State
   const [isEnclaveLocked, setIsEnclaveLocked] = useState<boolean>(false);
-  const [enclavePin, setEnclavePin] = useState<string>('2026');
+  const [enclavePin, setEnclavePin] = useState<string>(() => {
+    const acc = dataStore.getSavedAccounts().find((a) => a.id === dataStore.getActiveAccountId());
+    return acc?.pin || (dataStore.getIdentity().isDemo ? '2026' : '');
+  });
   const [twoFactorEnabled, setTwoFactorEnabled] = useState<boolean>(true);
 
   // Modal Inspector
@@ -612,6 +615,8 @@ export const GymLabsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setChatMessages(dataStore.getChatMessages());
     setInvitations(dataStore.getInvitations());
     setUserWorkoutRoutineState(dataStore.getUserWorkoutRoutine());
+    const activeAcc = dataStore.getSavedAccounts().find((a) => a.id === dataStore.getActiveAccountId());
+    setEnclavePin(activeAcc?.pin || (dataStore.getIdentity().isDemo ? '2026' : ''));
   }, []);
 
   const login = (credentials: { email?: string; password?: string; pin?: string; accountId?: string }) => {

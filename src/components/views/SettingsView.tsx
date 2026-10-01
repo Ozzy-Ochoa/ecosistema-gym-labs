@@ -796,9 +796,11 @@ export const SettingsView: React.FC = () => {
                   onChange={(e) => setCurrentPassword(e.target.value)}
                   className="w-full px-3 py-2 bg-black border border-zinc-700 text-white focus:border-white outline-none font-mono text-xs"
                 />
-                <span className="text-[9px] text-zinc-500 font-sans block mt-1">
-                  Se você utilizou o modo de teste, a senha padrão é: <strong className="text-zinc-400">password123</strong>
-                </span>
+                {identity.isDemo && (
+                  <span className="text-[9px] text-zinc-500 font-sans block mt-1">
+                    Para contas de teste, a senha padrão é: <strong className="text-zinc-400">password123</strong>
+                  </span>
+                )}
               </div>
 
               <div className="flex gap-2 pt-3">
