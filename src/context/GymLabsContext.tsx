@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
-import { dataStore } from '../repositories/GymLabsDataStore';
+import { GymLabsService } from '../services/GymLabsService';
+const dataStore = GymLabsService.getInstance();
 import { UserIdentity, UserProfile, CountryConfiguration, SavedUserAccount, RegisterUserData } from '../types/user';
 import { BodyCompositionRecord, CircumferenceRecord } from '../types/body';
 import { Exercise, TrainingSession, ACWRResult, DayAttendance, UserWorkoutRoutine } from '../types/training';
@@ -80,7 +81,7 @@ interface GymLabsContextType {
   setAuthProduct: (product: 'USER' | 'PROFESSIONAL' | 'GYM') => void;
   goToLoginWithProduct: (product?: 'USER' | 'PROFESSIONAL' | 'GYM') => void;
   goToRegisterWithProduct: (product?: 'USER' | 'PROFESSIONAL' | 'GYM') => void;
-  quickAccessSampleAccount: (role: 'USER' | 'COACH' | 'NUTRITIONIST' | 'GYM') => boolean;
+  quickAccessSampleAccount: (roleOrId: string) => boolean;
   login: (credentials: { email?: string; password?: string; pin?: string; accountId?: string }) => { success: boolean; error?: string };
   register: (data: RegisterUserData) => { success: boolean; error?: string };
   logout: () => void;
@@ -561,11 +562,15 @@ export const GymLabsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setAuthView('register');
   };
 
-  const quickAccessSampleAccount = (role: 'USER' | 'COACH' | 'NUTRITIONIST' | 'GYM'): boolean => {
-    const res = dataStore.quickAccessSampleAccount(role);
+  const quickAccessSampleAccount = (roleOrId: string): boolean => {
+    const res = dataStore.quickAccessSampleAccount(roleOrId);
     if (res.success) {
       setIsAuthenticated(true);
       setAuthView('app');
+      setCurrentTab('today');
+      setIdentityState(dataStore.getIdentity());
+      setActiveAccountId(dataStore.getActiveAccountId());
+      setSavedAccounts(dataStore.getSavedAccounts());
       refreshAllState();
       return true;
     }
@@ -614,6 +619,9 @@ export const GymLabsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (res.success) {
       setIsAuthenticated(true);
       setAuthView('app');
+      setIdentityState(dataStore.getIdentity());
+      setActiveAccountId(dataStore.getActiveAccountId());
+      setSavedAccounts(dataStore.getSavedAccounts());
       refreshAllState();
     }
     return res;
@@ -908,26 +916,27 @@ export const GymLabsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     acuteLoadRatio: acwrMetrics.ratio,
   });
 
-  // Calculate BMR, TDEE, BMI
-  const currentWeightKg = latestBodyRecord?.weightKg?.value || 80;
-  const currentHeightCm = latestBodyRecord?.heightCm?.value || (identity.biologicalSex === 'MALE' ? 180 : 165);
+  // Calculate BMR, TDEE, BMI (strictly respecting available data for real users)
+  const isDemoUser = Boolean(identity.isDemo);
+  const currentWeightKg = latestBodyRecord?.weightKg?.value ?? (identity.weightKg ?? (isDemoUser ? 82.5 : null));
+  const currentHeightCm = latestBodyRecord?.heightCm?.value ?? (identity.heightCm ?? (isDemoUser ? 180 : null));
   const ageYears = identity.dateOfBirth
     ? Math.floor((new Date().getTime() - new Date(identity.dateOfBirth).getTime()) / (365.25 * 86400000))
-    : 28;
+    : (isDemoUser ? 28 : null);
 
   const bmrCalculation = calculateBMR({
-    weightKg: currentWeightKg || 0,
-    heightCm: currentHeightCm,
-    ageYears,
+    weightKg: currentWeightKg ?? 0,
+    heightCm: currentHeightCm ?? undefined,
+    ageYears: ageYears ?? undefined,
     biologicalSex: identity.biologicalSex,
     leanMassKg: latestBodyRecord?.leanMassKg?.value || undefined,
   });
 
   const tdeeCalculation = calculateTDEE(
     {
-      weightKg: currentWeightKg || 0,
-      heightCm: currentHeightCm,
-      ageYears,
+      weightKg: currentWeightKg ?? 0,
+      heightCm: currentHeightCm ?? undefined,
+      ageYears: ageYears ?? undefined,
       biologicalSex: identity.biologicalSex,
       leanMassKg: latestBodyRecord?.leanMassKg?.value || undefined,
     },
@@ -937,24 +946,23 @@ export const GymLabsProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const bmiCalculation = calculateBMI(currentWeightKg, currentHeightCm);
 
   // Today's training energy expenditure (MET ~6.0 for resistance training)
-  // Approximate caloric expenditure added to the user's daily burn
   const todayDateStr = useMemo(() => new Date().toISOString().split('T')[0], []);
   const todayTrainingCalories = useMemo(() => {
-    const userWeight = currentWeightKg || identity.weightKg || 75;
+    if (!currentWeightKg || currentWeightKg <= 0) return 0;
     return trainingSessions
       .filter((s) => s.startedAt.startsWith(todayDateStr))
       .reduce((sum, s) => {
         const mets = 6.0;
         const durHours = (s.durationMinutes || 60) / 60;
-        return sum + Math.round(mets * userWeight * durHours);
+        return sum + Math.round(mets * currentWeightKg * durHours);
       }, 0);
-  }, [trainingSessions, currentWeightKg, identity.weightKg, todayDateStr]);
+  }, [trainingSessions, currentWeightKg, todayDateStr]);
 
   // Tanaka & Karvonen zones
   const tanakaKarvonen = useMemo(() => {
-    const restHr = latestSleep?.restingHeartRateBpm?.value || 58;
+    const restHr = latestSleep?.restingHeartRateBpm?.value ?? (isDemoUser ? 58 : null);
     return calculateKarvonenZones(ageYears, restHr);
-  }, [ageYears, latestSleep]);
+  }, [ageYears, latestSleep, isDemoUser]);
 
   // Dynamic Hydration Engine calculation
   const dynamicHydration = useMemo(() => {

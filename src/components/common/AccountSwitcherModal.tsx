@@ -11,7 +11,8 @@ import {
   Trash2,
   AlertCircle,
   Award,
-  Building2
+  Building2,
+  ShieldCheck
 } from 'lucide-react';
 import { SavedUserAccount } from '../../types/user';
 
@@ -24,6 +25,7 @@ export const AccountSwitcherModal: React.FC = () => {
     switchAccount,
     addSavedAccount,
     removeSavedAccount,
+    quickAccessSampleAccount,
   } = useGymLabs();
 
   const [isAddingNew, setIsAddingNew] = useState(false);
@@ -118,6 +120,69 @@ export const AccountSwitcherModal: React.FC = () => {
         <div className="overflow-y-auto space-y-4 pr-1">
           {!isAddingNew ? (
             <>
+              {/* Quick 1-Click Demo Switcher Toolbar */}
+              <div className="p-3 bg-zinc-950 border border-zinc-800 space-y-2">
+                <div className="flex items-center justify-between text-[10px]">
+                  <span className="font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 bg-emerald-400 inline-block animate-pulse" />
+                    <span>Acesso Instantâneo de Teste // Alternar Perfil Demo</span>
+                  </span>
+                  <span className="text-zinc-500 font-mono">1 CLIQUE DIRETO</span>
+                </div>
+                <div className="grid grid-cols-5 gap-1.5 text-[10px]">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      quickAccessSampleAccount('USER');
+                      closeAccountModal();
+                    }}
+                    className="py-1.5 px-2 bg-zinc-900 hover:bg-white hover:text-black border border-zinc-700 text-white font-bold transition-all text-center cursor-pointer"
+                  >
+                    ALUNO
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      quickAccessSampleAccount('COACH');
+                      closeAccountModal();
+                    }}
+                    className="py-1.5 px-2 bg-zinc-900 hover:bg-blue-500 hover:text-white border border-zinc-700 text-white font-bold transition-all text-center cursor-pointer"
+                  >
+                    PERSONAL
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      quickAccessSampleAccount('NUTRITIONIST');
+                      closeAccountModal();
+                    }}
+                    className="py-1.5 px-2 bg-zinc-900 hover:bg-emerald-500 hover:text-white border border-zinc-700 text-white font-bold transition-all text-center cursor-pointer"
+                  >
+                    NUTRI
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      quickAccessSampleAccount('GYM');
+                      closeAccountModal();
+                    }}
+                    className="py-1.5 px-2 bg-zinc-900 hover:bg-zinc-700 hover:text-white border border-zinc-700 text-white font-bold transition-all text-center cursor-pointer"
+                  >
+                    ACADEMIA
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      quickAccessSampleAccount('ADMIN');
+                      closeAccountModal();
+                    }}
+                    className="py-1.5 px-2 bg-zinc-900 hover:bg-zinc-700 hover:text-white border border-zinc-700 text-white font-bold transition-all text-center cursor-pointer"
+                  >
+                    ADMIN
+                  </button>
+                </div>
+              </div>
+
               <div className="flex items-center justify-between">
                 <span className="text-[10px] uppercase tracking-wider text-zinc-400 font-bold">
                   Contas Salvas neste Dispositivo
@@ -336,6 +401,66 @@ export const AccountSwitcherModal: React.FC = () => {
                                     <Trash2 className="w-3.5 h-3.5" />
                                   </button>
                                 )}
+                                {!isCurrent && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSelectAccount(acc.id)}
+                                    className="px-2.5 py-1 bg-white text-black text-xs font-bold uppercase hover:bg-zinc-200 transition-all cursor-pointer"
+                                  >
+                                    ACESSAR
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
+
+                {/* 4. Administrador / Auditoria */}
+                {savedAccounts.some((a) => a.role === 'ADMIN') && (
+                  <div className="space-y-2">
+                    <div className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                      <ShieldCheck className="w-3.5 h-3.5 text-white" />
+                      <span>Portal de Governança & Auditoria (Admin)</span>
+                    </div>
+                    {savedAccounts
+                      .filter((a) => a.role === 'ADMIN')
+                      .map((acc) => {
+                        const isCurrent = acc.id === activeAccountId;
+                        return (
+                          <div
+                            key={acc.id}
+                            onClick={() => !isCurrent && handleSelectAccount(acc.id)}
+                            className={`p-3.5 border transition-all cursor-pointer relative ${
+                              isCurrent
+                                ? 'border-white bg-zinc-950 shadow-[2px_2px_0px_0px_rgba(255,255,255,0.4)]'
+                                : 'border-zinc-800 bg-black hover:border-zinc-500'
+                            }`}
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex items-start gap-3">
+                                <div className="w-9 h-9 border border-zinc-700 bg-black flex items-center justify-center font-bold text-xs text-white">
+                                  ADM
+                                </div>
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <h4 className="font-bold text-xs uppercase text-white">{acc.name}</h4>
+                                    {isCurrent && (
+                                      <span className="text-[9px] px-1.5 py-0.2 bg-white text-black font-bold uppercase">
+                                        ATIVO
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className="text-[11px] text-zinc-400 font-sans block">{acc.email}</span>
+                                  <div className="text-[10px] text-zinc-500 mt-0.5">
+                                    {acc.tagline || 'Governança & Auditoria Criptográfica'}
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-2">
                                 {!isCurrent && (
                                   <button
                                     type="button"

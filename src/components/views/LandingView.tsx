@@ -105,7 +105,7 @@ export const LandingView: React.FC = () => {
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs">
               <button
                 type="button"
-                onClick={() => quickAccessSampleAccount('usr_gymlabs_master')}
+                onClick={() => quickAccessSampleAccount('USER')}
                 className="p-3 bg-zinc-900 hover:bg-white hover:text-black border border-zinc-700 text-white font-bold transition-all text-center flex flex-col items-center gap-1 cursor-pointer group"
               >
                 <Users className="w-4 h-4 text-zinc-400 group-hover:text-black" />
@@ -115,7 +115,7 @@ export const LandingView: React.FC = () => {
 
               <button
                 type="button"
-                onClick={() => quickAccessSampleAccount('usr_gymlabs_trainer')}
+                onClick={() => quickAccessSampleAccount('COACH')}
                 className="p-3 bg-zinc-900 hover:bg-blue-500 hover:text-white border border-zinc-700 text-white font-bold transition-all text-center flex flex-col items-center gap-1 cursor-pointer group"
               >
                 <Dumbbell className="w-4 h-4 text-blue-400 group-hover:text-white" />
@@ -125,7 +125,7 @@ export const LandingView: React.FC = () => {
 
               <button
                 type="button"
-                onClick={() => quickAccessSampleAccount('usr_gymlabs_nutri')}
+                onClick={() => quickAccessSampleAccount('NUTRITIONIST')}
                 className="p-3 bg-zinc-900 hover:bg-emerald-500 hover:text-white border border-zinc-700 text-white font-bold transition-all text-center flex flex-col items-center gap-1 cursor-pointer group"
               >
                 <Utensils className="w-4 h-4 text-emerald-400 group-hover:text-white" />
@@ -135,7 +135,7 @@ export const LandingView: React.FC = () => {
 
               <button
                 type="button"
-                onClick={() => quickAccessSampleAccount('usr_gymlabs_gym')}
+                onClick={() => quickAccessSampleAccount('GYM')}
                 className="p-3 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-white font-bold transition-all text-center flex flex-col items-center gap-1 cursor-pointer group"
               >
                 <Building2 className="w-4 h-4 text-zinc-400" />
@@ -145,7 +145,7 @@ export const LandingView: React.FC = () => {
 
               <button
                 type="button"
-                onClick={() => quickAccessSampleAccount('usr_gymlabs_admin')}
+                onClick={() => quickAccessSampleAccount('ADMIN')}
                 className="p-3 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-white font-bold transition-all text-center flex flex-col items-center gap-1 cursor-pointer group col-span-2 sm:col-span-1"
               >
                 <ShieldCheck className="w-4 h-4 text-zinc-400" />
@@ -307,7 +307,7 @@ export const LandingView: React.FC = () => {
 
                   <button
                     type="button"
-                    onClick={() => quickAccessSampleAccount('usr_gymlabs_master')}
+                    onClick={() => quickAccessSampleAccount('USER')}
                     className="w-full mt-3 py-2 bg-white text-black font-black uppercase text-[11px] hover:bg-zinc-200 transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md"
                   >
                     <span>Experimentar App do Aluno</span>
@@ -360,7 +360,7 @@ export const LandingView: React.FC = () => {
 
                   <button
                     type="button"
-                    onClick={() => quickAccessSampleAccount('usr_gymlabs_trainer')}
+                    onClick={() => quickAccessSampleAccount('COACH')}
                     className="w-full mt-2 py-2 bg-zinc-900 hover:bg-blue-500 hover:text-white border border-zinc-700 text-white font-bold uppercase transition-all text-[11px] flex items-center justify-center gap-1.5 cursor-pointer"
                   >
                     <span>Abrir Portal Gym Labs Trainer</span>
@@ -390,7 +390,7 @@ export const LandingView: React.FC = () => {
 
                   <button
                     type="button"
-                    onClick={() => quickAccessSampleAccount('usr_gymlabs_nutri')}
+                    onClick={() => quickAccessSampleAccount('NUTRITIONIST')}
                     className="w-full mt-2 py-2 bg-zinc-900 hover:bg-emerald-500 hover:text-white border border-zinc-700 text-white font-bold uppercase transition-all text-[11px] flex items-center justify-center gap-1.5 cursor-pointer"
                   >
                     <span>Abrir Portal Gym Labs Nutri</span>
@@ -449,7 +449,7 @@ export const LandingView: React.FC = () => {
               <div className="flex justify-end pt-2">
                 <button
                   type="button"
-                  onClick={() => quickAccessSampleAccount('usr_gymlabs_gym')}
+                  onClick={() => quickAccessSampleAccount('GYM')}
                   className="px-5 py-2.5 bg-white text-black font-black text-xs uppercase hover:bg-zinc-200 transition-all flex items-center gap-2 cursor-pointer shadow-md"
                 >
                   <span>Experimentar Portal da Academia</span>

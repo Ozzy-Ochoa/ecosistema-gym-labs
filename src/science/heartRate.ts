@@ -16,15 +16,41 @@ export interface HeartRateZonesResult {
 }
 
 export function calculateKarvonenZones(
-  ageYears: number,
-  restingHrBpm: number = 60
+  ageYears: number | null | undefined,
+  restingHrBpm: number | null | undefined = null
 ): DeterministicCalculationResult<HeartRateZonesResult> {
+  if (!ageYears || ageYears <= 0 || !restingHrBpm || restingHrBpm <= 30) {
+    const missingFields: string[] = [];
+    if (!ageYears || ageYears <= 0) missingFields.push('idade/data de nascimento');
+    if (!restingHrBpm || restingHrBpm <= 30) missingFields.push('frequência cardíaca de repouso');
+
+    return {
+      result: null,
+      unit: 'bpm',
+      formulaName: 'Tanaka HRmax & Karvonen Heart Rate Reserve Equations',
+      formulaVersion: '1.0.0',
+      mathematicalExpression: 'HRmax = 208 - (0.7 * Age); FCR = ((HRmax - FC_Repouso) * %Intensidade) + FC_Repouso',
+      inputs: { ageYears, restingHrBpm },
+      provenance: {
+        type: 'UNKNOWN',
+        source: 'Gym Labs Cardiovascular Engine',
+        recordedAt: new Date().toISOString(),
+        confidence: 'INSUFFICIENT_DATA',
+        limitations: [`Parâmetro(s) fisiológico(s) obrigatório(s) ausente(s): ${missingFields.join(', ')}. Não inventamos dados fisiológicos silenciosos.`],
+      },
+      evidenceCitation: EVIDENCE_REGISTRY.TANAKA_2001,
+      confidence: 'INSUFFICIENT_DATA',
+      clinicalBoundaryDisclaimer: 'Necessária idade e frequência cardíaca de repouso real do atleta para calcular determinísticamente a reserva cardíaca e zonas de Karvonen.',
+    };
+  }
+
+  const effectiveRestHr = restingHrBpm;
   // Tanaka Formula: 208 - (0.7 * Age)
   const maxHr = Math.round(208 - 0.7 * ageYears);
-  const hrr = maxHr - restingHrBpm; // Heart Rate Reserve
+  const hrr = maxHr - effectiveRestHr; // Heart Rate Reserve
 
   // Karvonen Target HR = ((MaxHR - RestHR) * %intensity) + RestHR
-  const calcTarget = (pct: number) => Math.round(hrr * pct + restingHrBpm);
+  const calcTarget = (pct: number) => Math.round(hrr * pct + effectiveRestHr);
 
   const zones = [
     {

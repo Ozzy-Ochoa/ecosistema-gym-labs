@@ -4,7 +4,78 @@ import { ProfessionalProfile } from '../types/professional';
 import { Organization } from '../types/organization';
 import { CountryConfiguration, SavedUserAccount } from '../types/user';
 
-export const DEFAULT_SAVED_ACCOUNTS: SavedUserAccount[] = [];
+export const DEFAULT_DEMO_ACCOUNTS: SavedUserAccount[] = [
+  {
+    id: 'usr_sample_athlete',
+    name: 'Alex Vance',
+    email: 'alex.atleta@gymlabs.com',
+    preferredName: 'Alex',
+    role: 'USER',
+    biologicalSex: 'MALE',
+    primaryGoal: 'HYPERTROPHY',
+    weightKg: 82.5,
+    heightCm: 180,
+    dateOfBirth: '1998-05-20',
+    activityLevel: 'VERY_ACTIVE',
+    pin: '2026',
+    password: 'password123',
+    tagline: 'Aluno / Atleta (Sessão de Teste)',
+    lastActiveAt: 'Hoje',
+    isDemo: true,
+  },
+  {
+    id: 'pro_sample_coach',
+    name: 'Coach Marcus',
+    email: 'marcus.coach@gymlabs.com.br',
+    preferredName: 'Marcus',
+    role: 'COACH',
+    biologicalSex: 'MALE',
+    pin: '2026',
+    password: 'password123',
+    tagline: 'Personal Trainer (CREF 089142-G/SP)',
+    lastActiveAt: 'Hoje',
+    isDemo: true,
+  },
+  {
+    id: 'pro_sample_nutri',
+    name: 'Dra. Elena Vance',
+    email: 'elena.nutri@gymlabs.com.br',
+    preferredName: 'Elena',
+    role: 'NUTRITIONIST',
+    biologicalSex: 'FEMALE',
+    pin: '2026',
+    password: 'password123',
+    tagline: 'Nutricionista Esportiva (CRN-3 48192)',
+    lastActiveAt: 'Hoje',
+    isDemo: true,
+  },
+  {
+    id: 'gym_sample_club',
+    name: 'Iron Gym Club',
+    email: 'gestao@irongym.com.br',
+    preferredName: 'Iron Gym',
+    role: 'GYM',
+    pin: '2026',
+    password: 'password123',
+    tagline: 'Academia / Centro de Treino (CNPJ 42.109.876/0001-20)',
+    lastActiveAt: 'Hoje',
+    isDemo: true,
+  },
+  {
+    id: 'admin_sample_audit',
+    name: 'Auditor Chefe Labcore',
+    email: 'admin@gymlabs.com.br',
+    preferredName: 'Auditor',
+    role: 'ADMIN',
+    pin: '2026',
+    password: 'password123',
+    tagline: 'Governança & Auditoria Criptográfica',
+    lastActiveAt: 'Hoje',
+    isDemo: true,
+  },
+];
+
+export const DEFAULT_SAVED_ACCOUNTS: SavedUserAccount[] = [...DEFAULT_DEMO_ACCOUNTS];
 
 export const JURISDICTIONS: CountryConfiguration[] = [
   {
@@ -225,6 +296,8 @@ export const DEMO_PROFESSIONALS: ProfessionalProfile[] = [
     name: 'Dr. Lucas Silva, PhD, CSCS',
     title: 'Exercise Physiologist & High-Performance Director',
     verificationStatus: 'VERIFIED',
+    verificationEnvironment: 'DEMO_SIMULATION',
+    isDemo: true,
     country: 'BR',
     bio: 'Doctorate in Exercise Science, NSCA Certified Strength & Conditioning Specialist with 12+ years preparing national squad powerlifters and endurance athletes.',
     activeClientsCount: 24,
@@ -240,6 +313,7 @@ export const DEMO_PROFESSIONALS: ProfessionalProfile[] = [
         issuedDate: '2018-03-15',
         verificationSource: 'National Academic Registry (MEC Brasil)',
         verificationTimestamp: '2026-01-10T14:22:00Z',
+        verificationEnvironment: 'DEMO_SIMULATION',
       },
       {
         id: 'cred-2',
@@ -252,6 +326,7 @@ export const DEMO_PROFESSIONALS: ProfessionalProfile[] = [
         expirationDate: '2028-12-31',
         verificationSource: 'CREF Online Verification Portal',
         verificationTimestamp: '2026-01-10T14:23:00Z',
+        verificationEnvironment: 'DEMO_SIMULATION',
       },
     ],
     servicesOffered: [
@@ -274,8 +349,10 @@ export const DEMO_PROFESSIONALS: ProfessionalProfile[] = [
     name: 'Elena Vance, MS, RD, CSSD',
     title: 'Board Certified Specialist in Sports Dietetics',
     verificationStatus: 'VERIFIED',
+    verificationEnvironment: 'DEMO_SIMULATION',
+    isDemo: true,
     country: 'US',
-    bio: 'Master of Science in Clinical Nutrition. Former collegiate athletics nutritionist specializing in body recomposition and energy availability.',
+    bio: 'Master of Science in Clinical Nutrition. Former collegiate athletics nutritionist specializing in body recomposition and energy availability (Perfil demonstrativo internacional - Expansão futura).',
     activeClientsCount: 19,
     specialties: ['Metabolic Health', 'Energy Availability', 'Targeted Recomposition', 'Race Day Fueling'],
     credentials: [
@@ -290,6 +367,7 @@ export const DEMO_PROFESSIONALS: ProfessionalProfile[] = [
         expirationDate: '2027-06-20',
         verificationSource: 'CDR Public Credential Directory',
         verificationTimestamp: '2026-02-01T09:15:00Z',
+        verificationEnvironment: 'DEMO_SIMULATION',
       },
     ],
     servicesOffered: [
@@ -304,25 +382,6 @@ export const DEMO_PROFESSIONALS: ProfessionalProfile[] = [
 ];
 
 export const DEMO_ORGANIZATIONS: Organization[] = [
-  {
-    id: 'org-gl-metro',
-    name: 'Gym Labs Human Performance Center - Austin',
-    type: 'PERFORMANCE_STUDIO',
-    country: 'US',
-    memberCount: 380,
-    trainerCount: 12,
-    complianceTier: 'ENTERPRISE_SECURE',
-    isolatedTenantDatabaseId: 'tenant_db_us_austin_091',
-    locations: [
-      {
-        id: 'loc-1',
-        name: 'Downtown Facility & Biomechanics Lab',
-        address: '401 Congress Ave, Suite 1200',
-        city: 'Austin, TX',
-        country: 'US',
-      },
-    ],
-  },
   {
     id: 'org-gl-sp',
     name: 'Gym Labs Instituto de Performance - São Paulo',
@@ -339,6 +398,25 @@ export const DEMO_ORGANIZATIONS: Organization[] = [
         address: 'Rua Oscar Freire, 1140',
         city: 'São Paulo, SP',
         country: 'BR',
+      },
+    ],
+  },
+  {
+    id: 'org-gl-metro',
+    name: 'Gym Labs Human Performance Center - Austin (Demo Global)',
+    type: 'PERFORMANCE_STUDIO',
+    country: 'US',
+    memberCount: 380,
+    trainerCount: 12,
+    complianceTier: 'ENTERPRISE_SECURE',
+    isolatedTenantDatabaseId: 'tenant_db_us_austin_091',
+    locations: [
+      {
+        id: 'loc-1',
+        name: 'Downtown Facility & Biomechanics Lab (Demonstração)',
+        address: '401 Congress Ave, Suite 1200',
+        city: 'Austin, TX',
+        country: 'US',
       },
     ],
   },

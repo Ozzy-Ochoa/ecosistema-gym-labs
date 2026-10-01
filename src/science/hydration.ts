@@ -1,5 +1,5 @@
 export interface DynamicHydrationInputs {
-  weightKg: number;
+  weightKg: number | null | undefined;
   ambientTempC: number;
   workoutDurationMinutes: number;
   sweatRate: 'LOW' | 'MODERATE' | 'HIGH';
@@ -7,16 +7,32 @@ export interface DynamicHydrationInputs {
 }
 
 export interface DynamicHydrationResult {
-  totalTargetMl: number;
-  baselineMl: number;
+  totalTargetMl: number | null;
+  baselineMl: number | null;
   thermalAdditionMl: number;
   exerciseAdditionMl: number;
   creatineAdditionMl: number;
   formula: string;
+  isInsufficientData?: boolean;
   citations: string[];
 }
 
 export function calculateDynamicHydration(inputs: DynamicHydrationInputs): DynamicHydrationResult {
+  if (!inputs.weightKg || inputs.weightKg <= 0) {
+    return {
+      totalTargetMl: null,
+      baselineMl: null,
+      thermalAdditionMl: 0,
+      exerciseAdditionMl: 0,
+      creatineAdditionMl: 0,
+      isInsufficientData: true,
+      formula: 'VolTotal = (PesoKg * 40ml) + TempDelta(>25°C) + (MinTreino * FatorSudorese) + CreatinaBuffer',
+      citations: [
+        'Armstrong LE et al. (1994) Urinary indices of hydration status. Int J Sport Nutr.',
+      ],
+    };
+  }
+
   // 1. Baseline: 40 ml per kg body weight (Armstrong et al., Sawka et al.)
   const baselineMl = Math.round(inputs.weightKg * 40);
 

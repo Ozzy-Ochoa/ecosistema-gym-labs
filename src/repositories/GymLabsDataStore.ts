@@ -1,4 +1,4 @@
-import { UserIdentity, UserProfile, SavedUserAccount, RegisterUserData } from '../types/user';
+import { UserIdentity, UserProfile, SavedUserAccount, RegisterUserData, UserRole } from '../types/user';
 import { BodyCompositionRecord, CircumferenceRecord } from '../types/body';
 import { Exercise, TrainingSession, DayAttendance, UserWorkoutRoutine } from '../types/training';
 import { createSuggestedWorkoutRoutine } from '../data/defaultUserRoutines';
@@ -6,7 +6,7 @@ import { MealEntry, HydrationLog, FoodItem } from '../types/nutrition';
 import { SleepSession, SubjectiveWellnessLog } from '../types/recovery';
 import { ConsentGrant } from '../types/consent';
 import { AuditRecord, AuditEventType } from '../types/audit';
-import { STANDARD_EXERCISES, STANDARD_FOODS, DEMO_PROFESSIONALS, DEMO_ORGANIZATIONS, DEFAULT_SAVED_ACCOUNTS } from '../data/seedData';
+import { STANDARD_EXERCISES, STANDARD_FOODS, DEMO_PROFESSIONALS, DEMO_ORGANIZATIONS, DEFAULT_SAVED_ACCOUNTS, DEFAULT_DEMO_ACCOUNTS } from '../data/seedData';
 import { ProfessionalProfile } from '../types/professional';
 import { Organization } from '../types/organization';
 import { SystemNotification } from '../types/notification';
@@ -90,16 +90,17 @@ const STORAGE_KEYS = {
 // Default clean production user
 const INITIAL_IDENTITY: UserIdentity = {
   id: 'usr_gymlabs_master',
-  email: 'athlete@gymlabs.global',
+  email: 'alex.atleta@gymlabs.com.br',
   name: 'Alex Vance',
   preferredName: 'Alex',
   dateOfBirth: '1996-05-14',
   biologicalSex: 'MALE',
-  jurisdiction: 'US',
-  language: 'en',
-  timezone: 'America/New_York',
+  jurisdiction: 'BR',
+  language: 'pt',
+  timezone: 'America/Sao_Paulo',
   unitSystem: 'METRIC',
   role: 'USER',
+  isDemo: true,
   createdAt: '2026-01-01T00:00:00Z',
 };
 
@@ -207,8 +208,18 @@ export class GymLabsDataStore {
         }
       } else {
         this.savedAccounts = [];
-        localStorage.setItem(STORAGE_KEYS.SAVED_ACCOUNTS, JSON.stringify([]));
       }
+
+      // Always guarantee the 5 canonical demo accounts are available in savedAccounts with correct roles
+      DEFAULT_DEMO_ACCOUNTS.forEach((demoAcc) => {
+        const idx = this.savedAccounts.findIndex((a) => a.id === demoAcc.id || (a.role === demoAcc.role && a.isDemo));
+        if (idx >= 0) {
+          this.savedAccounts[idx] = { ...this.savedAccounts[idx], ...demoAcc, isDemo: true };
+        } else {
+          this.savedAccounts.push(demoAcc);
+        }
+      });
+      localStorage.setItem(STORAGE_KEYS.SAVED_ACCOUNTS, JSON.stringify(this.savedAccounts));
 
       if (this.savedAccounts.length === 0) {
         this.isAuthenticated = false;
@@ -424,18 +435,23 @@ export class GymLabsDataStore {
     this.activeAccountId = accountId;
     localStorage.setItem(STORAGE_KEYS.ACTIVE_ACCOUNT_ID, accountId);
 
-    // Sync Identity
+    const isTargetDemo = Boolean(target.isDemo);
+
+    // Sync Identity: Real accounts must NOT inherit fake body defaults
     this.identity = {
       ...this.identity,
       id: target.id,
       name: target.name,
       preferredName: target.preferredName || target.name.split(' ')[0],
       email: target.email,
-      biologicalSex: target.biologicalSex || 'MALE',
-      dateOfBirth: target.dateOfBirth || this.identity.dateOfBirth || '1998-05-20',
-      weightKg: target.weightKg !== undefined ? target.weightKg : this.identity.weightKg,
-      heightCm: target.heightCm !== undefined ? target.heightCm : this.identity.heightCm,
+      biologicalSex: target.biologicalSex || (isTargetDemo ? 'MALE' : 'NOT_SPECIFIED'),
+      dateOfBirth: target.dateOfBirth !== undefined ? target.dateOfBirth : (isTargetDemo ? '1998-05-20' : undefined),
+      weightKg: target.weightKg !== undefined ? target.weightKg : (isTargetDemo ? 82.5 : undefined),
+      heightCm: target.heightCm !== undefined ? target.heightCm : (isTargetDemo ? 180 : undefined),
       role: target.role || 'USER',
+      isDemo: isTargetDemo,
+      jurisdiction: 'BR',
+      language: 'pt',
     };
     localStorage.setItem(STORAGE_KEYS.USER_IDENTITY, JSON.stringify(this.identity));
 
@@ -445,6 +461,12 @@ export class GymLabsDataStore {
       userId: target.id,
       activityLevel: target.activityLevel || this.profile.activityLevel || 'MODERATELY_ACTIVE',
       primaryGoal: target.primaryGoal || 'HYPERTROPHY',
+      provenance: {
+        type: isTargetDemo ? 'DEMO' : 'REAL',
+        source: isTargetDemo ? 'Demo Seed Profile' : 'User Registration',
+        recordedAt: new Date().toISOString(),
+        confidence: 'HIGH',
+      },
     };
     localStorage.setItem(STORAGE_KEYS.USER_PROFILE, JSON.stringify(this.profile));
 
@@ -455,7 +477,7 @@ export class GymLabsDataStore {
     this.logAudit(
       'LOGIN_SUCCESS',
       'USER_ACCOUNT_SWITCHED',
-      `Switched active athlete profile to: ${target.name} (${target.email})`
+      `Switched active athlete profile to: ${target.name} (${target.email}) [DEMO: ${isTargetDemo}]`
     );
 
     this.checkAndGenerateSystemNotifications();
@@ -546,99 +568,66 @@ export class GymLabsDataStore {
     return { success: false, error: 'Informe um login ou credenciais.' };
   }
 
-  public quickAccessSampleAccount(role: 'USER' | 'COACH' | 'NUTRITIONIST' | 'GYM'): { success: boolean; account: SavedUserAccount } {
-    const existing = this.savedAccounts.find((a) => a.role === role);
-    if (existing) {
-      this.switchAccount(existing.id);
-      this.setAuthenticated(true);
-      return { success: true, account: existing };
+  public quickAccessSampleAccount(roleOrId: string): { success: boolean; account: SavedUserAccount } {
+    const cleanKey = (roleOrId || '').trim().toLowerCase();
+    let targetRole: UserRole = 'USER';
+    if (
+      cleanKey.includes('coach') ||
+      cleanKey.includes('trainer') ||
+      cleanKey.includes('personal') ||
+      cleanKey.includes('pt') ||
+      cleanKey === 'pro_sample_coach'
+    ) {
+      targetRole = 'COACH';
+    } else if (
+      cleanKey.includes('nutri') ||
+      cleanKey.includes('nutritionist') ||
+      cleanKey.includes('crn') ||
+      cleanKey === 'pro_sample_nutri'
+    ) {
+      targetRole = 'NUTRITIONIST';
+    } else if (
+      cleanKey.includes('gym') ||
+      cleanKey.includes('academia') ||
+      cleanKey.includes('unidade') ||
+      cleanKey.includes('studio') ||
+      cleanKey === 'gym_sample_club'
+    ) {
+      targetRole = 'GYM';
+    } else if (
+      cleanKey.includes('admin') ||
+      cleanKey.includes('auditor') ||
+      cleanKey === 'admin_sample_audit'
+    ) {
+      targetRole = 'ADMIN';
+    } else {
+      targetRole = 'USER';
     }
 
-    // Create realistic sample account for the specified app role
-    let sampleData: SavedUserAccount;
-    const nowIso = new Date().toISOString();
+    const demoAccount = DEFAULT_DEMO_ACCOUNTS.find((d) => d.role === targetRole);
+    let target = this.savedAccounts.find((a) => (a.role === targetRole && a.isDemo) || (demoAccount && a.id === demoAccount.id));
 
-    if (role === 'COACH') {
-      sampleData = {
-        id: `pro_coach_${Date.now()}`,
-        name: 'Dr. Lucas Silva (Personal CREF)',
-        email: 'lucas.personal@gymlabs.pro',
-        preferredName: 'Lucas',
-        role: 'COACH',
-        biologicalSex: 'MALE',
-        pin: '2026',
-        password: 'password123',
-        tagline: 'Personal Trainer (CREF 089142-G/SP)',
-        lastActiveAt: 'Agora',
-      };
-    } else if (role === 'NUTRITIONIST') {
-      sampleData = {
-        id: `pro_nutri_${Date.now()}`,
-        name: 'Elena Vance (Nutricionista CRN)',
-        email: 'elena.nutri@gymlabs.pro',
-        preferredName: 'Elena',
-        role: 'NUTRITIONIST',
-        biologicalSex: 'FEMALE',
-        pin: '2026',
-        password: 'password123',
-        tagline: 'Nutricionista Esportiva (CRN-3 48192)',
-        lastActiveAt: 'Agora',
-      };
-    } else if (role === 'GYM') {
-      sampleData = {
-        id: `gym_unit_${Date.now()}`,
-        name: 'Gym Labs Instituto de Performance SP',
-        email: 'gestao@gymlabssp.com.br',
-        preferredName: 'Gym Labs SP',
-        role: 'GYM',
-        pin: '2026',
-        password: 'password123',
-        tagline: 'Academia / Centro de Treino (CNPJ 42.109.876/0001-20)',
-        lastActiveAt: 'Agora',
-      };
-    } else {
-      sampleData = {
-        id: `usr_athlete_${Date.now()}`,
-        name: 'Alex Vance (Atleta Teste)',
+    if (!target) {
+      target = demoAccount || {
+        id: `usr_sample_athlete`,
+        name: 'Alex Vance (Aluno)',
         email: 'alex.atleta@gymlabs.com',
         preferredName: 'Alex',
         role: 'USER',
-        biologicalSex: 'MALE',
-        primaryGoal: 'HYPERTROPHY',
-        weightKg: 82.5,
-        heightCm: 180,
-        pin: '2026',
-        password: 'password123',
-        tagline: 'Usuário Convencional // Atleta Hipertrofia',
-        lastActiveAt: 'Agora',
+        isDemo: true,
       };
+      this.addSavedAccount(target);
+    } else {
+      target.role = targetRole;
+      target.isDemo = true;
+      const idx = this.savedAccounts.findIndex((a) => a.id === target!.id);
+      if (idx >= 0) this.savedAccounts[idx] = { ...this.savedAccounts[idx], role: targetRole, isDemo: true };
+      localStorage.setItem(STORAGE_KEYS.SAVED_ACCOUNTS, JSON.stringify(this.savedAccounts));
     }
 
-    this.addSavedAccount(sampleData);
-    this.switchAccount(sampleData.id);
-
-    if (role === 'USER') {
-      this.addBodyRecord({
-        id: `bdy_init_${Date.now()}`,
-        userId: sampleData.id,
-        timestamp: nowIso,
-        method: 'SELF_REPORT',
-        weightKg: {
-          value: 82.5,
-          unit: 'kg',
-          provenance: { type: 'REAL', source: 'Perfil Inicial', recordedAt: nowIso, confidence: 'HIGH' },
-        },
-        heightCm: {
-          value: 180,
-          unit: 'cm',
-          provenance: { type: 'REAL', source: 'Perfil Inicial', recordedAt: nowIso, confidence: 'HIGH' },
-        },
-        provenance: { type: 'REAL', source: 'Perfil Inicial', recordedAt: nowIso, confidence: 'HIGH' },
-      });
-    }
-
+    this.switchAccount(target.id);
     this.setAuthenticated(true);
-    return { success: true, account: sampleData };
+    return { success: true, account: target };
   }
 
   public register(data: RegisterUserData): { success: boolean; error?: string; account?: SavedUserAccount } {
@@ -822,9 +811,18 @@ export class GymLabsDataStore {
   }
 
   public logout(): void {
+    const wasDemo = Boolean(this.identity.isDemo);
     this.isAuthenticated = false;
-    localStorage.setItem(STORAGE_KEYS.SESSION_ACTIVE, 'false');
-    this.logAudit('LOGIN_SUCCESS', 'AUTH_LOGOUT', 'Sessão encerrada com sucesso pelo operador.');
+    try {
+      localStorage.setItem(STORAGE_KEYS.SESSION_ACTIVE, 'false');
+    } catch {}
+    this.logAudit(
+      'LOGIN_SUCCESS',
+      wasDemo ? 'DEMO_SESSION_LOGOUT' : 'REAL_SESSION_LOGOUT',
+      wasDemo
+        ? 'Sessão demonstrativa finalizada localmente no navegador.'
+        : 'Sessão de usuário real finalizada localmente na interface.'
+    );
   }
 
   // Identity & Profile

@@ -42,9 +42,10 @@ export const TodayView: React.FC = () => {
     todayTrainingCalories,
   } = useGymLabs();
 
-  // Biometrics
-  const latestWeight = bodyRecords[0]?.weightKg?.value || identity.weightKg || 75;
-  const latestHeight = bodyRecords[0]?.heightCm?.value || identity.heightCm || 175;
+  // Biometrics (strictly respecting availability: null if not provided for real users)
+  const isDemo = Boolean(identity.isDemo);
+  const latestWeight = bodyRecords[0]?.weightKg?.value ?? (identity.weightKg ?? (isDemo ? 82.5 : null));
+  const latestHeight = bodyRecords[0]?.heightCm?.value ?? (identity.heightCm ?? (isDemo ? 180 : null));
   const latestCirc = circumferences[0] || null;
 
   // Daily totals from meals logged in Health
@@ -56,10 +57,11 @@ export const TodayView: React.FC = () => {
   const consumedFat = todayMeals.reduce((sum, m) => sum + (m.totalFatG?.value || 0), 0);
 
   // Target estimations based on goal and TDEE
-  const baseTdee = tdeeCalculation.result || 2400;
+  const baseTdee = tdeeCalculation.result;
   const goal = profile.primaryGoal || 'HYPERTROPHY';
 
   const targetCalories = useMemo(() => {
+    if (!baseTdee) return null;
     switch (goal) {
       case 'HYPERTROPHY':
         return baseTdee + 300;
@@ -74,14 +76,16 @@ export const TodayView: React.FC = () => {
   }, [baseTdee, goal]);
 
   // Scientific Macronutrient targets: Protein ~2.0g/kg, Fat ~0.9g/kg, remainder Carbs
-  const targetProteinG = Math.round(latestWeight * 2.0);
-  const targetFatG = Math.round(latestWeight * 0.9);
-  const targetCarbsG = Math.max(100, Math.round((targetCalories - targetProteinG * 4 - targetFatG * 9) / 4));
+  const targetProteinG = latestWeight ? Math.round(latestWeight * 2.0) : null;
+  const targetFatG = latestWeight ? Math.round(latestWeight * 0.9) : null;
+  const targetCarbsG = (targetCalories && targetProteinG && targetFatG)
+    ? Math.max(100, Math.round((targetCalories - targetProteinG * 4 - targetFatG * 9) / 4))
+    : null;
 
   // Ideal weight range based on WHO healthy BMI (18.5 - 24.9)
-  const hM = latestHeight / 100;
-  const minHealthyWeight = Number((18.5 * hM * hM).toFixed(1));
-  const maxHealthyWeight = Number((24.9 * hM * hM).toFixed(1));
+  const hM = latestHeight ? latestHeight / 100 : null;
+  const minHealthyWeight = hM ? Number((18.5 * hM * hM).toFixed(1)) : null;
+  const maxHealthyWeight = hM ? Number((24.9 * hM * hM).toFixed(1)) : null;
 
   // Cardiometabolic indices (if optional circumferences exist)
   const waistVal = latestCirc?.waistCm?.value;
@@ -147,27 +151,35 @@ export const TodayView: React.FC = () => {
               <Scale className="w-3.5 h-3.5 text-white" />
               <span>Composição & IMC</span>
             </span>
-            <span className="text-[9px] px-1 py-0.2 bg-zinc-900 border border-zinc-700 text-zinc-300">
-              {bmiCalculation.result?.classification || 'NORMAL'}
+            <span className={`text-[9px] px-1 py-0.2 border ${
+              bmiCalculation.result 
+                ? 'bg-zinc-900 border-zinc-700 text-zinc-300' 
+                : 'bg-amber-950/70 border-amber-800 text-amber-300'
+            }`}>
+              {bmiCalculation.result?.category || 'DADOS INSUFICIENTES'}
             </span>
           </div>
 
           <div className="flex items-baseline justify-between">
             <div className="text-3xl sm:text-4xl font-black text-white">
-              {bmiCalculation.result?.bmi || '24.2'}{' '}
+              {bmiCalculation.result?.bmi !== undefined && bmiCalculation.result?.bmi !== null ? bmiCalculation.result.bmi : '--'}{' '}
               <span className="text-xs text-zinc-500 font-normal">kg/m²</span>
             </div>
-            <span className="text-xs font-bold text-zinc-300">{latestWeight} kg</span>
+            <span className="text-xs font-bold text-zinc-300">
+              {latestWeight ? `${latestWeight} kg` : 'Sem peso'}
+            </span>
           </div>
 
           <div className="pt-2 border-t border-zinc-900 text-[11px] space-y-1">
             <div className="flex justify-between text-zinc-400">
               <span>Altura base:</span>
-              <strong className="text-white">{latestHeight} cm</strong>
+              <strong className="text-white">{latestHeight ? `${latestHeight} cm` : 'Não informada'}</strong>
             </div>
             <div className="flex justify-between text-zinc-500 font-sans text-[10px]">
               <span>Faixa ideal OMS:</span>
-              <span className="text-zinc-300 font-mono">{minHealthyWeight} - {maxHealthyWeight} kg</span>
+              <span className="text-zinc-300 font-mono">
+                {minHealthyWeight && maxHealthyWeight ? `${minHealthyWeight} - ${maxHealthyWeight} kg` : 'Requer altura'}
+              </span>
             </div>
           </div>
         </div>
@@ -183,13 +195,13 @@ export const TodayView: React.FC = () => {
               <span>Gasto Energético Diário</span>
             </span>
             <span className="text-[10px] text-emerald-400 font-bold font-mono">
-              {todayTrainingCalories > 0 ? `+${todayTrainingCalories} kcal TREINO` : 'MIFFLIN'}
+              {todayTrainingCalories > 0 ? `+${todayTrainingCalories} kcal TREINO` : (baseTdee ? 'MIFFLIN' : 'REQUER DADOS')}
             </span>
           </div>
 
           <div className="flex items-baseline justify-between">
             <div className="text-3xl sm:text-4xl font-black text-white">
-              {baseTdee + todayTrainingCalories}{' '}
+              {baseTdee ? `${baseTdee + todayTrainingCalories} ` : '-- '}
               <span className="text-xs text-zinc-500 font-normal">kcal total</span>
             </div>
             {todayTrainingCalories > 0 && (
@@ -200,18 +212,26 @@ export const TodayView: React.FC = () => {
           </div>
 
           <div className="pt-2 border-t border-zinc-900 text-[11px] space-y-1">
-            <div className="flex justify-between text-zinc-400">
-              <span>Basal + Atividade (TDEE):</span>
-              <strong className="text-white">{baseTdee} kcal</strong>
-            </div>
-            <div className="flex justify-between text-zinc-400">
-              <span>Gasto Treino Hoje:</span>
-              <strong className="text-emerald-400">+{todayTrainingCalories} kcal</strong>
-            </div>
-            <div className="flex justify-between text-zinc-500 font-sans text-[10px]">
-              <span>Meta c/ Objetivo ({goal}):</span>
-              <span className="text-white font-mono font-bold">{targetCalories} kcal</span>
-            </div>
+            {baseTdee ? (
+              <>
+                <div className="flex justify-between text-zinc-400">
+                  <span>Basal + Atividade (TDEE):</span>
+                  <strong className="text-white">{baseTdee} kcal</strong>
+                </div>
+                <div className="flex justify-between text-zinc-400">
+                  <span>Gasto Treino Hoje:</span>
+                  <strong className="text-emerald-400">+{todayTrainingCalories} kcal</strong>
+                </div>
+                <div className="flex justify-between text-zinc-500 font-sans text-[10px]">
+                  <span>Meta c/ Objetivo ({goal}):</span>
+                  <span className="text-white font-mono font-bold">{targetCalories ?? '--'} kcal</span>
+                </div>
+              </>
+            ) : (
+              <div className="text-zinc-500 text-[10px] font-sans py-1">
+                Dados insuficientes para calcular gasto diário. Cadastre peso e altura na aba Saúde.
+              </div>
+            )}
           </div>
         </div>
 
@@ -323,16 +343,16 @@ export const TodayView: React.FC = () => {
               <div className="flex items-center gap-4">
                 <div>
                   <span className="text-[10px] text-zinc-500 uppercase block font-bold">Peso Cadastrado</span>
-                  <span className="text-lg font-black text-white font-mono">{latestWeight} kg</span>
+                  <span className="text-lg font-black text-white font-mono">{latestWeight ? `${latestWeight} kg` : 'Pendente'}</span>
                 </div>
                 <div>
                   <span className="text-[10px] text-zinc-500 uppercase block font-bold">Estatura</span>
-                  <span className="text-lg font-black text-white font-mono">{latestHeight} cm</span>
+                  <span className="text-lg font-black text-white font-mono">{latestHeight ? `${latestHeight} cm` : 'Pendente'}</span>
                 </div>
                 <div>
                   <span className="text-[10px] text-zinc-500 uppercase block font-bold">Superfície Corporal</span>
                   <span className="text-lg font-black text-white font-mono">
-                    {Number(Math.sqrt((latestWeight * latestHeight) / 3600).toFixed(2))} m²
+                    {latestWeight && latestHeight ? `${Number(Math.sqrt((latestWeight * latestHeight) / 3600).toFixed(2))} m²` : '--'}
                   </span>
                 </div>
               </div>
@@ -340,7 +360,7 @@ export const TodayView: React.FC = () => {
               <div className="text-right">
                 <span className="text-[10px] text-zinc-500 uppercase block font-bold">Hidratação Recomendada</span>
                 <span className="text-xs font-bold text-white font-mono">
-                  {dynamicHydration.totalTargetMl || Math.round(latestWeight * 38)} ml/dia
+                  {dynamicHydration.totalTargetMl ? `${dynamicHydration.totalTargetMl} ml/dia` : 'Requer peso'}
                 </span>
               </div>
             </div>
@@ -350,7 +370,7 @@ export const TodayView: React.FC = () => {
               <div className="flex items-end justify-between h-32 gap-2 border-b border-zinc-800 pb-1">
                 {bodyRecords.length > 0 ? (
                   bodyRecords.slice(0, 7).reverse().map((rec, i) => {
-                    const val = rec.weightKg.value || latestWeight;
+                    const val = rec.weightKg.value || latestWeight || 70;
                     const heightPercent = Math.min(100, Math.max(30, Math.round(((val - 40) / 80) * 100)));
                     return (
                       <div key={rec.id || i} className="flex-1 flex flex-col items-center gap-1 group">
@@ -369,14 +389,16 @@ export const TodayView: React.FC = () => {
                   })
                 ) : (
                   <div className="w-full flex items-center justify-center text-xs text-zinc-500 font-sans">
-                    Nenhum registro anterior. O peso atual ({latestWeight} kg) serve como linha de base.
+                    {latestWeight
+                      ? `Nenhum registro anterior. O peso cadastrado (${latestWeight} kg) serve como linha de base.`
+                      : 'Nenhum peso cadastrado. Adicione seu peso na aba Saúde para habilitar o gráfico.'}
                   </div>
                 )}
               </div>
 
               <div className="flex items-center justify-between pt-2 text-[10px] text-zinc-500 font-sans">
                 <span>← Histórico cronológico de pesagem</span>
-                <span className="text-zinc-400 font-mono">Linha de Base Calibrada</span>
+                <span className="text-zinc-400 font-mono">{latestWeight ? 'Linha de Base Calibrada' : 'Aguardando Medição'}</span>
               </div>
             </div>
           </div>
@@ -389,42 +411,48 @@ export const TodayView: React.FC = () => {
                 <span>Zonas Cardíacas Estimadas (Fórmula de Tanaka: 208 - 0.7 × Idade)</span>
               </span>
               <strong className="text-white font-mono">
-                FC Máx: {tanakaKarvonen.result?.maxHrBpm || 188} BPM
+                {tanakaKarvonen.result ? `FC Máx: ${tanakaKarvonen.result.maxHrBpm} BPM` : 'Requer Idade'}
               </strong>
             </div>
 
-            <div className="grid grid-cols-5 gap-1.5 pt-1">
-              <div className="p-2 bg-zinc-950 border border-zinc-800 text-center">
-                <span className="text-[9px] text-zinc-500 uppercase block font-bold">Z1 Leve</span>
-                <strong className="text-white font-mono text-xs">
-                  {tanakaKarvonen.result?.zones[0]?.minBpm || 95}-{tanakaKarvonen.result?.zones[0]?.maxBpm || 113}
-                </strong>
+            {tanakaKarvonen.result ? (
+              <div className="grid grid-cols-5 gap-1.5 pt-1">
+                <div className="p-2 bg-zinc-950 border border-zinc-800 text-center">
+                  <span className="text-[9px] text-zinc-500 uppercase block font-bold">Z1 Leve</span>
+                  <strong className="text-white font-mono text-xs">
+                    {tanakaKarvonen.result.zones[0]?.minBpm}-{tanakaKarvonen.result.zones[0]?.maxBpm}
+                  </strong>
+                </div>
+                <div className="p-2 bg-zinc-950 border border-zinc-800 text-center">
+                  <span className="text-[9px] text-zinc-500 uppercase block font-bold">Z2 Aeróbia</span>
+                  <strong className="text-white font-mono text-xs">
+                    {tanakaKarvonen.result.zones[1]?.minBpm}-{tanakaKarvonen.result.zones[1]?.maxBpm}
+                  </strong>
+                </div>
+                <div className="p-2 bg-zinc-950 border border-zinc-800 text-center">
+                  <span className="text-[9px] text-zinc-500 uppercase block font-bold">Z3 Tempo</span>
+                  <strong className="text-white font-mono text-xs">
+                    {tanakaKarvonen.result.zones[2]?.minBpm}-{tanakaKarvonen.result.zones[2]?.maxBpm}
+                  </strong>
+                </div>
+                <div className="p-2 bg-zinc-950 border border-zinc-800 text-center">
+                  <span className="text-[9px] text-zinc-500 uppercase block font-bold">Z4 Limiar</span>
+                  <strong className="text-white font-mono text-xs">
+                    {tanakaKarvonen.result.zones[3]?.minBpm}-{tanakaKarvonen.result.zones[3]?.maxBpm}
+                  </strong>
+                </div>
+                <div className="p-2 bg-zinc-950 border border-zinc-800 text-center">
+                  <span className="text-[9px] text-zinc-500 uppercase block font-bold">Z5 Anaeróbia</span>
+                  <strong className="text-white font-mono text-xs">
+                    {tanakaKarvonen.result.zones[4]?.minBpm}+
+                  </strong>
+                </div>
               </div>
-              <div className="p-2 bg-zinc-950 border border-zinc-800 text-center">
-                <span className="text-[9px] text-zinc-500 uppercase block font-bold">Z2 Aeróbia</span>
-                <strong className="text-white font-mono text-xs">
-                  {tanakaKarvonen.result?.zones[1]?.minBpm || 114}-{tanakaKarvonen.result?.zones[1]?.maxBpm || 132}
-                </strong>
+            ) : (
+              <div className="p-3 bg-zinc-950 border border-zinc-800 text-center text-zinc-500 font-sans text-xs">
+                Dados insuficientes para calcular zonas cardíacas. Cadastre sua data de nascimento na aba Saúde.
               </div>
-              <div className="p-2 bg-zinc-950 border border-zinc-800 text-center">
-                <span className="text-[9px] text-zinc-500 uppercase block font-bold">Z3 Tempo</span>
-                <strong className="text-white font-mono text-xs">
-                  {tanakaKarvonen.result?.zones[2]?.minBpm || 133}-{tanakaKarvonen.result?.zones[2]?.maxBpm || 151}
-                </strong>
-              </div>
-              <div className="p-2 bg-zinc-950 border border-zinc-800 text-center">
-                <span className="text-[9px] text-zinc-500 uppercase block font-bold">Z4 Limiar</span>
-                <strong className="text-white font-mono text-xs">
-                  {tanakaKarvonen.result?.zones[3]?.minBpm || 152}-{tanakaKarvonen.result?.zones[3]?.maxBpm || 170}
-                </strong>
-              </div>
-              <div className="p-2 bg-zinc-950 border border-zinc-800 text-center">
-                <span className="text-[9px] text-zinc-500 uppercase block font-bold">Z5 Anaeróbia</span>
-                <strong className="text-white font-mono text-xs">
-                  {tanakaKarvonen.result?.zones[4]?.minBpm || 171}+
-                </strong>
-              </div>
-            </div>
+            )}
           </div>
         </div>
 
@@ -452,33 +480,43 @@ export const TodayView: React.FC = () => {
             <div className="space-y-1.5">
               <div className="flex justify-between text-xs">
                 <span className="text-zinc-400">Calorias Ingeridas:</span>
-                <strong className="text-white font-mono">{consumedCalories} / {targetCalories} kcal</strong>
+                <strong className="text-white font-mono">
+                  {targetCalories ? `${consumedCalories} / ${targetCalories} kcal` : `${consumedCalories} kcal (Meta pendente)`}
+                </strong>
               </div>
-              <div className="w-full bg-black border border-zinc-800 h-3 overflow-hidden">
-                <div
-                  style={{ width: `${Math.min(100, Math.round((consumedCalories / targetCalories) * 100))}%` }}
-                  className="bg-white h-full transition-all"
-                />
-              </div>
-              <div className="flex justify-between text-[10px] text-zinc-500 font-sans">
-                <span>{Math.round((consumedCalories / targetCalories) * 100)}% da meta</span>
-                <span>Objetivo: {goal}</span>
-              </div>
+              {targetCalories ? (
+                <>
+                  <div className="w-full bg-black border border-zinc-800 h-3 overflow-hidden">
+                    <div
+                      style={{ width: `${Math.min(100, Math.round((consumedCalories / targetCalories) * 100))}%` }}
+                      className="bg-white h-full transition-all"
+                    />
+                  </div>
+                  <div className="flex justify-between text-[10px] text-zinc-500 font-sans">
+                    <span>{Math.round((consumedCalories / targetCalories) * 100)}% da meta</span>
+                    <span>Objetivo: {goal}</span>
+                  </div>
+                </>
+              ) : (
+                <div className="text-[10px] text-zinc-500 font-sans">
+                  Insira peso e altura para calcular sua meta calórica determinística.
+                </div>
+              )}
             </div>
 
             {/* Macros Breakdown */}
             <div className="space-y-2 pt-2 border-t border-zinc-900 text-xs">
               <div className="flex items-center justify-between p-2 bg-black border border-zinc-800">
                 <span className="text-zinc-400">Proteínas (2.0g/kg):</span>
-                <strong className="text-white font-mono">{consumedProtein}g / {targetProteinG}g</strong>
+                <strong className="text-white font-mono">{consumedProtein}g / {targetProteinG ? `${targetProteinG}g` : '--'}</strong>
               </div>
               <div className="flex items-center justify-between p-2 bg-black border border-zinc-800">
                 <span className="text-zinc-400">Carboidratos:</span>
-                <strong className="text-white font-mono">{consumedCarbs}g / {targetCarbsG}g</strong>
+                <strong className="text-white font-mono">{consumedCarbs}g / {targetCarbsG ? `${targetCarbsG}g` : '--'}</strong>
               </div>
               <div className="flex items-center justify-between p-2 bg-black border border-zinc-800">
                 <span className="text-zinc-400">Gorduras (0.9g/kg):</span>
-                <strong className="text-white font-mono">{consumedFat}g / {targetFatG}g</strong>
+                <strong className="text-white font-mono">{consumedFat}g / {targetFatG ? `${targetFatG}g` : '--'}</strong>
               </div>
             </div>
           </div>
