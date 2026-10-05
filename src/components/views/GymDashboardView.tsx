@@ -119,7 +119,12 @@ export const GymDashboardView: React.FC = () => {
 
         {activeTab === 'students' && (
           <div className="space-y-4">
-            <h2 className="text-lg font-black uppercase text-white">Alunos Registrados</h2>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <h2 className="text-lg font-black uppercase text-white">Alunos Matriculados na Unidade</h2>
+              <span className="text-[10px] text-zinc-500 font-mono">
+                🔒 LGPD: Dados clínicos e biométricos restritos ao atleta e profissionais autorizados.
+              </span>
+            </div>
             {enrolledStudents.length === 0 ? (
               <div className="p-8 border border-zinc-800 text-center space-y-2">
                 <span className="text-xs text-zinc-400 uppercase block font-bold">
@@ -136,8 +141,8 @@ export const GymDashboardView: React.FC = () => {
                     <tr>
                       <th className="p-3">Nome</th>
                       <th className="p-3">E-mail</th>
-                      <th className="p-3">Meta</th>
-                      <th className="p-3">Status</th>
+                      <th className="p-3">Último Acesso</th>
+                      <th className="p-3">Status na Unidade</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-900">
@@ -145,10 +150,10 @@ export const GymDashboardView: React.FC = () => {
                       <tr key={st.id}>
                         <td className="p-3 font-bold text-white uppercase">{st.name}</td>
                         <td className="p-3 text-zinc-400">{st.email}</td>
-                        <td className="p-3 text-zinc-300">{st.primaryGoal || 'Hipertrofia'}</td>
+                        <td className="p-3 text-zinc-400 font-mono text-[11px]">{st.lastActiveAt || 'Hoje'}</td>
                         <td className="p-3">
-                          <span className="text-[9px] px-1.5 py-0.5 border border-zinc-700 text-white font-bold">
-                            ATIVO
+                          <span className="text-[9px] px-1.5 py-0.5 border border-emerald-700 bg-emerald-950/30 text-emerald-400 font-bold uppercase">
+                            REGULAR
                           </span>
                         </td>
                       </tr>

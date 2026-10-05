@@ -14,7 +14,7 @@ const ACTIVITY_MULTIPLIERS: Record<PhysicalActivityLevel, number> = {
 
 export function calculateTDEE(
   bmrInput: BMRInput,
-  activityLevel: PhysicalActivityLevel
+  activityLevel: PhysicalActivityLevel | undefined | null
 ): DeterministicCalculationResult<number> {
   const bmrResult = calculateBMR(bmrInput);
   
@@ -39,7 +39,28 @@ export function calculateTDEE(
     };
   }
 
-  const multiplier = ACTIVITY_MULTIPLIERS[activityLevel] || 1.2;
+  if (!activityLevel || !ACTIVITY_MULTIPLIERS[activityLevel]) {
+    return {
+      result: null,
+      unit: 'kcal/day',
+      formulaName: 'Total Daily Energy Expenditure (TDEE)',
+      formulaVersion: '1.0.0',
+      mathematicalExpression: 'TDEE = BMR * PhysicalActivityMultiplier',
+      inputs: { calculatedBMR: bmrResult.result, activityLevel },
+      provenance: {
+        type: 'UNKNOWN',
+        source: 'TDEE Engine v1',
+        recordedAt: new Date().toISOString(),
+        confidence: 'INSUFFICIENT_DATA',
+        limitations: ['Nível de atividade física diária (PAL) não informado. Não assumimos rotinas arbitrárias.'],
+      },
+      evidenceCitation: EVIDENCE_REGISTRY.MIFFLIN_1990,
+      confidence: 'INSUFFICIENT_DATA',
+      clinicalBoundaryDisclaimer: 'Necessário informar o nível de atividade física diária para calcular o gasto energético total.',
+    };
+  }
+
+  const multiplier = ACTIVITY_MULTIPLIERS[activityLevel];
   const tdee = Math.round(bmrResult.result * multiplier);
 
   return {

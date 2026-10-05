@@ -340,8 +340,20 @@ export class GymLabsService {
     return this.dataStore.createInvitation(invitationData);
   }
 
-  public acceptInvitation(codeOrId: string): boolean {
-    return this.dataStore.acceptInvitation(codeOrId);
+  public acceptInvitation(codeOrId: string, responder?: { id: string; name: string }): boolean {
+    return this.dataStore.acceptInvitation(codeOrId, responder);
+  }
+
+  public rejectInvitation(codeOrId: string, reason?: string): boolean {
+    return this.dataStore.rejectInvitation(codeOrId, reason);
+  }
+
+  public revokeInvitation(invitationId: string): boolean {
+    return this.dataStore.revokeInvitation(invitationId);
+  }
+
+  public terminateRelationship(healthTeamMemberId: string, reason?: string): boolean {
+    return this.dataStore.terminateRelationship(healthTeamMemberId, reason);
   }
 
   public getActivePrescribedMealPlanForStudent(studentId: string): NutriMealPlan | undefined {

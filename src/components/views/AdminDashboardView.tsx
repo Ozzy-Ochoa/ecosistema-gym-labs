@@ -197,11 +197,25 @@ export const AdminDashboardView: React.FC = () => {
               ) : (
                 auditLogs.map((log) => (
                   <div key={log.id} className="p-2 border-b border-zinc-900 flex items-start justify-between gap-4">
-                    <div>
-                      <span className="text-white font-bold block">{log.action}</span>
-                      <span className="text-zinc-400 text-[11px] font-sans">{log.details}</span>
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-white font-bold block">{log.eventType}</span>
+                        <span className={`text-[9px] px-1 py-0.2 font-bold uppercase border ${
+                          log.status === 'SUCCESS'
+                            ? 'border-emerald-700 text-emerald-400 bg-emerald-950/40'
+                            : log.status === 'DENIED'
+                            ? 'border-red-700 text-red-400 bg-red-950/40'
+                            : 'border-amber-700 text-amber-400 bg-amber-950/40'
+                        }`}>
+                          {log.status}
+                        </span>
+                      </div>
+                      <span className="text-zinc-400 text-[11px] font-sans block">{log.details}</span>
+                      <div className="text-[10px] text-zinc-500 font-mono">
+                        Ator: {log.actor} • Recurso: {log.resourceTarget} • IP: {log.ipAddress}
+                      </div>
                     </div>
-                    <span className="text-zinc-600 text-[10px] shrink-0">{log.timestamp}</span>
+                    <span className="text-zinc-600 text-[10px] shrink-0 font-mono">{new Date(log.timestamp).toLocaleString('pt-BR')}</span>
                   </div>
                 ))
               )}

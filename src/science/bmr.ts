@@ -34,8 +34,13 @@ export function calculateBMR(input: BMRInput): DeterministicCalculationResult<nu
     };
   }
 
-  // Fallback to Mifflin-St Jeor if weight, height, age, sex provided
-  if (input.weightKg && input.heightCm && input.ageYears) {
+  // Fallback to Mifflin-St Jeor if weight, height, age and biologicalSex ('MALE' | 'FEMALE') provided
+  if (
+    input.weightKg &&
+    input.heightCm &&
+    input.ageYears &&
+    (input.biologicalSex === 'MALE' || input.biologicalSex === 'FEMALE')
+  ) {
     const isMale = input.biologicalSex === 'MALE';
     const sexConstant = isMale ? 5 : -161;
     const bmr = Math.round(10 * input.weightKg + 6.25 * input.heightCm - 5 * input.ageYears + sexConstant);
@@ -50,7 +55,7 @@ export function calculateBMR(input: BMRInput): DeterministicCalculationResult<nu
         weightKg: input.weightKg,
         heightCm: input.heightCm,
         ageYears: input.ageYears,
-        biologicalSex: input.biologicalSex || 'MALE',
+        biologicalSex: input.biologicalSex,
       },
       provenance: {
         type: 'CALCULATED',
@@ -67,6 +72,12 @@ export function calculateBMR(input: BMRInput): DeterministicCalculationResult<nu
   }
 
   // Insufficient data
+  const missingInputs: string[] = [];
+  if (!input.weightKg) missingInputs.push('peso corporal');
+  if (!input.heightCm) missingInputs.push('altura');
+  if (!input.ageYears) missingInputs.push('idade');
+  if (!input.biologicalSex || input.biologicalSex === 'NOT_SPECIFIED') missingInputs.push('sexo biológico');
+
   return {
     result: null,
     unit: 'kcal/day',
@@ -79,10 +90,10 @@ export function calculateBMR(input: BMRInput): DeterministicCalculationResult<nu
       source: 'Mifflin-St Jeor Engine v1',
       recordedAt: new Date().toISOString(),
       confidence: 'INSUFFICIENT_DATA',
-      limitations: ['Missing required physiological parameters: weight, height, or age.'],
+      limitations: [`Parâmetros fisiológicos obrigatórios ausentes: ${missingInputs.join(', ')}`],
     },
     evidenceCitation: EVIDENCE_REGISTRY.MIFFLIN_1990,
     confidence: 'INSUFFICIENT_DATA',
-    clinicalBoundaryDisclaimer: 'Cannot calculate BMR without required baseline anthropometric data.',
+    clinicalBoundaryDisclaimer: 'Não é possível calcular a TMB sem os parâmetros basais (peso, altura, idade e sexo biológico). Parâmetros não informados não são assumidos arbitrariamente.',
   };
 }

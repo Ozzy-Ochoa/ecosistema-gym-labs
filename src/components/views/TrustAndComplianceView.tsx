@@ -278,17 +278,24 @@ export const TrustAndComplianceView: React.FC = () => {
           {auditLogs.map((log) => (
             <div
               key={log.id}
-              className="p-3 bg-zinc-950 border border-zinc-800 flex items-center justify-between text-xs"
+              className="p-3 bg-zinc-950 border border-zinc-800 flex items-center justify-between text-xs gap-3"
             >
               <div>
-                <span className="font-bold text-white block">{log.action}</span>
+                <span className="font-bold text-white block">{log.eventType}</span>
+                <span className="text-zinc-400 text-[11px] font-sans block">{log.details}</span>
                 <span className="text-[10px] text-zinc-500 font-sans">
-                  {new Date(log.timestamp).toLocaleString('pt-BR')} • Ator: {log.actor}
+                  {new Date(log.timestamp).toLocaleString('pt-BR')} • Ator: {log.actor} • Alvo: {log.resourceTarget}
                 </span>
               </div>
-              <div className="text-right">
-                <span className="text-[10px] px-2 py-0.5 border border-zinc-700 text-white font-bold uppercase">
-                  {log.domain}
+              <div className="text-right shrink-0">
+                <span className={`text-[9px] px-2 py-0.5 border font-bold uppercase ${
+                  log.status === 'SUCCESS'
+                    ? 'border-emerald-700 text-emerald-400 bg-emerald-950/30'
+                    : log.status === 'DENIED'
+                    ? 'border-red-700 text-red-400 bg-red-950/30'
+                    : 'border-zinc-700 text-white'
+                }`}>
+                  {log.status}
                 </span>
               </div>
             </div>

@@ -20,6 +20,10 @@ import {
   Dumbbell,
   Droplet,
   MessageSquare,
+  KeyRound,
+  UserX,
+  Clock,
+  Send,
 } from 'lucide-react';
 import { ChatMessengerModal } from '../chat/ChatMessengerModal';
 
@@ -31,10 +35,17 @@ export const ProfessionalsView: React.FC = () => {
     grantConsent,
     revokeConsent,
     setCurrentTab,
+    healthTeamMembers,
+    invitations,
+    acceptInvitation,
+    rejectInvitation,
+    terminateRelationship,
   } = useGymLabs();
 
   const [selectedPlan, setSelectedPlan] = useState<'NONE' | 'COACH' | 'NUTRITIONIST' | 'COMBO'>('COMBO');
   const [successNotice, setSuccessNotice] = useState<string | null>(null);
+  const [inviteCodeInput, setInviteCodeInput] = useState<string>('');
+  const [inviteError, setInviteError] = useState<string | null>(null);
   const [showGrantModal, setShowGrantModal] = useState(false);
   const [targetProId, setTargetProId] = useState(professionals[0]?.id || '');
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -167,57 +178,151 @@ export const ProfessionalsView: React.FC = () => {
           </div>
         </div>
 
-        {/* Status of Current Connection */}
-        <div className="p-4 bg-black border border-zinc-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 border border-zinc-700 bg-zinc-950 flex items-center justify-center text-white">
-              <Users className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <div className="text-xs font-bold text-white uppercase flex items-center gap-2">
-                <span>Status da Conexão:</span>
-                <span className="text-[9px] px-2 py-0.5 bg-zinc-900 border border-zinc-700 text-white font-bold">
-                  {activeConsents.length > 0 ? `${activeConsents.length} PROFISSIONAL(IS) CONECTADO(S)` : 'MODO SOLO (PLANO BASE)'}
-                </span>
+        {/* Status of Current Connection & Invitations HUD */}
+        <div className="p-4 bg-black border border-zinc-800 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 border border-zinc-700 bg-zinc-950 flex items-center justify-center text-white">
+                <Users className="w-5 h-5 text-white" />
               </div>
-              <p className="text-[11px] text-zinc-400 font-sans mt-0.5">
-                {activeConsents.length > 0
-                  ? 'Seus dados de sobrecarga, cargas e hidratação estão sincronizados com sua equipe técnica.'
-                  : 'Você está no modo individual. Contrate um profissional abaixo para receber treinos e planos alimentares direto no app.'}
-              </p>
+              <div>
+                <div className="text-xs font-bold text-white uppercase flex items-center gap-2">
+                  <span>Status da Conexão:</span>
+                  <span className="text-[9px] px-2 py-0.5 bg-zinc-900 border border-zinc-700 text-white font-bold">
+                    {healthTeamMembers.filter((m) => m.status === 'ACTIVE').length > 0 || activeConsents.length > 0
+                      ? `${Math.max(healthTeamMembers.filter((m) => m.status === 'ACTIVE').length, activeConsents.length)} PROFISSIONAL(IS) CONECTADO(S)`
+                      : 'MODO SOLO (PLANO BASE)'}
+                  </span>
+                </div>
+                <p className="text-[11px] text-zinc-400 font-sans mt-0.5">
+                  {healthTeamMembers.filter((m) => m.status === 'ACTIVE').length > 0
+                    ? 'Seus dados de sobrecarga, prescrição e acompanhamento estão sincronizados em tempo real com sua equipe técnica.'
+                    : 'Você está no modo individual. Contrate um profissional credenciado ou insira o código de convite enviado pelo seu Personal/Nutri.'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              {hasConnectedCoach && (
+                <button
+                  type="button"
+                  onClick={() => handleOpenChat('pro_coach_marcus')}
+                  className="text-[10px] px-2.5 py-1 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 hover:border-white text-white font-bold uppercase flex items-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <MessageSquare className="w-3 h-3 text-blue-400" />
+                  <span>CHAT PERSONAL</span>
+                </button>
+              )}
+              {hasConnectedNutri && (
+                <button
+                  type="button"
+                  onClick={() => handleOpenChat('pro_nutri_elena')}
+                  className="text-[10px] px-2.5 py-1 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 hover:border-white text-white font-bold uppercase flex items-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <MessageSquare className="w-3 h-3 text-emerald-400" />
+                  <span>CHAT NUTRI</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => handleOpenChat()}
+                className="text-[10px] px-2.5 py-1 bg-white text-black font-black uppercase flex items-center gap-1.5 hover:bg-zinc-200 transition-colors cursor-pointer"
+              >
+                <MessageSquare className="w-3 h-3" />
+                <span>ABRIR CANAL DE CHAT</span>
+              </button>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
-            {hasConnectedCoach && (
+          {/* Código de Convite Direto Aluno <-> Profissional */}
+          <div className="p-3 bg-zinc-950 border border-zinc-800 flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <KeyRound className="w-4 h-4 text-zinc-400 shrink-0" />
+              <div>
+                <span className="text-xs font-bold text-white uppercase block">
+                  Vincular com Código de Convite do Personal / Nutricionista
+                </span>
+                <span className="text-[10px] text-zinc-500 font-sans block">
+                  Recebeu um código GL-XXXXXX do seu profissional? Insira abaixo para aprovar o acompanhamento.
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 w-full md:w-auto">
+              <input
+                type="text"
+                placeholder="Ex: GL-489123"
+                value={inviteCodeInput}
+                onChange={(e) => {
+                  setInviteCodeInput(e.target.value.toUpperCase());
+                  setInviteError(null);
+                }}
+                className="px-3 py-1.5 bg-black border border-zinc-700 text-white font-mono text-xs uppercase focus:border-white outline-none w-full md:w-40"
+              />
               <button
                 type="button"
-                onClick={() => handleOpenChat('pro_coach_marcus')}
-                className="text-[10px] px-2.5 py-1 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 hover:border-white text-white font-bold uppercase flex items-center gap-1.5 transition-colors cursor-pointer"
+                onClick={() => {
+                  if (!inviteCodeInput.trim()) {
+                    setInviteError('Informe o código do convite.');
+                    return;
+                  }
+                  const ok = acceptInvitation(inviteCodeInput.trim(), { id: identity.id, name: identity.name });
+                  if (ok) {
+                    setSuccessNotice(`Código ${inviteCodeInput.trim()} validado com sucesso! Vínculo profissional ativado.`);
+                    setInviteCodeInput('');
+                    setInviteError(null);
+                    setTimeout(() => setSuccessNotice(null), 4000);
+                  } else {
+                    setInviteError('Código de convite inválido, expirado ou já utilizado.');
+                  }
+                }}
+                className="px-3 py-1.5 bg-white text-black text-xs font-bold uppercase hover:bg-zinc-200 transition-colors shrink-0 cursor-pointer"
               >
-                <MessageSquare className="w-3 h-3 text-blue-400" />
-                <span>CHAT PERSONAL</span>
+                Ativar Vínculo
               </button>
-            )}
-            {hasConnectedNutri && (
-              <button
-                type="button"
-                onClick={() => handleOpenChat('pro_nutri_elena')}
-                className="text-[10px] px-2.5 py-1 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 hover:border-white text-white font-bold uppercase flex items-center gap-1.5 transition-colors cursor-pointer"
-              >
-                <MessageSquare className="w-3 h-3 text-emerald-400" />
-                <span>CHAT NUTRI</span>
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => handleOpenChat()}
-              className="text-[10px] px-2.5 py-1 bg-white text-black font-black uppercase flex items-center gap-1.5 hover:bg-zinc-200 transition-colors cursor-pointer"
-            >
-              <MessageSquare className="w-3 h-3" />
-              <span>ABRIR CANAL DE CHAT</span>
-            </button>
+            </div>
           </div>
+          {inviteError && (
+            <p className="text-[11px] text-red-400 font-sans">{inviteError}</p>
+          )}
+
+          {/* Convites Pendentes Recebidos */}
+          {invitations.filter((inv) => inv.status === 'PENDING' && (inv.targetEmail === identity.email || inv.targetRole === 'USER')).length > 0 && (
+            <div className="space-y-2 pt-2 border-t border-zinc-900">
+              <span className="text-[10px] text-zinc-400 font-bold uppercase flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-amber-400" />
+                <span>Solicitações de Vínculo Pendentes:</span>
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {invitations
+                  .filter((inv) => inv.status === 'PENDING' && (inv.targetEmail === identity.email || inv.targetRole === 'USER'))
+                  .map((inv) => (
+                    <div key={inv.id} className="p-3 bg-zinc-950 border border-zinc-700 flex items-center justify-between">
+                      <div>
+                        <div className="text-xs font-bold text-white uppercase">{inv.senderName}</div>
+                        <div className="text-[10px] text-zinc-400 font-sans">{inv.senderRole === 'COACH' ? 'Personal Trainer' : 'Nutricionista'} • Código: {inv.code}</div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => acceptInvitation(inv.code, { id: identity.id, name: identity.name })}
+                          className="px-2 py-1 bg-white text-black text-[10px] font-bold uppercase hover:bg-zinc-200 cursor-pointer"
+                        >
+                          Aprovar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => rejectInvitation(inv.code, 'Recusado pelo atleta')}
+                          className="px-2 py-1 bg-zinc-900 border border-zinc-700 text-zinc-400 text-[10px] font-bold uppercase hover:text-white cursor-pointer"
+                        >
+                          Recusar
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -511,6 +616,96 @@ export const ProfessionalsView: React.FC = () => {
             );
           })}
         </div>
+      </div>
+
+      {/* EQUIPE DE SAÚDE VINCULADA (MEMBROS ATIVOS) */}
+      <div className="p-5 bg-zinc-950 border border-zinc-800 space-y-4">
+        <div className="flex items-center justify-between border-b border-zinc-900 pb-3">
+          <div className="flex items-center gap-2">
+            <Users className="w-4 h-4 text-white" />
+            <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+              Equipe Técnica Vinculada ({healthTeamMembers.filter((m) => m.status === 'ACTIVE').length})
+            </h3>
+          </div>
+          <span className="text-[10px] text-zinc-500 font-bold uppercase">
+            Vínculos Ativos com Autorização Técnica
+          </span>
+        </div>
+
+        {healthTeamMembers.filter((m) => m.status === 'ACTIVE').length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {healthTeamMembers
+              .filter((m) => m.status === 'ACTIVE')
+              .map((member) => (
+                <div key={member.id} className="p-4 bg-black border border-zinc-700 space-y-3 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 border border-zinc-700 bg-zinc-900 flex items-center justify-center font-bold text-xs text-white">
+                          {member.role === 'COACH' ? 'PT' : member.role === 'NUTRITIONIST' ? 'NT' : 'AC'}
+                        </div>
+                        <div>
+                          <div className="font-bold text-xs text-white uppercase">{member.name}</div>
+                          <div className="text-[10px] text-zinc-400 font-sans">{member.credentialNumber} • {member.specialty}</div>
+                        </div>
+                      </div>
+                      <span className="text-[9px] px-2 py-0.5 bg-emerald-950 border border-emerald-500 text-emerald-300 font-bold uppercase">
+                        ATIVO
+                      </span>
+                    </div>
+
+                    <div className="mt-3 pt-2 border-t border-zinc-900">
+                      <span className="text-[9px] text-zinc-500 uppercase font-bold block mb-1">Escopos Autorizados:</span>
+                      <div className="flex flex-wrap gap-1">
+                        {member.permissions.canViewWorkouts && (
+                          <span className="text-[9px] px-1.5 py-0.5 bg-zinc-900 border border-zinc-800 text-zinc-300">Treinos (ACWR)</span>
+                        )}
+                        {member.permissions.canViewDiet && (
+                          <span className="text-[9px] px-1.5 py-0.5 bg-zinc-900 border border-zinc-800 text-zinc-300">Plano Nutricional</span>
+                        )}
+                        {member.permissions.canViewBodyMetrics && (
+                          <span className="text-[9px] px-1.5 py-0.5 bg-zinc-900 border border-zinc-800 text-zinc-300">Biometria & Cargas</span>
+                        )}
+                        {member.permissions.canViewHydrationAndSleep && (
+                          <span className="text-[9px] px-1.5 py-0.5 bg-zinc-900 border border-zinc-800 text-zinc-300">Sono, HRV & Hidratação</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-zinc-900 flex items-center justify-between">
+                    <span className="text-[10px] text-zinc-500 font-sans">
+                      Conectado desde: {member.connectedSince}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenChat(member.professionalId)}
+                        className="text-[10px] px-2 py-1 bg-zinc-900 border border-zinc-700 hover:border-white text-white font-bold uppercase cursor-pointer"
+                      >
+                        Chat
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (confirm(`Deseja realmente encerrar o vínculo profissional com ${member.name}? O acesso aos seus dados de saúde será revogado imediatamente.`)) {
+                            terminateRelationship(member.id, 'Encerrado pelo atleta via interface');
+                          }
+                        }}
+                        className="text-[10px] px-2 py-1 text-red-400 hover:text-red-300 hover:underline uppercase font-bold cursor-pointer"
+                      >
+                        Encerrar Vínculo
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+          </div>
+        ) : (
+          <p className="text-xs text-zinc-500 font-sans">
+            Nenhum profissional vinculado diretamente à sua equipe no momento.
+          </p>
+        )}
       </div>
 
       {/* PAINEL DE CONTROLE DE PERMISSÕES & LGPD */}

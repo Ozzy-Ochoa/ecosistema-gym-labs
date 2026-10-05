@@ -223,6 +223,30 @@ gym-labs/
 
 ---
 
+## 📊 Status Real de Implementação (Implementation Status)
+
+Conforme a auditoria arquitetural e de maturidade do Gym Labs:
+
+| Módulo / Subsistema | Status | Classificação e Detalhes |
+| :--- | :---: | :--- |
+| **Arquitetura Base (UI → Context → Service → Repository → DataStore)** | `IMPLEMENTED` | Fluxo desacoplado, sem acesso direto de componentes ao banco; padrão singleton e contratos TypeScript. |
+| **Motores Científicos Determinísticos** | `IMPLEMENTED` | Fórmulas determinísticas auditadas: Mifflin-St Jeor, Epley, Brzycki, Tanaka, Karvonen, ACWR (Gabbett), Armstrong, GL Recovery. Sem fabricação de sexo ou parâmetros ausentes (`INSUFFICIENT_DATA` estrito). |
+| **Classificação de Proveniência (`REAL`, `CALCULATED`, `ESTIMATED`, `INFERRED`, `DEMO`)** | `IMPLEMENTED` | Rastreabilidade granular por registro com tipo, fonte e timestamp. Dados DEMO segregados de contas reais no DataStore. |
+| **Brasil First & Localização** | `IMPLEMENTED` | Idioma pt-BR nativo, moeda BRL (R$), sistema métrico (kg/cm), alinhamento com conselhos reguladores (CREF/CRN) e regime LGPD. |
+| **Trilha de Auditoria & Segurança Enclave** | `IMPLEMENTED` | Registro de eventos críticos (`LOGIN`, `LOGOUT`, `RELATIONSHIP_INVITED`, `ACCEPTED`, `REJECTED`, `TERMINATED`, `CONSENT`, `DATA_DELETED`), PIN rápido e bloqueio de visor. |
+| **Console de Treino Ativo & Registro de Cargas** | `IMPLEMENTED` | Cronômetro ao vivo, temporizador de descanso com áudio/flash visual, cálculo de tonelagem/volume e cálculo de gasto calórico por METs. |
+| **RBAC (User, Personal, Nutri, Gym, Admin)** | `IMPLEMENTED` | Portais isolados por papel funcional com restrições de escopo e roteamento seguro. |
+| **Relacionamento Usuário ↔ Profissional** | `IMPLEMENTED` | Ciclo de vida completo: Convite (`GL-XXXXXX`), Aprovação, Rejeição, Vínculo Ativo e Encerramento de Vínculo com auditoria. |
+| **Portal do Personal Trainer (Gym Labs Trainer)** | `PARTIAL` | Gestão de alunos, timeline, prescrição de rotinas e avaliações físicas ativas em memória/localStorage; sem sincronização remota cloud. |
+| **Portal da Nutricionista (Gym Labs Nutri)** | `PARTIAL` | Gestão de pacientes, montagem de planos alimentares, tabela TACO e biblioteca; sincronização em memória/localStorage local. |
+| **Portal da Academia / Studio (Enterprise Hub)** | `PARTIAL` | Dashboard de assiduidade, profissionais credenciados e métricas de evasão com proteção à privacidade clínica (LGPD); sem integração de catraca física. |
+| **Portal de Governança Administrativa (Admin)** | `PARTIAL` | Visão geral de contas salvas, métricas de partição e trilha de auditoria completa; sem gestão remota de servidores centralizada. |
+| **Autenticação Real com Servidor Remoto / OAuth** | `PLANNED` | Atualmente opera via sessão local encriptada no navegador (`GymLabsDataStore`); arquitetura de serviços pronta para plug-in de API REST/Backend em nuvem. |
+| **Integração com Wearables & Dispositivos Médicos (BLE, Apple Health, Garmin)** | `PLANNED` | Mapeado no roadmap futuro para fases seguintes. |
+| **IA Clínica / Diagnóstico Médico Automatizado** | `MISSING` | Fora de escopo atual por diretriz de segurança e conformidade legal de saúde. |
+
+---
+
 ## 🔒 Privacidade e Conformidade LGPD
 
 O Gym Labs foi desenhado sob o regime da **Lei Geral de Proteção de Dados (Lei nº 13.709/2018 - LGPD)**:

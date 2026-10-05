@@ -49,15 +49,54 @@ export interface ChatMessage {
   attachmentType?: 'IMAGE' | 'EXAM_PDF' | 'MEAL_PLAN' | 'WORKOUT_PLAN';
 }
 
+export type RelationshipStatus = 
+  | 'PENDING'       // Convite/solicitação enviada aguardando ação
+  | 'ACCEPTED'      // Aprovado e ativo
+  | 'REJECTED'      // Recusado
+  | 'TERMINATED'    // Vínculo encerrado formalmente
+  | 'REVOKED'       // Cancelado pelo emissor antes do aceite
+  | 'EXPIRED';      // Expirado por decurso de prazo
+
 export interface ProfessionalInvitation {
   id: string;
   senderId: string;
   senderName: string;
-  senderRole: 'COACH' | 'NUTRITIONIST';
+  senderRole: 'USER' | 'COACH' | 'NUTRITIONIST' | 'GYM';
   targetEmail: string;
   targetName?: string;
+  targetRole?: 'USER' | 'COACH' | 'NUTRITIONIST' | 'GYM';
   code: string;
-  status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'EXPIRED';
+  status: RelationshipStatus;
   createdAt: string;
   acceptedAt?: string;
+  respondedAt?: string;
+  rejectionReason?: string;
+  notes?: string;
+}
+
+export interface EcosystemRelationshipRecord {
+  id: string;
+  invitationId?: string;
+  partyAId: string;
+  partyAName: string;
+  partyARole: 'USER' | 'COACH' | 'NUTRITIONIST' | 'GYM';
+  partyBId: string;
+  partyBName: string;
+  partyBRole: 'USER' | 'COACH' | 'NUTRITIONIST' | 'GYM';
+  status: 'ACTIVE' | 'PENDING' | 'TERMINATED' | 'REJECTED';
+  startedAt: string;
+  terminatedAt?: string;
+  terminationReason?: string;
+  scope: {
+    canViewWorkouts?: boolean;
+    canViewDiet?: boolean;
+    canViewBodyMetrics?: boolean;
+    canViewHydrationAndSleep?: boolean;
+    canPrescribeWorkouts?: boolean;
+    canPrescribeDiet?: boolean;
+  };
+  provenance: {
+    type: 'REAL' | 'DEMO';
+    recordedAt: string;
+  };
 }

@@ -1900,16 +1900,79 @@ export class GymLabsDataStore {
     };
     this.invitations.unshift(newInv);
     this.persistInvitations();
-    this.logAudit('SECURITY_SCOPE_ESCALATION_PREVENTED', 'INVITATION_CREATED', `Convite enviado para ${invData.targetEmail} por ${invData.senderName}.`);
+    this.logAudit('RELATIONSHIP_INVITED', 'INVITATION_CREATED', `Convite enviado para ${invData.targetEmail} por ${invData.senderName} (${invData.senderRole}). Código: ${newInv.code}`);
     return newInv;
   }
 
-  public acceptInvitation(codeOrId: string): boolean {
+  public acceptInvitation(codeOrId: string, responder?: { id: string; name: string }): boolean {
     const inv = this.invitations.find((i) => i.code === codeOrId || i.id === codeOrId);
     if (!inv || inv.status !== 'PENDING') return false;
     inv.status = 'ACCEPTED';
     inv.acceptedAt = new Date().toISOString();
+    inv.respondedAt = inv.acceptedAt;
+    if (responder && !inv.targetName) {
+      inv.targetName = responder.name;
+    }
     this.persistInvitations();
+
+    // If an invitation between user and professional is accepted, auto-create/activate HealthTeamMember
+    if (inv.senderRole === 'COACH' || inv.senderRole === 'NUTRITIONIST' || inv.senderRole === 'GYM') {
+      const existingTeam = this.healthTeamMembers.find((m) => m.professionalId === inv.senderId || m.email === inv.targetEmail);
+      if (!existingTeam) {
+        this.healthTeamMembers.unshift({
+          id: `htm_${Date.now()}`,
+          professionalId: inv.senderId,
+          name: inv.senderName,
+          role: inv.senderRole,
+          credentialNumber: inv.senderRole === 'COACH' ? 'CREF Ativo' : inv.senderRole === 'NUTRITIONIST' ? 'CRN Ativo' : 'CNPJ Ativo',
+          email: inv.targetEmail,
+          phone: '',
+          specialty: inv.senderRole === 'COACH' ? 'Treinamento Personalizado' : inv.senderRole === 'NUTRITIONIST' ? 'Nutrição Esportiva' : 'Centro de Treinamento',
+          connectedSince: new Date().toISOString().split('T')[0],
+          status: 'ACTIVE',
+          permissions: {
+            canViewWorkouts: true,
+            canViewDiet: inv.senderRole === 'NUTRITIONIST',
+            canViewBodyMetrics: true,
+            canViewHydrationAndSleep: true,
+            canShareWithOtherProfessionals: false,
+          },
+        });
+        this.persistHealthTeam();
+      }
+    }
+
+    this.logAudit('RELATIONSHIP_ACCEPTED', 'INVITATION_ACCEPTED', `Convite ${inv.code} aceito por ${responder?.name || inv.targetEmail}. Vínculo estabelecido.`);
+    return true;
+  }
+
+  public rejectInvitation(codeOrId: string, reason?: string): boolean {
+    const inv = this.invitations.find((i) => i.code === codeOrId || i.id === codeOrId);
+    if (!inv || inv.status !== 'PENDING') return false;
+    inv.status = 'REJECTED';
+    inv.respondedAt = new Date().toISOString();
+    inv.rejectionReason = reason;
+    this.persistInvitations();
+    this.logAudit('RELATIONSHIP_REJECTED', 'INVITATION_REJECTED', `Convite ${inv.code} recusado. Motivo: ${reason || 'Não informado'}.`);
+    return true;
+  }
+
+  public revokeInvitation(invitationId: string): boolean {
+    const inv = this.invitations.find((i) => i.id === invitationId);
+    if (!inv || inv.status !== 'PENDING') return false;
+    inv.status = 'REVOKED';
+    inv.respondedAt = new Date().toISOString();
+    this.persistInvitations();
+    this.logAudit('RELATIONSHIP_TERMINATED', 'INVITATION_REVOKED', `Convite ${inv.code} revogado pelo emissor.`);
+    return true;
+  }
+
+  public terminateRelationship(healthTeamMemberId: string, reason?: string): boolean {
+    const member = this.healthTeamMembers.find((m) => m.id === healthTeamMemberId);
+    if (!member) return false;
+    member.status = 'DISCONNECTED';
+    this.persistHealthTeam();
+    this.logAudit('RELATIONSHIP_TERMINATED', 'HEALTH_TEAM_DISCONNECTED', `Vínculo com ${member.name} (${member.role}) encerrado. Motivo: ${reason || 'Solicitação do usuário'}.`);
     return true;
   }
 

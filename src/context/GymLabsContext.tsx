@@ -259,7 +259,10 @@ interface GymLabsContextType {
   markChatAsRead: (conversationId: string, currentUserId: string) => void;
   invitations: ProfessionalInvitation[];
   createInvitation: (inv: Omit<ProfessionalInvitation, 'id' | 'createdAt' | 'code' | 'status'>) => ProfessionalInvitation;
-  acceptInvitation: (codeOrId: string) => boolean;
+  acceptInvitation: (codeOrId: string, responder?: { id: string; name: string }) => boolean;
+  rejectInvitation: (codeOrId: string, reason?: string) => boolean;
+  revokeInvitation: (invitationId: string) => boolean;
+  terminateRelationship: (healthTeamMemberId: string, reason?: string) => boolean;
   activePrescribedMealPlan: NutriMealPlan | undefined;
   activePrescribedWorkoutPlan: TrainerWorkoutPlan | undefined;
   activeChatRecipient: { id: string; name: string; role: string } | null;
@@ -526,12 +529,41 @@ export const GymLabsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return created;
   }, []);
 
-  const acceptInvitation = useCallback((codeOrId: string) => {
-    const accepted = dataStore.acceptInvitation(codeOrId);
+  const acceptInvitation = useCallback((codeOrId: string, responder?: { id: string; name: string }) => {
+    const accepted = dataStore.acceptInvitation(codeOrId, responder);
     if (accepted) {
       setInvitations(dataStore.getInvitations());
+      setHealthTeamMembers(dataStore.getHealthTeamMembers());
+      setAuditLogs(dataStore.getAuditLogs());
     }
     return accepted;
+  }, []);
+
+  const rejectInvitation = useCallback((codeOrId: string, reason?: string) => {
+    const rejected = dataStore.rejectInvitation(codeOrId, reason);
+    if (rejected) {
+      setInvitations(dataStore.getInvitations());
+      setAuditLogs(dataStore.getAuditLogs());
+    }
+    return rejected;
+  }, []);
+
+  const revokeInvitation = useCallback((invitationId: string) => {
+    const revoked = dataStore.revokeInvitation(invitationId);
+    if (revoked) {
+      setInvitations(dataStore.getInvitations());
+      setAuditLogs(dataStore.getAuditLogs());
+    }
+    return revoked;
+  }, []);
+
+  const terminateRelationship = useCallback((healthTeamMemberId: string, reason?: string) => {
+    const terminated = dataStore.terminateRelationship(healthTeamMemberId, reason);
+    if (terminated) {
+      setHealthTeamMembers(dataStore.getHealthTeamMembers());
+      setAuditLogs(dataStore.getAuditLogs());
+    }
+    return terminated;
   }, []);
 
   // Active Prescribed Plans for Aluno
@@ -1150,6 +1182,9 @@ export const GymLabsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         invitations,
         createInvitation,
         acceptInvitation,
+        rejectInvitation,
+        revokeInvitation,
+        terminateRelationship,
         activePrescribedMealPlan,
         activePrescribedWorkoutPlan,
         activeChatRecipient,
