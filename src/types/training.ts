@@ -92,6 +92,7 @@ export type WorkoutSplitType =
 
 export interface DayAttendance {
   date: string; // YYYY-MM-DD
+  userId?: string;
   status: AttendanceStatus;
   workoutType: WorkoutSplitType;
   title: string;

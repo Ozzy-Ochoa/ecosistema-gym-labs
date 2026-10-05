@@ -87,13 +87,13 @@ const STORAGE_KEYS = {
   USER_WORKOUT_ROUTINE: 'gymlabs_user_workout_routine_v1',
 };
 
-// Default clean production user
+// Default clean initial user (DEMO environment default)
 const INITIAL_IDENTITY: UserIdentity = {
-  id: 'usr_gymlabs_master',
-  email: 'alex.atleta@gymlabs.com.br',
+  id: 'usr_sample_athlete',
+  email: 'alex.atleta@gymlabs.com',
   name: 'Alex Vance',
   preferredName: 'Alex',
-  dateOfBirth: '1996-05-14',
+  dateOfBirth: '1998-05-20',
   biologicalSex: 'MALE',
   jurisdiction: 'BR',
   language: 'pt',
@@ -105,7 +105,7 @@ const INITIAL_IDENTITY: UserIdentity = {
 };
 
 const INITIAL_PROFILE: UserProfile = {
-  userId: 'usr_gymlabs_master',
+  userId: 'usr_sample_athlete',
   activityLevel: 'VERY_ACTIVE',
   primaryGoal: 'HYPERTROPHY',
   experienceYears: 4,
@@ -122,7 +122,7 @@ const INITIAL_PROFILE: UserProfile = {
 export class GymLabsDataStore {
   private static instance: GymLabsDataStore;
 
-  private isDemoMode: boolean = false;
+  private isDemoMode: boolean = true;
   private identity: UserIdentity = INITIAL_IDENTITY;
   private profile: UserProfile = INITIAL_PROFILE;
   private bodyRecords: BodyCompositionRecord[] = [];
@@ -141,7 +141,7 @@ export class GymLabsDataStore {
   private professionals: ProfessionalProfile[] = [...DEMO_PROFESSIONALS];
   private organizations: Organization[] = [...DEMO_ORGANIZATIONS];
   private savedAccounts: SavedUserAccount[] = [...DEFAULT_SAVED_ACCOUNTS];
-  private activeAccountId: string = 'usr_gymlabs_master';
+  private activeAccountId: string = 'usr_sample_athlete';
   private isAuthenticated: boolean = false;
   private notifications: SystemNotification[] = [];
   private lastDataVerificationDate: string = '';
@@ -245,24 +245,47 @@ export class GymLabsDataStore {
         if (activeAcc) {
           const isAccDemo = Boolean(activeAcc.isDemo);
           this.identity = {
-            ...INITIAL_IDENTITY,
             id: activeAcc.id,
             name: activeAcc.name,
             preferredName: activeAcc.preferredName || activeAcc.name.split(' ')[0],
             email: activeAcc.email,
-            biologicalSex: activeAcc.biologicalSex || (isAccDemo ? 'MALE' : 'NOT_SPECIFIED'),
-            dateOfBirth: activeAcc.dateOfBirth !== undefined ? activeAcc.dateOfBirth : (isAccDemo ? '1996-05-14' : undefined),
-            weightKg: activeAcc.weightKg !== undefined ? activeAcc.weightKg : (isAccDemo ? 82.5 : undefined),
-            heightCm: activeAcc.heightCm !== undefined ? activeAcc.heightCm : (isAccDemo ? 180 : undefined),
+            biologicalSex: isAccDemo ? (activeAcc.biologicalSex ?? 'MALE') : (activeAcc.biologicalSex ?? undefined),
+            dateOfBirth: isAccDemo ? (activeAcc.dateOfBirth ?? '1996-05-14') : (activeAcc.dateOfBirth ?? undefined),
+            weightKg: isAccDemo ? (activeAcc.weightKg ?? 82.5) : (activeAcc.weightKg ?? undefined),
+            heightCm: isAccDemo ? (activeAcc.heightCm ?? 180) : (activeAcc.heightCm ?? undefined),
             role: activeAcc.role || 'USER',
             isDemo: isAccDemo,
+            jurisdiction: 'BR',
+            language: 'pt',
+            timezone: 'America/Sao_Paulo',
+            unitSystem: 'METRIC',
+            createdAt: activeAcc.createdAt || INITIAL_IDENTITY.createdAt,
           };
           localStorage.setItem(STORAGE_KEYS.USER_IDENTITY, JSON.stringify(this.identity));
         }
       }
 
       const profVal = localStorage.getItem(STORAGE_KEYS.USER_PROFILE);
-      if (profVal) this.profile = JSON.parse(profVal);
+      if (profVal) {
+        this.profile = JSON.parse(profVal);
+      } else {
+        const activeAcc = this.savedAccounts.find((a) => a.id === this.activeAccountId);
+        const isAccDemo = activeAcc ? Boolean(activeAcc.isDemo) : Boolean(this.identity.isDemo);
+        this.profile = {
+          userId: this.identity.id,
+          activityLevel: isAccDemo ? (activeAcc?.activityLevel ?? 'VERY_ACTIVE') : (activeAcc?.activityLevel ?? undefined),
+          primaryGoal: isAccDemo ? (activeAcc?.primaryGoal ?? 'HYPERTROPHY') : (activeAcc?.primaryGoal ?? undefined),
+          experienceYears: isAccDemo ? 4 : undefined,
+          trainingDaysPerWeekTarget: isAccDemo ? 5 : undefined,
+          dietaryRestrictions: [],
+          provenance: {
+            type: isAccDemo ? 'DEMO' : 'REAL',
+            source: isAccDemo ? 'Demo Seed Profile' : 'User Registration',
+            recordedAt: new Date().toISOString(),
+            confidence: 'HIGH',
+          },
+        };
+      }
 
       const bodyVal = localStorage.getItem(STORAGE_KEYS.BODY_RECORDS);
       if (bodyVal) this.bodyRecords = JSON.parse(bodyVal);
@@ -396,8 +419,8 @@ export class GymLabsDataStore {
       // Check and update system notifications based on physiological parameters and periodic rules
       this.checkAndGenerateSystemNotifications();
 
-      // Strict Real-Data Mode: do NOT generate fictitious data
-      this.isDemoMode = false;
+      // Set demo mode strictly in sync with active identity
+      this.isDemoMode = Boolean(this.identity.isDemo);
     } catch (e) {
       console.warn('Could not load Gym Labs local state, starting clean:', e);
     }
@@ -442,31 +465,39 @@ export class GymLabsDataStore {
     localStorage.setItem(STORAGE_KEYS.ACTIVE_ACCOUNT_ID, accountId);
 
     const isTargetDemo = Boolean(target.isDemo);
+    this.isDemoMode = isTargetDemo;
+    try {
+      localStorage.setItem(STORAGE_KEYS.DEMO_MODE, String(isTargetDemo));
+    } catch {}
 
     // Sync Identity: Real accounts must NOT inherit fake body defaults
     this.identity = {
-      ...this.identity,
       id: target.id,
       name: target.name,
       preferredName: target.preferredName || target.name.split(' ')[0],
       email: target.email,
-      biologicalSex: target.biologicalSex || (isTargetDemo ? 'MALE' : 'NOT_SPECIFIED'),
-      dateOfBirth: target.dateOfBirth !== undefined ? target.dateOfBirth : (isTargetDemo ? '1998-05-20' : undefined),
-      weightKg: target.weightKg !== undefined ? target.weightKg : (isTargetDemo ? 82.5 : undefined),
-      heightCm: target.heightCm !== undefined ? target.heightCm : (isTargetDemo ? 180 : undefined),
+      biologicalSex: isTargetDemo ? (target.biologicalSex ?? 'MALE') : (target.biologicalSex ?? undefined),
+      dateOfBirth: isTargetDemo ? (target.dateOfBirth ?? '1998-05-20') : (target.dateOfBirth ?? undefined),
+      weightKg: isTargetDemo ? (target.weightKg ?? 82.5) : (target.weightKg ?? undefined),
+      heightCm: isTargetDemo ? (target.heightCm ?? 180) : (target.heightCm ?? undefined),
       role: target.role || 'USER',
       isDemo: isTargetDemo,
       jurisdiction: 'BR',
       language: 'pt',
+      timezone: 'America/Sao_Paulo',
+      unitSystem: 'METRIC',
+      createdAt: target.createdAt || this.identity.createdAt || new Date().toISOString(),
     };
     localStorage.setItem(STORAGE_KEYS.USER_IDENTITY, JSON.stringify(this.identity));
 
-    // Sync Profile
+    // Sync Profile: Real accounts must NOT inherit fake activityLevel, primaryGoal or experience
     this.profile = {
-      ...this.profile,
       userId: target.id,
-      activityLevel: target.activityLevel || (isTargetDemo ? 'MODERATELY_ACTIVE' : undefined),
-      primaryGoal: target.primaryGoal || (isTargetDemo ? 'HYPERTROPHY' : undefined),
+      activityLevel: isTargetDemo ? (target.activityLevel ?? 'MODERATELY_ACTIVE') : (target.activityLevel ?? undefined),
+      primaryGoal: isTargetDemo ? (target.primaryGoal ?? 'HYPERTROPHY') : (target.primaryGoal ?? undefined),
+      experienceYears: isTargetDemo ? 4 : undefined,
+      trainingDaysPerWeekTarget: isTargetDemo ? 5 : undefined,
+      dietaryRestrictions: isTargetDemo ? [] : [],
       provenance: {
         type: isTargetDemo ? 'DEMO' : 'REAL',
         source: isTargetDemo ? 'Demo Seed Profile' : 'User Registration',
@@ -647,21 +678,25 @@ export class GymLabsDataStore {
       return { success: false, error: 'Já existe um cadastro com este e-mail neste dispositivo.' };
     }
 
+    if (!data.password || data.password.trim().length < 6) {
+      return { success: false, error: 'A senha de acesso é obrigatória (mínimo de 6 caracteres).' };
+    }
+
     const newId = `usr_${Date.now()}`;
     const newAccount: SavedUserAccount = {
       id: newId,
-      name: data.name,
-      email: data.email,
-      preferredName: data.name.split(' ')[0],
+      name: data.name.trim(),
+      email: data.email.trim(),
+      preferredName: data.name.trim().split(' ')[0],
       role: data.role || 'USER',
-      biologicalSex: data.biologicalSex || undefined,
-      dateOfBirth: data.dateOfBirth || undefined,
-      activityLevel: data.activityLevel || undefined,
-      primaryGoal: data.primaryGoal || undefined,
-      pin: data.pin && data.pin.trim() ? data.pin.trim() : undefined,
-      password: data.password && data.password.trim() ? data.password.trim() : undefined,
-      weightKg: data.weightKg,
-      heightCm: data.heightCm,
+      biologicalSex: data.biologicalSex ? data.biologicalSex : undefined,
+      dateOfBirth: data.dateOfBirth ? data.dateOfBirth : undefined,
+      activityLevel: data.activityLevel ? data.activityLevel : undefined,
+      primaryGoal: data.primaryGoal ? data.primaryGoal : undefined,
+      pin: data.pin && data.pin.trim().length === 4 ? data.pin.trim() : undefined,
+      password: data.password.trim(),
+      weightKg: data.weightKg !== undefined && !isNaN(data.weightKg) ? data.weightKg : undefined,
+      heightCm: data.heightCm !== undefined && !isNaN(data.heightCm) ? data.heightCm : undefined,
       tagline:
         data.role === 'COACH'
           ? `Personal Trainer (${data.professionalLicense || 'CREF'})`
@@ -888,20 +923,28 @@ export class GymLabsDataStore {
 
   // Body Composition & Anthropometry
   public getBodyRecords(): BodyCompositionRecord[] {
-    return [...this.bodyRecords];
+    if (this.identity.isDemo) {
+      return this.bodyRecords.filter((r) => !r.userId || r.userId === this.identity.id || r.provenance?.type === 'DEMO');
+    }
+    return this.bodyRecords.filter((r) => r.userId === this.identity.id && r.provenance?.type === 'REAL');
   }
 
   public addBodyRecord(record: BodyCompositionRecord): void {
+    if (!record.userId) record.userId = this.identity.id;
     this.bodyRecords.unshift(record);
     localStorage.setItem(STORAGE_KEYS.BODY_RECORDS, JSON.stringify(this.bodyRecords));
     this.logAudit('CALCULATION_EXECUTED', 'BODY_RECORD_ADDED', `Weight: ${record.weightKg.value} kg, Method: ${record.method}`);
   }
 
   public getCircumferences(): CircumferenceRecord[] {
-    return [...this.circumferences];
+    if (this.identity.isDemo) {
+      return this.circumferences.filter((c) => !c.userId || c.userId === this.identity.id || c.provenance?.type === 'DEMO');
+    }
+    return this.circumferences.filter((c) => c.userId === this.identity.id && c.provenance?.type === 'REAL');
   }
 
   public addCircumference(record: CircumferenceRecord): void {
+    if (!record.userId) record.userId = this.identity.id;
     this.circumferences.unshift(record);
     localStorage.setItem(STORAGE_KEYS.CIRCUMFERENCES, JSON.stringify(this.circumferences));
   }
@@ -916,10 +959,14 @@ export class GymLabsDataStore {
   }
 
   public getTrainingSessions(): TrainingSession[] {
-    return [...this.trainingSessions];
+    if (this.identity.isDemo) {
+      return this.trainingSessions.filter((s) => !s.userId || s.userId === this.identity.id || s.provenance?.type === 'DEMO');
+    }
+    return this.trainingSessions.filter((s) => s.userId === this.identity.id && s.provenance?.type === 'REAL');
   }
 
   public addTrainingSession(session: TrainingSession): void {
+    if (!session.userId) session.userId = this.identity.id;
     this.trainingSessions.unshift(session);
     localStorage.setItem(STORAGE_KEYS.TRAINING_SESSIONS, JSON.stringify(this.trainingSessions));
     this.logAudit('CALCULATION_EXECUTED', 'TRAINING_SESSION_RECORDED', `Title: ${session.title}, Volume: ${session.calculatedVolumeKg.value} kg`);
@@ -928,6 +975,7 @@ export class GymLabsDataStore {
     const sessionDate = session.startedAt.split('T')[0];
     this.setDayAttendance({
       date: sessionDate,
+      userId: this.identity.id,
       status: 'ATTENDED',
       workoutType: session.title.toLowerCase().includes('push')
         ? 'PUSH'
@@ -949,7 +997,7 @@ export class GymLabsDataStore {
 
   // Conventional Athlete Workout Routine Methods
   public getUserWorkoutRoutine(): UserWorkoutRoutine {
-    if (!this.userWorkoutRoutine) {
+    if (!this.userWorkoutRoutine || this.userWorkoutRoutine.userId !== this.identity.id) {
       this.userWorkoutRoutine = createSuggestedWorkoutRoutine(this.identity.id, this.profile.primaryGoal, 4);
       this.persistUserWorkoutRoutine();
     }
@@ -957,7 +1005,7 @@ export class GymLabsDataStore {
   }
 
   public saveUserWorkoutRoutine(routine: UserWorkoutRoutine): void {
-    this.userWorkoutRoutine = { ...routine, updatedAt: new Date().toISOString() };
+    this.userWorkoutRoutine = { ...routine, userId: this.identity.id, updatedAt: new Date().toISOString() };
     this.persistUserWorkoutRoutine();
     this.logAudit('CALCULATION_EXECUTED', 'ROUTINE_UPDATED', `Rotina: ${routine.title}, Sessões: ${routine.sessions.length}`);
   }
@@ -979,20 +1027,26 @@ export class GymLabsDataStore {
 
   // Gym Attendance & Planning
   public getAttendanceLogs(): DayAttendance[] {
-    return [...this.attendanceLogs];
+    if (this.identity.isDemo) {
+      return [...this.attendanceLogs];
+    }
+    return this.attendanceLogs.filter((a) => !a.userId || a.userId === this.identity.id);
   }
 
   public setDayAttendance(attendance: DayAttendance): void {
-    const idx = this.attendanceLogs.findIndex((a) => a.date === attendance.date);
+    if (!attendance.userId) attendance.userId = this.identity.id;
+    const idx = this.attendanceLogs.findIndex((a) => a.date === attendance.date && (a.userId === this.identity.id || !a.userId));
     if (idx >= 0) {
       this.attendanceLogs[idx] = {
         ...this.attendanceLogs[idx],
         ...attendance,
+        userId: this.identity.id,
         updatedAt: new Date().toISOString(),
       };
     } else {
       this.attendanceLogs.push({
         ...attendance,
+        userId: this.identity.id,
         updatedAt: new Date().toISOString(),
       });
     }
@@ -1023,21 +1077,28 @@ export class GymLabsDataStore {
   }
 
   public getMeals(): MealEntry[] {
-    return [...this.meals];
+    if (this.identity.isDemo) {
+      return this.meals.filter((m) => !m.userId || m.userId === this.identity.id || m.totalCalories?.provenance?.type === 'DEMO');
+    }
+    return this.meals.filter((m) => m.userId === this.identity.id && m.totalCalories?.provenance?.type === 'REAL');
   }
 
   public addMeal(meal: MealEntry): void {
+    if (!meal.userId) meal.userId = this.identity.id;
     this.meals.unshift(meal);
     localStorage.setItem(STORAGE_KEYS.MEALS, JSON.stringify(this.meals));
   }
 
   public getHydration(): HydrationLog[] {
-    return [...this.hydration];
+    if (this.identity.isDemo) {
+      return this.hydration.filter((h) => !h.userId || h.userId === this.identity.id || h.estimatedTargetMl?.provenance?.type === 'DEMO' || h.estimatedTargetMl?.provenance?.type === 'ESTIMATED');
+    }
+    return this.hydration.filter((h) => h.userId === this.identity.id);
   }
 
   public logWater(ml: number): void {
     const today = new Date().toISOString().split('T')[0];
-    const existing = this.hydration.find((h) => h.date === today);
+    const existing = this.hydration.find((h) => h.date === today && (h.userId === this.identity.id || !h.userId));
     if (existing) {
       existing.consumedMl += ml;
     } else {
@@ -1064,19 +1125,27 @@ export class GymLabsDataStore {
 
   // Sleep & Recovery
   public getSleepSessions(): SleepSession[] {
-    return [...this.sleepSessions];
+    if (this.identity.isDemo) {
+      return this.sleepSessions.filter((s) => !s.userId || s.userId === this.identity.id || s.provenance?.type === 'DEMO');
+    }
+    return this.sleepSessions.filter((s) => s.userId === this.identity.id && s.provenance?.type === 'REAL');
   }
 
   public addSleepSession(session: SleepSession): void {
+    if (!session.userId) session.userId = this.identity.id;
     this.sleepSessions.unshift(session);
     localStorage.setItem(STORAGE_KEYS.SLEEP_SESSIONS, JSON.stringify(this.sleepSessions));
   }
 
   public getWellnessLogs(): SubjectiveWellnessLog[] {
-    return [...this.wellnessLogs];
+    if (this.identity.isDemo) {
+      return this.wellnessLogs.filter((w) => !w.userId || w.userId === this.identity.id || w.provenance?.type === 'DEMO');
+    }
+    return this.wellnessLogs.filter((w) => w.userId === this.identity.id && w.provenance?.type === 'REAL');
   }
 
   public addWellnessLog(log: SubjectiveWellnessLog): void {
+    if (!log.userId) log.userId = this.identity.id;
     this.wellnessLogs.unshift(log);
     localStorage.setItem(STORAGE_KEYS.WELLNESS_LOGS, JSON.stringify(this.wellnessLogs));
   }

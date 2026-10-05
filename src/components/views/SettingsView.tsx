@@ -51,22 +51,23 @@ export const SettingsView: React.FC = () => {
     triggerPeriodicCheckSimulation,
   } = useGymLabs();
 
-  // Read initial physiological baseline
-  const initialWeight = bodyRecords[0]?.weightKg?.value || identity.weightKg || 75;
-  const initialHeight = bodyRecords[0]?.heightCm?.value || identity.heightCm || 175;
+  // Read initial physiological baseline (strictly prevent silent fake defaults on REAL accounts)
+  const isDemoUser = Boolean(identity.isDemo);
+  const initialWeight = bodyRecords[0]?.weightKg?.value || identity.weightKg || (isDemoUser ? 75 : 0);
+  const initialHeight = bodyRecords[0]?.heightCm?.value || identity.heightCm || (isDemoUser ? 175 : 0);
 
   // Editable Mandatory Biological Constants
   const [weightKg, setWeightKg] = useState<number>(initialWeight);
   const [heightCm, setHeightCm] = useState<number>(initialHeight);
-  const [dateOfBirth, setDateOfBirth] = useState<string>(identity.dateOfBirth || '1998-05-20');
+  const [dateOfBirth, setDateOfBirth] = useState<string>(identity.dateOfBirth || (isDemoUser ? '1998-05-20' : ''));
   const [biologicalSex, setBiologicalSex] = useState<UserIdentity['biologicalSex']>(
-    identity.biologicalSex || 'MALE'
+    identity.biologicalSex || (isDemoUser ? 'MALE' : 'NOT_SPECIFIED')
   );
   const [activityLevel, setActivityLevel] = useState<UserProfile['activityLevel']>(
-    profile.activityLevel || 'MODERATELY_ACTIVE'
+    profile.activityLevel || (isDemoUser ? 'MODERATELY_ACTIVE' : undefined)
   );
   const [primaryGoal, setPrimaryGoal] = useState<UserProfile['primaryGoal']>(
-    profile.primaryGoal || 'HYPERTROPHY'
+    profile.primaryGoal || (isDemoUser ? 'HYPERTROPHY' : undefined)
   );
   const [preferredName, setPreferredName] = useState<string>(identity.preferredName || '');
 
@@ -426,10 +427,11 @@ export const SettingsView: React.FC = () => {
                 <Heart className="w-3 h-3 text-zinc-500" />
               </label>
               <select
-                value={biologicalSex}
+                value={biologicalSex || ''}
                 onChange={(e) => setBiologicalSex(e.target.value as any)}
                 className="w-full p-2.5 bg-zinc-950 border border-zinc-700 text-white outline-none focus:border-white font-mono"
               >
+                <option value="NOT_SPECIFIED">Não especificado / A definir</option>
                 <option value="MALE">Masculino (MSJ Homem)</option>
                 <option value="FEMALE">Feminino (MSJ Mulher)</option>
               </select>
@@ -465,10 +467,11 @@ export const SettingsView: React.FC = () => {
                 <Activity className="w-3 h-3 text-zinc-500" />
               </label>
               <select
-                value={activityLevel}
+                value={activityLevel || ''}
                 onChange={(e) => setActivityLevel(e.target.value as any)}
                 className="w-full p-2.5 bg-zinc-950 border border-zinc-700 text-white outline-none focus:border-white font-mono"
               >
+                <option value="">Não informado / A definir</option>
                 <option value="SEDENTARY">Sedentário (x1.20 - Trabalho de escritório, pouco exercício)</option>
                 <option value="LIGHTLY_ACTIVE">Levemente Ativo (x1.375 - Exercício leve 1 a 3x por semana)</option>
                 <option value="MODERATELY_ACTIVE">Moderadamente Ativo (x1.55 - Treino consistente 3 a 5x por semana)</option>
@@ -486,10 +489,11 @@ export const SettingsView: React.FC = () => {
                 Objetivo Principal de Treino & Metabolismo *
               </label>
               <select
-                value={primaryGoal}
+                value={primaryGoal || ''}
                 onChange={(e) => setPrimaryGoal(e.target.value as any)}
                 className="w-full p-2.5 bg-zinc-950 border border-zinc-700 text-white outline-none focus:border-white font-mono"
               >
+                <option value="">Não informado / A definir</option>
                 <option value="HYPERTROPHY">Hipertrofia Muscular (Foco em Ganho de Massa Magra / Superávit Leve)</option>
                 <option value="STRENGTH">Força Máxima / Powerlifting (Sobrecarga Neural e Cargas 1RM)</option>
                 <option value="FAT_LOSS">Emagrecimento & Definição (Déficit Calórico Orientado)</option>

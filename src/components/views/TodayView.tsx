@@ -58,10 +58,11 @@ export const TodayView: React.FC = () => {
 
   // Target estimations based on goal and TDEE
   const baseTdee = tdeeCalculation.result;
-  const goal = profile.primaryGoal || 'HYPERTROPHY';
+  const goal = profile.primaryGoal;
 
   const targetCalories = useMemo(() => {
     if (!baseTdee) return null;
+    if (!goal) return baseTdee;
     switch (goal) {
       case 'HYPERTROPHY':
         return baseTdee + 300;

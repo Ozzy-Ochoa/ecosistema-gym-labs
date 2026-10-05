@@ -68,6 +68,7 @@ export interface SavedUserAccount {
   heightCm?: number;
   tagline?: string;
   isCurrent?: boolean;
+  createdAt?: string;
 }
 
 export interface RegisterUserData {

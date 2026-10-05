@@ -31,10 +31,10 @@ export const AccountSwitcherModal: React.FC = () => {
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
-  const [newSex, setNewSex] = useState<'MALE' | 'FEMALE'>('MALE');
-  const [newGoal, setNewGoal] = useState<'HYPERTROPHY' | 'STRENGTH' | 'FAT_LOSS' | 'LONGEVITY'>('HYPERTROPHY');
-  const [newWeight, setNewWeight] = useState(78);
-  const [newHeight, setNewHeight] = useState(175);
+  const [newSex, setNewSex] = useState<'MALE' | 'FEMALE' | ''>('');
+  const [newGoal, setNewGoal] = useState<'HYPERTROPHY' | 'STRENGTH' | 'FAT_LOSS' | 'LONGEVITY' | ''>('');
+  const [newWeight, setNewWeight] = useState<string>('');
+  const [newHeight, setNewHeight] = useState<string>('');
   const [newPin, setNewPin] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -52,6 +52,14 @@ export const AccountSwitcherModal: React.FC = () => {
       return;
     }
 
+    if (newPin && newPin.trim().length > 0 && !/^\d{4}$/.test(newPin.trim())) {
+      setErrorMsg('O PIN deve conter exatamente 4 dígitos numéricos.');
+      return;
+    }
+
+    const parsedWeight = newWeight.trim() ? parseFloat(newWeight) : undefined;
+    const parsedHeight = newHeight.trim() ? parseFloat(newHeight) : undefined;
+
     const newId = `usr_${Date.now()}`;
     const account: SavedUserAccount = {
       id: newId,
@@ -59,14 +67,16 @@ export const AccountSwitcherModal: React.FC = () => {
       email: newEmail.trim().toLowerCase(),
       preferredName: newName.trim().split(' ')[0],
       role: 'USER',
-      biologicalSex: newSex,
-      primaryGoal: newGoal,
-      weightKg: Number(newWeight),
-      heightCm: Number(newHeight),
-      pin: newPin ? newPin.trim() : undefined,
+      biologicalSex: newSex || undefined,
+      primaryGoal: newGoal || undefined,
+      weightKg: parsedWeight && !isNaN(parsedWeight) ? parsedWeight : undefined,
+      heightCm: parsedHeight && !isNaN(parsedHeight) ? parsedHeight : undefined,
+      pin: newPin && newPin.trim().length === 4 ? newPin.trim() : undefined,
       lastActiveAt: 'Recém-criado',
       isDemo: false,
-      tagline: `Atleta ${newGoal === 'HYPERTROPHY' ? 'Hipertrofia' : newGoal === 'FAT_LOSS' ? 'Composição Corporal' : newGoal === 'STRENGTH' ? 'Força' : 'Saúde & Longevidade'}`,
+      tagline: newGoal
+        ? `Atleta ${newGoal === 'HYPERTROPHY' ? 'Hipertrofia' : newGoal === 'FAT_LOSS' ? 'Composição Corporal' : newGoal === 'STRENGTH' ? 'Força' : 'Saúde & Longevidade'}`
+        : 'Usuário Convencional // Atleta',
     };
 
     addSavedAccount(account);
@@ -74,6 +84,11 @@ export const AccountSwitcherModal: React.FC = () => {
     setIsAddingNew(false);
     setNewName('');
     setNewEmail('');
+    setNewSex('');
+    setNewGoal('');
+    setNewWeight('');
+    setNewHeight('');
+    setNewPin('');
     closeAccountModal();
   };
 
@@ -530,13 +545,14 @@ export const AccountSwitcherModal: React.FC = () => {
 
                 <div>
                   <label className="block text-zinc-400 uppercase text-[10px] mb-1 font-bold">
-                    Sexo Biológico
+                    Sexo Biológico (Opcional)
                   </label>
                   <select
                     value={newSex}
                     onChange={(e) => setNewSex(e.target.value as any)}
                     className="w-full p-2.5 bg-black border border-zinc-700 text-white outline-none focus:border-white"
                   >
+                    <option value="">Não informado / Desconhecido</option>
                     <option value="MALE">Masculino</option>
                     <option value="FEMALE">Feminino</option>
                   </select>
@@ -544,38 +560,41 @@ export const AccountSwitcherModal: React.FC = () => {
 
                 <div>
                   <label className="block text-zinc-400 uppercase text-[10px] mb-1 font-bold">
-                    PIN Numérico (4 Dígitos)
+                    PIN Numérico (4 Dígitos - Opcional)
                   </label>
                   <input
-                    type="text"
+                    type="password"
                     maxLength={4}
                     value={newPin}
                     onChange={(e) => setNewPin(e.target.value)}
+                    placeholder="Ex: 1234 (sem PIN padrão)"
                     className="w-full p-2.5 bg-black border border-zinc-700 text-white outline-none focus:border-white"
                   />
                 </div>
 
                 <div>
                   <label className="block text-zinc-400 uppercase text-[10px] mb-1 font-bold">
-                    Peso (kg)
+                    Peso (kg - Opcional)
                   </label>
                   <input
                     type="number"
                     step="0.1"
                     value={newWeight}
-                    onChange={(e) => setNewWeight(Number(e.target.value))}
+                    onChange={(e) => setNewWeight(e.target.value)}
+                    placeholder="Ex: 80.0"
                     className="w-full p-2.5 bg-black border border-zinc-700 text-white outline-none focus:border-white"
                   />
                 </div>
 
                 <div>
                   <label className="block text-zinc-400 uppercase text-[10px] mb-1 font-bold">
-                    Altura (cm)
+                    Altura (cm - Opcional)
                   </label>
                   <input
                     type="number"
                     value={newHeight}
-                    onChange={(e) => setNewHeight(Number(e.target.value))}
+                    onChange={(e) => setNewHeight(e.target.value)}
+                    placeholder="Ex: 178"
                     className="w-full p-2.5 bg-black border border-zinc-700 text-white outline-none focus:border-white"
                   />
                 </div>

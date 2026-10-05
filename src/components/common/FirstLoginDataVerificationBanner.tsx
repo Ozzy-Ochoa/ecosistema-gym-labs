@@ -56,14 +56,16 @@ export const FirstLoginDataVerificationBanner: React.FC = () => {
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
   const [isEditingModalOpen, setIsEditingModalOpen] = useState<boolean>(false);
 
+  const isDemoUser = Boolean(identity.isDemo);
+
   // Form state for rapid completion if anything missing
-  const [editWeight, setEditWeight] = useState<number>(currentWeight || 75);
-  const [editHeight, setEditHeight] = useState<number>(currentHeight || 175);
-  const [editSex, setEditSex] = useState<'MALE' | 'FEMALE'>(
-    currentSex === 'FEMALE' ? 'FEMALE' : 'MALE'
+  const [editWeight, setEditWeight] = useState<number | ''>(currentWeight || (isDemoUser ? 75 : ''));
+  const [editHeight, setEditHeight] = useState<number | ''>(currentHeight || (isDemoUser ? 175 : ''));
+  const [editSex, setEditSex] = useState<'MALE' | 'FEMALE' | ''>(
+    currentSex === 'FEMALE' || currentSex === 'MALE' ? currentSex : (isDemoUser ? 'MALE' : '')
   );
-  const [editDob, setEditDob] = useState<string>(currentDob || '1998-05-20');
-  const [editActivity, setEditActivity] = useState(currentActivity || 'MODERATELY_ACTIVE');
+  const [editDob, setEditDob] = useState<string>(currentDob || (isDemoUser ? '1998-05-20' : ''));
+  const [editActivity, setEditActivity] = useState<string>(currentActivity || (isDemoUser ? 'MODERATELY_ACTIVE' : ''));
 
   if (isDismissed && isAllMandatoryValid) {
     return null;
@@ -411,9 +413,11 @@ export const FirstLoginDataVerificationBanner: React.FC = () => {
                   </label>
                   <select
                     value={editSex}
+                    required
                     onChange={(e) => setEditSex(e.target.value as any)}
                     className="w-full px-3 py-2 bg-black border border-zinc-700 text-white focus:border-white outline-none"
                   >
+                    <option value="">Selecione...</option>
                     <option value="MALE">Masculino</option>
                     <option value="FEMALE">Feminino</option>
                   </select>
