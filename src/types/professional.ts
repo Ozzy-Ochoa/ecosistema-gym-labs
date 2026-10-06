@@ -1,6 +1,9 @@
 export type VerificationStatus = 
+  | 'UNVERIFIED'
+  | 'PENDING'
   | 'VERIFIED' 
   | 'VERIFICATION_PENDING' 
+  | 'REJECTED'
   | 'NOT_VERIFIED' 
   | 'EXPIRED' 
   | 'SUSPENDED';

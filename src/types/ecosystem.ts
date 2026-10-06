@@ -34,6 +34,24 @@ export interface InterProfessionalConsent {
   grantedAt: string;
 }
 
+export interface ConversationParticipant {
+  userId: string;
+  name: string;
+  role: 'USER' | 'COACH' | 'NUTRITIONIST' | 'GYM' | 'ADMIN';
+  unreadCount?: number;
+  lastReadAt?: string;
+}
+
+export interface Conversation {
+  id: string;
+  type: 'DIRECT' | 'INTER_PROFESSIONAL' | 'ORGANIZATION_BROADCAST';
+  participants: ConversationParticipant[];
+  studentContextId?: string; // Aluno em torno do qual os profissionais conversam
+  lastMessageText?: string;
+  lastMessageAt?: string;
+  createdAt: string;
+}
+
 export interface ChatMessage {
   id: string;
   conversationId: string;
@@ -51,11 +69,39 @@ export interface ChatMessage {
 
 export type RelationshipStatus = 
   | 'PENDING'       // Convite/solicitação enviada aguardando ação
-  | 'ACCEPTED'      // Aprovado e ativo
+  | 'ACTIVE'        // Aprovado e ativo no ecossistema
+  | 'ACCEPTED'      // Aprovado
   | 'REJECTED'      // Recusado
-  | 'TERMINATED'    // Vínculo encerrado formalmente
   | 'REVOKED'       // Cancelado pelo emissor antes do aceite
+  | 'TERMINATED'    // Vínculo encerrado formalmente
+  | 'ENDED'         // Encerrado
   | 'EXPIRED';      // Expirado por decurso de prazo
+
+export interface ProfessionalRelationship {
+  id: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  professionalId: string;
+  professionalName: string;
+  professionalRole: 'COACH' | 'NUTRITIONIST' | 'GYM';
+  organizationId?: string;
+  status: 'PENDING' | 'ACTIVE' | 'REJECTED' | 'REVOKED' | 'ENDED';
+  requestedAt: string;
+  requestedBy: 'USER' | 'PROFESSIONAL';
+  acceptedAt?: string;
+  endedAt?: string;
+  terminationReason?: string;
+  permissions: {
+    canViewWorkouts: boolean;
+    canViewDiet: boolean;
+    canViewBodyMetrics: boolean;
+    canViewHydrationAndSleep: boolean;
+    canPrescribeWorkouts: boolean;
+    canPrescribeDiet: boolean;
+  };
+  consentId?: string;
+}
 
 export interface ProfessionalInvitation {
   id: string;
