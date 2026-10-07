@@ -192,12 +192,23 @@ export function decryptVaultItem(cipherText: string, ivHex: string, authTagHex: 
   }
 }
 
+function getSessionSecret(): string {
+  if (process.env.SESSION_SECRET) {
+    return process.env.SESSION_SECRET;
+  }
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('FATAL SECURITY ERROR: SESSION_SECRET must be explicitly configured in production environment.');
+  }
+  // Ambiente de desenvolvimento ou teste: chave transitória de desenvolvimento
+  return 'gymlabs-labcore-dev-testing-ephemeral-key-2026';
+}
+
 /**
  * Session Token Generator
  */
 export function createSessionToken(userId: string): string {
   const payload = `${userId}:${Date.now()}:${crypto.randomBytes(16).toString('hex')}`;
-  const secret = process.env.SESSION_SECRET || 'gymlabs-labcore-2026-enclave-key';
+  const secret = getSessionSecret();
   const sig = crypto.createHmac('sha256', secret).update(payload).digest('hex');
   return Buffer.from(`${payload}:${sig}`).toString('base64');
 }
@@ -210,7 +221,7 @@ export function verifySessionToken(token: string): string | null {
     const [userId, timestamp, nonce, sig] = parts;
 
     const payload = `${userId}:${timestamp}:${nonce}`;
-    const secret = process.env.SESSION_SECRET || 'gymlabs-labcore-2026-enclave-key';
+    const secret = getSessionSecret();
     const expectedSig = crypto.createHmac('sha256', secret).update(payload).digest('hex');
 
     if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expectedSig))) {

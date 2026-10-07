@@ -1,84 +1,138 @@
 import { Router, Request, Response } from 'express';
-import { getAuthenticatedUserId } from './auth';
-import { readUserPartition, writeUserPartition } from '../database/db';
+import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
+import { ChatRepository } from '../repositories/ChatRepository';
+import { AuditRepository } from '../repositories/AuditRepository';
 
 const router = Router();
 
-// 1. Get Chat Messages
-router.get('/', (req: Request, res: Response) => {
-  const userId = getAuthenticatedUserId(req);
-  if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+// 1. Get Conversations & Messages
+router.get('/', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const conversationId = req.query.conversationId as string;
 
-  const partition = readUserPartition(userId);
-  if (!partition) return res.status(404).json({ error: 'User partition missing' });
+    const conversations = await ChatRepository.getConversations(userId);
 
-  const conversationId = req.query.conversationId as string;
-  let messages = partition.messages || [];
+    let messages: any[] = [];
+    if (conversationId) {
+      try {
+        messages = await ChatRepository.getMessages(conversationId, userId);
+      } catch (err: any) {
+        if (err.message === 'FORBIDDEN_NOT_PARTICIPANT') {
+          return res.status(403).json({
+            success: false,
+            error: {
+              code: 'FORBIDDEN',
+              message: 'Acesso negado: o usuário não é participante desta conversa',
+            },
+          });
+        }
+        throw err;
+      }
+    }
 
-  if (conversationId) {
-    messages = messages.filter((m: any) => m.conversationId === conversationId);
+    return res.json({
+      success: true,
+      conversations,
+      messages,
+    });
+  } catch (err: any) {
+    console.error('Error fetching chat data:', err);
+    return res.status(500).json({
+      success: false,
+      error: { code: 'DATABASE_ERROR', message: 'Erro ao carregar mensagens no banco relacional' },
+    });
   }
-
-  return res.json({
-    conversations: [],
-    messages,
-  });
 });
 
-// 2. Send Message
-router.post('/messages', (req: Request, res: Response) => {
-  const userId = getAuthenticatedUserId(req);
-  if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+// 2. Send Message (Enforces Participant Verification)
+router.post('/messages', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const senderId = req.userId!;
+    let { conversationId, receiverId, text, content, attachmentName, attachmentType } = req.body;
+    const msgContent = (content || text || '').trim();
 
-  const { conversationId, receiverId, receiverName, text, attachmentName, attachmentType } = req.body;
-  if (!text || !text.trim()) {
-    return res.status(400).json({ error: 'Mensagem não pode ser vazia' });
+    if (!msgContent) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'O conteúdo da mensagem não pode ser vazio' },
+      });
+    }
+
+    // Se conversationId não foi passado mas receiverId sim, obter/criar conversa direta
+    if (!conversationId && receiverId) {
+      const conv = await ChatRepository.getOrCreateDirectConversation(senderId, receiverId);
+      conversationId = conv.id;
+    }
+
+    if (!conversationId) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'conversationId ou receiverId é obrigatório' },
+      });
+    }
+
+    try {
+      const message = await ChatRepository.sendMessage(
+        conversationId,
+        senderId,
+        receiverId || 'system',
+        msgContent,
+        attachmentName ? { name: attachmentName, type: attachmentType || 'document' } : undefined
+      );
+
+      await AuditRepository.logEvent(
+        senderId,
+        'CHAT_MESSAGE_CREATED',
+        message.id,
+        { conversationId },
+        { ip: req.ip, userAgent: req.headers['user-agent'] as string }
+      );
+
+      return res.status(201).json({
+        success: true,
+        message,
+      });
+    } catch (err: any) {
+      if (err.message === 'FORBIDDEN_NOT_PARTICIPANT') {
+        return res.status(403).json({
+          success: false,
+          error: {
+            code: 'FORBIDDEN',
+            message: 'Acesso negado: você não tem permissão para enviar mensagens nesta conversa',
+          },
+        });
+      }
+      throw err;
+    }
+  } catch (err: any) {
+    console.error('Error sending message:', err);
+    return res.status(500).json({
+      success: false,
+      error: { code: 'DATABASE_ERROR', message: 'Erro ao persistir mensagem no banco de dados' },
+    });
   }
-
-  const partition = readUserPartition(userId);
-  if (!partition) return res.status(404).json({ error: 'User partition missing' });
-
-  const newMessage = {
-    id: `msg-${Date.now()}`,
-    conversationId: conversationId || `conv_${receiverId || 'direct'}`,
-    senderId: userId,
-    senderName: partition.user.name,
-    senderRole: partition.user.role,
-    receiverId: receiverId || '',
-    receiverName: receiverName || 'Contato',
-    text: text.trim(),
-    timestamp: new Date().toISOString(),
-    read: true,
-    attachmentName,
-    attachmentType,
-  };
-
-  if (!partition.messages) partition.messages = [];
-  partition.messages.push(newMessage);
-  writeUserPartition(userId, partition);
-
-  return res.status(201).json({ message: newMessage });
 });
 
 // 3. Mark Conversation as Read
-router.patch('/conversations/:id/read', (req: Request, res: Response) => {
-  const userId = getAuthenticatedUserId(req);
-  if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+router.patch('/conversations/:id/read', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const conversationId = req.params.id;
 
-  const conversationId = req.params.id;
-  const partition = readUserPartition(userId);
-  if (!partition) return res.status(404).json({ error: 'User partition missing' });
+    await ChatRepository.markAsRead(conversationId, userId);
 
-  if (partition.messages) {
-    partition.messages.forEach((m: any) => {
-      if (m.conversationId === conversationId && m.receiverId === userId) {
-        m.read = true;
-      }
+    return res.json({
+      success: true,
+      message: 'Conversa marcada como lida',
     });
-    writeUserPartition(userId, partition);
+  } catch (err: any) {
+    console.error('Error marking conversation read:', err);
+    return res.status(500).json({
+      success: false,
+      error: { code: 'DATABASE_ERROR', message: 'Erro ao atualizar status de leitura' },
+    });
   }
-
-  return res.json({ success: true });
 });
 
 export default router;

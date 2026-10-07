@@ -15,25 +15,50 @@ export class ChatRepository implements IChatRepository {
   }
 
   public async sendMessage(message: Omit<ChatMessage, 'id' | 'timestamp'>): Promise<ChatMessage> {
-    const saved = this.localStore.sendChatMessage(message);
-
     try {
-      await chatApi.sendMessage(saved);
-    } catch {
-      // Local fallback preservado
+      const res = await chatApi.sendMessage({
+        conversationId: message.conversationId,
+        receiverId: message.receiverId,
+        receiverName: message.receiverName,
+        text: message.text,
+        attachmentName: message.attachmentName,
+        attachmentType: message.attachmentType,
+      });
+
+      if (res.success && res.data?.message) {
+        const rawMsg = res.data.message as any;
+        const confirmed: ChatMessage = {
+          id: rawMsg.id,
+          conversationId: rawMsg.conversationId,
+          senderId: rawMsg.senderId,
+          senderName: message.senderName,
+          senderRole: message.senderRole,
+          receiverId: rawMsg.receiverId || rawMsg.recipientId || message.receiverId,
+          receiverName: message.receiverName,
+          text: rawMsg.text || rawMsg.content || message.text,
+          timestamp: rawMsg.timestamp || rawMsg.createdAt || new Date().toISOString(),
+          read: Boolean(rawMsg.read),
+          attachmentName: rawMsg.attachmentName,
+          attachmentType: rawMsg.attachmentType,
+        };
+        this.localStore.sendChatMessage(confirmed);
+        return confirmed;
+      }
+    } catch (err) {
+      console.warn('[ChatRepository] API indisponível, armazenando localmente:', err);
     }
 
-    return saved;
+    // Fallback local imediato
+    return this.localStore.sendChatMessage(message);
   }
 
   public async markAsRead(conversationId: string, currentUserId: string): Promise<void> {
-    this.localStore.markChatAsRead(conversationId, currentUserId);
-
     try {
       await chatApi.markAsRead(conversationId);
-    } catch {
-      // Local fallback preservado
+    } catch (err) {
+      console.warn('[ChatRepository] API indisponível para markAsRead:', err);
     }
+    this.localStore.markChatAsRead(conversationId, currentUserId);
   }
 
   public async syncRemote(): Promise<boolean> {

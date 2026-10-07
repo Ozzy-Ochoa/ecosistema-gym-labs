@@ -1,4 +1,5 @@
 import { DataProvenance, MetricValue } from './provenance';
+import { SyncStatus } from './api';
 
 export interface SleepSession {
   id: string;
@@ -6,6 +7,7 @@ export interface SleepSession {
   bedtime: string;
   wakeTime: string;
   durationMinutes: number;
+  efficiencyPct?: number;
   deepSleepMinutes?: number;
   remSleepMinutes?: number;
   lightSleepMinutes?: number;
@@ -14,6 +16,7 @@ export interface SleepSession {
   nocturnalHrvRmsddMs?: MetricValue<number>;
   subjectiveQualityScore?: number; // 1-5
   provenance: DataProvenance;
+  syncStatus?: SyncStatus;
 }
 
 export interface SubjectiveWellnessLog {
@@ -26,6 +29,7 @@ export interface SubjectiveWellnessLog {
   sleepPerception: number;// 1 to 5
   notes?: string;
   provenance: DataProvenance;
+  syncStatus?: SyncStatus;
 }
 
 export interface GLRecoveryScore {

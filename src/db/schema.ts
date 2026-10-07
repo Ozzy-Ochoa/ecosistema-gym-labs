@@ -319,10 +319,131 @@ export const auditEvents = pgTable('audit_events', {
   recordedAt: timestamp('recorded_at').defaultNow().notNull(),
 });
 
+// 14. Sessões de Autenticação Seguras
+export const sessions = pgTable('sessions', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  tokenHash: text('token_hash').notNull().unique(),
+  deviceId: text('device_id'),
+  ipHash: text('ip_hash'),
+  userAgentHash: text('user_agent_hash'),
+  lastSeenAt: timestamp('last_seen_at').defaultNow().notNull(),
+  expiresAt: timestamp('expires_at').notNull(),
+  revokedAt: timestamp('revoked_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const sessionDevices = pgTable('session_devices', {
+  id: text('id').primaryKey(),
+  sessionId: text('session_id').references(() => sessions.id, { onDelete: 'cascade' }),
+  userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  deviceName: text('device_name').notNull(),
+  deviceType: text('device_type').default('BROWSER').notNull(),
+  ipHash: text('ip_hash'),
+  lastActiveAt: timestamp('last_active_at').defaultNow().notNull(),
+});
+
+// 15. Permissões e RBAC Granular
+export const permissions = pgTable('permissions', {
+  id: text('id').primaryKey(),
+  code: text('code').notNull().unique(), // 'WORKOUT_READ' | 'WORKOUT_WRITE' | 'BODY_READ' | etc.
+  description: text('description'),
+});
+
+export const rolePermissions = pgTable('role_permissions', {
+  id: text('id').primaryKey(),
+  roleName: text('role_name').notNull(),
+  permissionCode: text('permission_code').notNull(),
+});
+
+// 16. Histórico de Relacionamentos e Consentimentos
+export const relationshipHistory = pgTable('relationship_history', {
+  id: text('id').primaryKey(),
+  relationshipId: text('relationship_id').references(() => relationships.id, { onDelete: 'cascade' }).notNull(),
+  sourceUserId: text('source_user_id').notNull(),
+  targetUserId: text('target_user_id').notNull(),
+  oldStatus: text('old_status').notNull(),
+  newStatus: text('new_status').notNull(),
+  reason: text('reason'),
+  changedByUserId: text('changed_by_user_id').references(() => users.id).notNull(),
+  recordedAt: timestamp('recorded_at').defaultNow().notNull(),
+});
+
+export const consentHistory = pgTable('consent_history', {
+  id: text('id').primaryKey(),
+  consentId: text('consent_id').references(() => consents.id, { onDelete: 'cascade' }).notNull(),
+  userId: text('user_id').notNull(),
+  granteeId: text('grantee_id').notNull(),
+  action: text('action').notNull(), // 'GRANTED' | 'REVOKED' | 'MODIFIED'
+  scope: text('scope').notNull(),
+  recordedAt: timestamp('recorded_at').defaultNow().notNull(),
+});
+
+// 17. Credenciais Profissionais e Equipe de Academia
+export const professionalCredentials = pgTable('professional_credentials', {
+  id: text('id').primaryKey(),
+  professionalId: text('professional_id').references(() => professionals.id, { onDelete: 'cascade' }).notNull(),
+  councilType: text('council_type').notNull(), // 'CREF' | 'CRN'
+  councilNumber: text('council_number').notNull(),
+  state: text('state').notNull(),
+  verificationStatus: text('verification_status').default('UNVERIFIED').notNull(),
+  documentUrl: text('document_url'),
+  verifiedAt: timestamp('verified_at'),
+  verifiedByUserId: text('verified_by_user_id').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const academyStaff = pgTable('academy_staff', {
+  id: text('id').primaryKey(),
+  organizationId: text('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  role: text('role').notNull(), // 'COACH' | 'STAFF' | 'MANAGER'
+  joinedAt: timestamp('joined_at').defaultNow().notNull(),
+});
+
+// 18. Leitura de Mensagens & Detalhes de Exercício / Itens de Refeição
+export const messageReads = pgTable('message_reads', {
+  id: text('id').primaryKey(),
+  messageId: text('message_id').references(() => messages.id, { onDelete: 'cascade' }).notNull(),
+  userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  readAt: timestamp('read_at').defaultNow().notNull(),
+});
+
+export const workoutExercises = pgTable('workout_exercises', {
+  id: text('id').primaryKey(),
+  sessionId: text('session_id').references(() => workoutSessions.id, { onDelete: 'cascade' }).notNull(),
+  exerciseId: text('exercise_id').references(() => exercises.id),
+  orderIndex: integer('order_index').default(0).notNull(),
+  notes: text('notes'),
+});
+
+export const workoutSets = pgTable('workout_sets', {
+  id: text('id').primaryKey(),
+  workoutExerciseId: text('workout_exercise_id').references(() => workoutExercises.id, { onDelete: 'cascade' }).notNull(),
+  setNumber: integer('set_number').notNull(),
+  weightKg: real('weight_kg').default(0).notNull(),
+  reps: integer('reps').default(0).notNull(),
+  rpe: real('rpe'),
+  rir: integer('rir'),
+  isFailure: boolean('is_failure').default(false).notNull(),
+});
+
+export const mealItems = pgTable('meal_items', {
+  id: text('id').primaryKey(),
+  mealId: text('meal_id').references(() => meals.id, { onDelete: 'cascade' }).notNull(),
+  name: text('name').notNull(),
+  amountGrams: real('amount_grams').default(100).notNull(),
+  calories: integer('calories').default(0).notNull(),
+  proteinGrams: real('protein_grams').default(0).notNull(),
+  carbsGrams: real('carbs_grams').default(0).notNull(),
+  fatsGrams: real('fats_grams').default(0).notNull(),
+});
+
 // Relacionamentos Drizzle
 export const usersRelations = relations(users, ({ one, many }) => ({
   profile: one(profiles, { fields: [users.id], references: [profiles.userId] }),
   roles: many(userRoles),
+  sessions: many(sessions),
   workoutSessions: many(workoutSessions),
   meals: many(meals),
   sleepSessions: many(sleepSessions),

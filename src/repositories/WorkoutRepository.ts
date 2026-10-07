@@ -2,6 +2,7 @@ import { IWorkoutRepository } from './interfaces/IWorkoutRepository';
 import { GymLabsDataStore } from './GymLabsDataStore';
 import { TrainingSession, DayAttendance, UserWorkoutRoutine, Exercise } from '../types/training';
 import { workoutsApi } from '../api/workouts.api';
+import { createMetricValue } from '../types/provenance';
 
 export class WorkoutRepository implements IWorkoutRepository {
   private localStore: GymLabsDataStore;
@@ -11,16 +12,14 @@ export class WorkoutRepository implements IWorkoutRepository {
   }
 
   public getSessions(): TrainingSession[] {
+    // Retorna cache local rápido
     return this.localStore.getTrainingSessions();
   }
 
   public async saveSession(session: TrainingSession): Promise<void> {
-    // 1. Persistência local imediata
-    this.localStore.addTrainingSession(session);
-
-    // 2. Sincronização remota em segundo plano
+    // 1. Tentar persistência remota como Fonte Oficial (PostgreSQL via API)
     try {
-      await workoutsApi.logWorkout({
+      const res = await workoutsApi.logWorkout({
         id: session.id,
         title: session.title,
         startedAt: session.startedAt,
@@ -29,9 +28,26 @@ export class WorkoutRepository implements IWorkoutRepository {
         sessionRpe: session.sessionRpe,
         exercises: session.exercises,
       });
-    } catch {
-      // Local fallback preservado
+
+      if (res.success && res.data?.workout) {
+        // 2. Retorno confirmado do PostgreSQL -> Atualiza cache local como SYNCED
+        const confirmed: TrainingSession = {
+          ...session,
+          syncStatus: 'SYNCED',
+        };
+        this.localStore.addTrainingSession(confirmed);
+        return;
+      }
+    } catch (err) {
+      console.warn('[WorkoutRepository] API/PostgreSQL indisponível, armazenando localmente com status PENDING:', err);
     }
+
+    // 3. Fallback Offline: salvar local com status PENDING
+    const pendingSession: TrainingSession = {
+      ...session,
+      syncStatus: 'PENDING',
+    };
+    this.localStore.addTrainingSession(pendingSession);
   }
 
   public getAttendance(): DayAttendance[] {
@@ -51,13 +67,47 @@ export class WorkoutRepository implements IWorkoutRepository {
   }
 
   public async addCustomExercise(exercise: Exercise): Promise<void> {
-    this.localStore.addCustomExercise(exercise);
+    try {
+      const res = await workoutsApi.addCustomExercise({
+        name: exercise.name,
+        pattern: exercise.pattern,
+        primaryMuscles: exercise.primaryMuscles,
+        secondaryMuscles: exercise.secondaryMuscles,
+        equipment: exercise.equipment,
+        evidenceNotes: exercise.evidenceNotes,
+      });
+      if (res.success) {
+        this.localStore.addCustomExercise({ ...exercise, syncStatus: 'SYNCED' });
+        return;
+      }
+    } catch {}
+    this.localStore.addCustomExercise({ ...exercise, syncStatus: 'PENDING' });
   }
 
   public async syncRemote(): Promise<boolean> {
     try {
       const res = await workoutsApi.getWorkouts();
-      return Boolean(res.success && res.data?.workouts);
+      if (res.success && res.data?.workouts) {
+        // Sincronizar cache local com o PostgreSQL
+        res.data.workouts.forEach((w: any) => {
+          this.localStore.addTrainingSession({
+            id: w.id,
+            userId: w.userId || 'current',
+            title: w.title,
+            startedAt: typeof w.startedAt === 'string' ? w.startedAt : new Date(w.startedAt).toISOString(),
+            endedAt: typeof w.endedAt === 'string' ? w.endedAt : new Date(w.endedAt).toISOString(),
+            durationMinutes: w.durationMinutes,
+            sessionRpe: w.sessionRpe,
+            exercises: w.exercisesJson || [],
+            calculatedVolumeKg: createMetricValue(0, 'kg', (w.provenanceType as any) || 'REAL'),
+            calculatedLoadUnits: createMetricValue((w.durationMinutes || 60) * (w.sessionRpe || 8), 'AU', (w.provenanceType as any) || 'REAL'),
+            provenance: (w.provenanceType as any) || 'REAL',
+            syncStatus: 'SYNCED',
+          });
+        });
+        return true;
+      }
+      return false;
     } catch {
       return false;
     }

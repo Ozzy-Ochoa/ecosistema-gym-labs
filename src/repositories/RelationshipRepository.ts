@@ -19,30 +19,46 @@ export class RelationshipRepository implements IRelationshipRepository {
   }
 
   public async createInvitation(invitation: Omit<ProfessionalInvitation, 'id' | 'createdAt' | 'code' | 'status'>): Promise<void> {
-    this.localStore.createInvitation(invitation);
-
     try {
-      await relationshipsApi.createInvitation({
+      const res = await relationshipsApi.createInvitation({
         targetEmail: invitation.targetEmail,
         targetName: invitation.targetName,
         role: invitation.targetRole || 'COACH',
         notes: invitation.notes,
       });
-    } catch {
-      // Local fallback preservado
+
+      if (res.success && res.data?.invitation) {
+        const inv = res.data.invitation;
+        this.localStore.createInvitation({
+          senderId: invitation.senderId,
+          senderName: invitation.senderName,
+          senderRole: invitation.senderRole,
+          targetEmail: inv.targetEmail,
+          targetName: inv.targetName,
+          targetRole: inv.targetRole,
+          notes: inv.notes,
+        });
+        return;
+      }
+    } catch (err) {
+      console.warn('[RelationshipRepository] API indisponível, registrando convite local:', err);
     }
+
+    this.localStore.createInvitation(invitation);
   }
 
   public async terminateRelationship(relationshipId: string, reason?: string): Promise<boolean> {
-    const localResult = this.localStore.terminateRelationship(relationshipId, reason);
-
     try {
-      await relationshipsApi.terminateRelationship(relationshipId, reason);
-    } catch {
-      // Local fallback preservado
+      const res = await relationshipsApi.terminateRelationship(relationshipId, reason);
+      if (res.success) {
+        this.localStore.terminateRelationship(relationshipId, reason);
+        return true;
+      }
+    } catch (err) {
+      console.warn('[RelationshipRepository] API indisponível, encerrando relacionamento local:', err);
     }
 
-    return localResult;
+    return this.localStore.terminateRelationship(relationshipId, reason);
   }
 
   public async syncRemote(): Promise<boolean> {

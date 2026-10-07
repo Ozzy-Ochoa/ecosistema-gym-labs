@@ -1,62 +1,127 @@
 import { Router, Request, Response } from 'express';
-import { getAuthenticatedUserId } from './auth';
-import { readUserPartition, writeUserPartition } from '../database/db';
+import { requireAuth, authorizeResource, AuthenticatedRequest } from '../middleware/auth';
+import { NutritionRepository } from '../repositories/NutritionRepository';
+import { AuditRepository } from '../repositories/AuditRepository';
 import { validateNutritionLogInput } from '../validators/schemaValidators';
 
 const router = Router();
 
 // 1. Get Nutrition Telemetry
-router.get('/', (req: Request, res: Response) => {
-  const userId = getAuthenticatedUserId(req);
-  if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+router.get('/', requireAuth, authorizeResource('DIET'), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const callerId = req.userId!;
+    const targetUserId = (req.query.studentId as string) || (req.query.userId as string) || callerId;
 
-  const partition = readUserPartition(userId);
-  if (!partition) return res.status(404).json({ error: 'User partition missing' });
+    const [mealsList, hydrationList, plansList] = await Promise.all([
+      NutritionRepository.getMeals(targetUserId),
+      NutritionRepository.getHydration(targetUserId),
+      NutritionRepository.getPlans(targetUserId),
+    ]);
 
-  return res.json({ nutritionLogs: partition.nutrition || [] });
-});
-
-// 2. Log Meal / Daily Nutrition
-router.post('/', (req: Request, res: Response) => {
-  const userId = getAuthenticatedUserId(req);
-  if (!userId) return res.status(401).json({ error: 'Unauthorized' });
-
-  const validation = validateNutritionLogInput(req.body);
-  if (!validation.valid) {
-    return res.status(400).json({ error: 'Validation failed', details: validation.errors });
+    return res.json({
+      success: true,
+      meals: mealsList,
+      hydrationLogs: hydrationList,
+      plans: plansList,
+      nutritionLogs: mealsList,
+    });
+  } catch (err: any) {
+    console.error('Error fetching nutrition logs:', err);
+    return res.status(500).json({
+      success: false,
+      error: { code: 'DATABASE_ERROR', message: 'Erro ao carregar dados nutricionais do banco' },
+    });
   }
-
-  const partition = readUserPartition(userId);
-  if (!partition) return res.status(404).json({ error: 'User partition missing' });
-
-  const newLog = {
-    id: `nut-${Date.now()}`,
-    userId,
-    timestamp: req.body.timestamp || new Date().toISOString(),
-    name: req.body.name || 'Registro Nutricional',
-    calories: Number(req.body.calories) || 0,
-    proteinGrams: Number(req.body.proteinGrams) || 0,
-    carbsGrams: Number(req.body.carbsGrams) || 0,
-    fatsGrams: Number(req.body.fatsGrams) || 0,
-    waterMl: Number(req.body.waterMl) || 0,
-    urineScaleArmstrong: Number(req.body.urineScaleArmstrong) || 2, // 1 to 5
-    creatineSupplementationGrams: Number(req.body.creatineSupplementationGrams) || 0,
-    notes: req.body.notes || '',
-  };
-
-  if (!partition.nutrition) partition.nutrition = [];
-  partition.nutrition.unshift(newLog);
-  writeUserPartition(userId, partition);
-
-  return res.status(201).json({ log: newLog });
 });
 
-// 3. Dynamic Hydration Calculation Engine (35-45 ml/kg + Thermal + Exercise + Creatine)
+// 2. Log Meal
+router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const callerId = req.userId!;
+    const validation = validateNutritionLogInput(req.body);
+    if (!validation.valid) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'Dados de refeição inválidos', details: validation.errors },
+      });
+    }
+
+    const targetUserId = req.body.studentId || req.body.userId || callerId;
+
+    const newMeal = await NutritionRepository.createMeal({
+      id: req.body.id,
+      userId: targetUserId,
+      planId: req.body.planId,
+      name: req.body.name || 'Refeição Registrada',
+      consumedAt: req.body.timestamp ? new Date(req.body.timestamp) : new Date(),
+      calories: Number(req.body.calories) || 0,
+      proteinGrams: Number(req.body.proteinGrams) || 0,
+      carbsGrams: Number(req.body.carbsGrams) || 0,
+      fatsGrams: Number(req.body.fatsGrams) || 0,
+      itemsJson: req.body.items || [],
+      provenanceType: req.body.isDemo ? 'DEMO' : 'REAL',
+    });
+
+    if (Number(req.body.waterMl) > 0) {
+      await NutritionRepository.logHydration(targetUserId, Number(req.body.waterMl));
+    }
+
+    await AuditRepository.logEvent(
+      callerId,
+      'DATA_CREATED',
+      newMeal.id,
+      { targetUserId, calories: newMeal.calories },
+      { ip: req.ip, userAgent: req.headers['user-agent'] as string }
+    );
+
+    return res.status(201).json({
+      success: true,
+      meal: newMeal,
+      log: newMeal,
+    });
+  } catch (err: any) {
+    console.error('Error logging meal:', err);
+    return res.status(500).json({
+      success: false,
+      error: { code: 'DATABASE_ERROR', message: 'Erro ao registrar refeição no banco' },
+    });
+  }
+});
+
+// 3. Log Hydration
+router.post('/hydration', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const callerId = req.userId!;
+    const { amountMl, studentId, userId } = req.body;
+    const targetUserId = studentId || userId || callerId;
+
+    if (!amountMl || Number(amountMl) <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'amountMl deve ser um valor positivo' },
+      });
+    }
+
+    const log = await NutritionRepository.logHydration(targetUserId, Number(amountMl));
+
+    return res.status(201).json({
+      success: true,
+      hydration: log,
+    });
+  } catch (err: any) {
+    return res.status(500).json({
+      success: false,
+      error: { code: 'DATABASE_ERROR', message: 'Erro ao registrar hidratação' },
+    });
+  }
+});
+
+// 4. Dynamic Hydration Engine (35-45 ml/kg + Thermal + Exercise + Creatine)
 router.post('/dynamic-hydration', (req: Request, res: Response) => {
   const weightKg = Number(req.body.weightKg) || 80;
   const ambientTempC = Number(req.body.ambientTempC) || 24;
   const trainingMinutes = Number(req.body.trainingMinutes) || 60;
-  const sweatRate = req.body.sweatRate || 'MODERATE'; // 'LOW' | 'MODERATE' | 'HIGH'
+  const sweatRate = req.body.sweatRate || 'MODERATE';
   const takingCreatine = Boolean(req.body.takingCreatine);
 
   // 1. Base hydration: 35-45 ml/kg (mean = 40 ml/kg)
@@ -66,14 +131,14 @@ router.post('/dynamic-hydration', (req: Request, res: Response) => {
   let thermalMl = 0;
   if (ambientTempC > 25) {
     const degreesAbove = ambientTempC - 25;
-    thermalMl = Math.round(degreesAbove * 120); // 120ml per °C above 25°C
+    thermalMl = Math.round(degreesAbove * 120);
   }
 
   // 3. Training & Sweat rate delta (Sawka et al., 2007)
   const sweatMultipliers: Record<string, number> = {
-    LOW: 8, // ~500 ml/hr
-    MODERATE: 12, // ~750 ml/hr
-    HIGH: 18, // ~1100 ml/hr
+    LOW: 8,
+    MODERATE: 12,
+    HIGH: 18,
   };
   const sweatFactor = sweatMultipliers[sweatRate] || 12;
   const exerciseMl = Math.round(trainingMinutes * sweatFactor);
@@ -84,6 +149,7 @@ router.post('/dynamic-hydration', (req: Request, res: Response) => {
   const totalRecommendedMl = baseMl + thermalMl + exerciseMl + creatineMl;
 
   return res.json({
+    success: true,
     recommendedTotalMl: totalRecommendedMl,
     components: {
       baselineFluidMl: baseMl,
@@ -103,7 +169,7 @@ router.post('/dynamic-hydration', (req: Request, res: Response) => {
   });
 });
 
-// 4. Armstrong Urine Color Scale (5 clinical levels with immediate directives)
+// 5. Armstrong Urine Color Scale
 router.get('/armstrong-scale', (req: Request, res: Response) => {
   const scale = [
     {
@@ -149,6 +215,7 @@ router.get('/armstrong-scale', (req: Request, res: Response) => {
   ];
 
   return res.json({
+    success: true,
     scale,
     reference: 'Armstrong LE et al. (1994) Urinary indices of hydration status. Int J Sport Nutr.',
   });

@@ -42,4 +42,12 @@ export const workoutsApi = {
     const encoded = encodeURIComponent(exerciseName);
     return apiClient.get<ProgressiveOverloadResponse>(`/api/workouts/progressive-overload/${encoded}`);
   },
+
+  getExercises: async (): Promise<ApiResponse<{ exercises: any[] }>> => {
+    return apiClient.get<{ exercises: any[] }>('/api/workouts/exercises');
+  },
+
+  addCustomExercise: async (exercise: any): Promise<ApiResponse<{ exercise: any }>> => {
+    return apiClient.post<{ exercise: any }>('/api/workouts/exercises', exercise);
+  },
 };

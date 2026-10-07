@@ -34,3 +34,16 @@ export interface MetricValue<T = number> {
   provenance: DataProvenance;
   historicalDelta?: number;    // % change from baseline
 }
+
+export function createMetricValue<T = number>(value: T, unit: string, type: ProvenanceType = 'REAL'): MetricValue<T> {
+  return {
+    value,
+    unit,
+    provenance: {
+      type,
+      source: 'Gym Labs Enclave',
+      recordedAt: new Date().toISOString(),
+      confidence: 'HIGH',
+    },
+  };
+}

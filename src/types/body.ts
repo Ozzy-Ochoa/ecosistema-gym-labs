@@ -1,4 +1,5 @@
 import { DataProvenance, MetricValue } from './provenance';
+import { SyncStatus } from './api';
 
 export interface BodyCompositionRecord {
   id: string;
@@ -13,6 +14,7 @@ export interface BodyCompositionRecord {
   skeletalMuscleMassKg?: MetricValue<number>;
   method: 'DEXA' | 'HYDROSTATIC' | 'BIA_PROFESSIONAL' | 'BIA_HOME' | 'SKINFOLD_7_SITE' | 'CALCULATED_NAVY' | 'SELF_REPORT';
   provenance: DataProvenance;
+  syncStatus?: SyncStatus;
 }
 
 export interface CircumferenceRecord {
@@ -28,4 +30,5 @@ export interface CircumferenceRecord {
   rightThighCm?: MetricValue<number>;
   neckCm?: MetricValue<number>;
   provenance: DataProvenance;
+  syncStatus?: SyncStatus;
 }

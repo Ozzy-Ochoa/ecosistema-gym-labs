@@ -12,6 +12,9 @@ import intelligenceRoutes from './server/routes/intelligence';
 import relationshipsRoutes from './server/routes/relationships';
 import chatRoutes from './server/routes/chat';
 
+import { db } from './src/db/index';
+import { sql } from 'drizzle-orm';
+
 dotenv.config();
 
 const app = express();
@@ -19,10 +22,30 @@ const PORT = 3000;
 
 app.use(express.json());
 
-// 1. Health check & Enclave Telemetry
-app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'OPERATIONAL',
+// 1. Health check & Enclave Telemetry (Distinguishes API, DATABASE, AUTH)
+app.get('/api/health', async (req, res) => {
+  let dbStatus = 'DISCONNECTED';
+  let isDbHealthy = false;
+
+  try {
+    const testResult = await db.execute(sql`SELECT 1 as ping`);
+    if (testResult) {
+      dbStatus = 'CONNECTED';
+      isDbHealthy = true;
+    }
+  } catch (err: any) {
+    console.error('Health check DB error:', err.message);
+    dbStatus = 'DISCONNECTED';
+  }
+
+  const overallStatus = isDbHealthy ? 'OPERATIONAL' : 'DEGRADED';
+  const httpCode = isDbHealthy ? 200 : 503;
+
+  return res.status(httpCode).json({
+    status: overallStatus,
+    database: dbStatus,
+    authentication: 'READY',
+    api: 'ONLINE',
     system: 'Gym Labs Labcore 2026',
     enclave: 'AES-256-GCM / SCRYPT-16384',
     jurisdiction: 'LGPD_BR_COMPLIANT',

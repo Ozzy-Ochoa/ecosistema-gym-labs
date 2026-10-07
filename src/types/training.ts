@@ -1,4 +1,5 @@
 import { DataProvenance, MetricValue } from './provenance';
+import { SyncStatus } from './api';
 
 export type MovementPattern = 
   | 'SQUAT' 
@@ -34,6 +35,7 @@ export interface Exercise {
   equipment: 'BARBELL' | 'DUMBBELL' | 'CABLE' | 'MACHINE' | 'BODYWEIGHT' | 'KETTLEBELL';
   difficulty: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
   evidenceNotes: string;
+  syncStatus?: SyncStatus;
 }
 
 export interface TrainingSet {
@@ -66,6 +68,7 @@ export interface TrainingSession {
   calculatedVolumeKg: MetricValue<number>;
   calculatedLoadUnits: MetricValue<number>; // Session RPE * Duration
   provenance: DataProvenance;
+  syncStatus?: SyncStatus;
 }
 
 export interface ACWRResult {

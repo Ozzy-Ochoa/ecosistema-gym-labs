@@ -225,25 +225,30 @@ gym-labs/
 
 ## 📊 Status Real de Implementação (Implementation Status)
 
-Conforme a auditoria arquitetural e de maturidade do Gym Labs:
+Conforme a auditoria arquitetural e de maturidade do Gym Labs (Fase 3.0 — Infraestrutura Relacional e Multi-Tenancy):
 
 | Módulo / Subsistema | Status | Classificação e Detalhes |
 | :--- | :---: | :--- |
-| **Arquitetura Base (UI → Context → Service → Repository → DataStore)** | `IMPLEMENTED` | Fluxo desacoplado, sem acesso direto de componentes ao banco; padrão singleton e contratos TypeScript. |
-| **Motores Científicos Determinísticos** | `IMPLEMENTED` | Fórmulas determinísticas auditadas: Mifflin-St Jeor, Epley, Brzycki, Tanaka, Karvonen, ACWR (Gabbett), Armstrong, GL Recovery. Sem fabricação de sexo ou parâmetros ausentes (`INSUFFICIENT_DATA` estrito). |
-| **Classificação de Proveniência (`REAL`, `CALCULATED`, `ESTIMATED`, `INFERRED`, `DEMO`)** | `IMPLEMENTED` | Rastreabilidade granular por registro com tipo, fonte e timestamp. Dados DEMO segregados de contas reais no DataStore. |
+| **Banco de Dados Relacional (Cloud SQL PostgreSQL)** | `IMPLEMENTED` | PostgreSQL como fonte oficial da verdade (37 tabelas relacionais ativas, pool `pg.Pool`, Drizzle ORM e migrações versionadas). |
+| **Persistência Centralizada (PostgreSQL First)** | `IMPLEMENTED` | Repositories do frontend e backend operam priorizando a API/PostgreSQL com fallback e cache local `GymLabsDataStore` com status `SYNCED`/`PENDING`. |
+| **Autenticação, KDF e Sessões com Revogação** | `IMPLEMENTED` | Scrypt KDF (N=16384), tabela `sessions` com tokens em hash SHA-256, revogação individual (`logout`) e em massa (`logout-all`), 2FA RFC 6238 TOTP. |
+| **Isolamento Multi-Tenant & Autorização Backend** | `IMPLEMENTED` | Backend não confia em parâmetros do cliente. Middleware `authorizeResource` verifica titularidade, vínculos ativos em `relationships` e consentimentos em `consents` (403 Forbidden). |
+| **Relacionamentos Inter-Usuários & Convites** | `IMPLEMENTED` | Persistência relacional centralizada: convites (`GL-XXXXXX`), aceite com transação ACID, histórico em `relationship_history` e encerramento com soft delete `TERMINATED`. |
+| **Chat Relacional com Controle de Participantes** | `IMPLEMENTED` | Conversas e mensagens persistidas no PostgreSQL com validação estrita de remetente/destinatário em `conversation_participants`. Não participantes bloqueados. |
+| **Auditoria Criptográfica Centralizada** | `IMPLEMENTED` | Eventos de autenticação, LGPD, relacionamentos e dados sensíveis registrados em `audit_events` com encadeamento de hash (hash chaining). |
+| **Migração Idempotente de Dados** | `IMPLEMENTED` | Serviço automatizado de importação de partições legadas JSON/localStorage para PostgreSQL sem duplicação ou perda de proveniência. |
+| **Motores Científicos Determinísticos** | `IMPLEMENTED` | Fórmulas determinísticas auditadas: Mifflin-St Jeor, Epley, Brzycki, Tanaka, Karvonen, ACWR (Gabbett), Armstrong, GL Recovery (`INSUFFICIENT_DATA` estrito). |
+| **Classificação de Proveniência (`REAL`, `CALCULATED`, `ESTIMATED`, `INFERRED`, `DEMO`)** | `IMPLEMENTED` | Rastreabilidade granular por registro com tipo, fonte e timestamp. Dados DEMO segregados de contas reais. |
 | **Brasil First & Localização** | `IMPLEMENTED` | Idioma pt-BR nativo, moeda BRL (R$), sistema métrico (kg/cm), alinhamento com conselhos reguladores (CREF/CRN) e regime LGPD. |
-| **Trilha de Auditoria & Segurança Enclave** | `IMPLEMENTED` | Registro de eventos críticos (`LOGIN`, `LOGOUT`, `RELATIONSHIP_INVITED`, `ACCEPTED`, `REJECTED`, `TERMINATED`, `CONSENT`, `DATA_DELETED`), PIN rápido e bloqueio de visor. |
 | **Console de Treino Ativo & Registro de Cargas** | `IMPLEMENTED` | Cronômetro ao vivo, temporizador de descanso com áudio/flash visual, cálculo de tonelagem/volume e cálculo de gasto calórico por METs. |
-| **RBAC (User, Personal, Nutri, Gym, Admin)** | `IMPLEMENTED` | Portais isolados por papel funcional com restrições de escopo e roteamento seguro. |
-| **Relacionamento Usuário ↔ Profissional** | `IMPLEMENTED` | Ciclo de vida completo: Convite (`GL-XXXXXX`), Aprovação, Rejeição, Vínculo Ativo e Encerramento de Vínculo com auditoria. |
-| **Portal do Personal Trainer (Gym Labs Trainer)** | `PARTIAL` | Gestão de alunos, timeline, prescrição de rotinas e avaliações físicas ativas em memória/localStorage; sem sincronização remota cloud. |
-| **Portal da Nutricionista (Gym Labs Nutri)** | `PARTIAL` | Gestão de pacientes, montagem de planos alimentares, tabela TACO e biblioteca; sincronização em memória/localStorage local. |
-| **Portal da Academia / Studio (Enterprise Hub)** | `PARTIAL` | Dashboard de assiduidade, profissionais credenciados e métricas de evasão com proteção à privacidade clínica (LGPD); sem integração de catraca física. |
-| **Portal de Governança Administrativa (Admin)** | `PARTIAL` | Visão geral de contas salvas, métricas de partição e trilha de auditoria completa; sem gestão remota de servidores centralizada. |
-| **Autenticação Real com Servidor Remoto / OAuth** | `PLANNED` | Atualmente opera via sessão local encriptada no navegador (`GymLabsDataStore`); arquitetura de serviços pronta para plug-in de API REST/Backend em nuvem. |
+| **Portal do Personal Trainer (Gym Labs Trainer)** | `PARTIAL` | Gestão de alunos, timeline, prescrição de rotinas e acompanhamento de sobrecarga conectados à API; interface integrada ao PostgreSQL. |
+| **Portal da Nutricionista (Gym Labs Nutri)** | `PARTIAL` | Gestão de pacientes, planos alimentares, tabela TACO e metas calóricas persistidas; interface conectada ao PostgreSQL. |
+| **Portal da Academia / Studio (Enterprise Hub)** | `PARTIAL` | Entidades relacionais `organizations` e `academy_staff` configuradas no banco; sem integração com catracas físicas IoT/hardware. |
+| **Portal de Governança Administrativa (Admin)** | `PARTIAL` | Trilha de auditoria centralizada no banco relacional; sem painel financeiro multi-gateway. |
+| **Verificação Profissional Oficial (CREF / CRN)** | `PARTIAL` | Tabela `professional_credentials` estruturada com status `UNVERIFIED`/`VERIFIED`; sem consulta automática a APIs governamentais (Confeef/CFN). |
+| **Criptografia em Repouso de Mensagens de Chat** | `PLANNED` | Mensagens armazenadas sob controle de acesso relacional; criptografia ponta-a-ponta (E2EE) planejada para fase futura. |
 | **Integração com Wearables & Dispositivos Médicos (BLE, Apple Health, Garmin)** | `PLANNED` | Mapeado no roadmap futuro para fases seguintes. |
-| **IA Clínica / Diagnóstico Médico Automatizado** | `MISSING` | Fora de escopo atual por diretriz de segurança e conformidade legal de saúde. |
+| **IA Clínica / Diagnóstico Médico Automatizado** | `MISSING` | Fora de escopo deliberadamente por diretriz de segurança e conformidade legal de saúde. |
 
 ---
 

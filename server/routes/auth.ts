@@ -9,26 +9,36 @@ import {
   createSessionToken,
   verifySessionToken,
 } from '../services/authService';
-import { logAuditEvent } from '../services/auditService';
+import { UserRepository } from '../repositories/UserRepository';
+import { SessionRepository } from '../repositories/SessionRepository';
+import { AuditRepository } from '../repositories/AuditRepository';
+import { authRateLimiter } from '../middleware/rateLimiter';
 import {
   readUsersIndex,
   writeUsersIndex,
   readUserPartition,
   writeUserPartition,
-  UserRecord,
-  UserDatabasePartition,
 } from '../database/db';
-import { authRateLimiter } from '../middleware/rateLimiter';
 
 const router = Router();
 
-// Helper to extract authenticated user
-export function getAuthenticatedUserId(req: Request): string | null {
+export function getAuthenticatedToken(req: Request): string | null {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return null;
   }
-  const token = authHeader.substring(7);
+  return authHeader.substring(7).trim();
+}
+
+export async function getAuthenticatedUserId(req: Request): Promise<string | null> {
+  const token = getAuthenticatedToken(req);
+  if (!token) return null;
+
+  // 1. PostgreSQL Session
+  const session = await SessionRepository.validateSession(token);
+  if (session) return session.userId;
+
+  // 2. Cryptographic Fallback
   return verifySessionToken(token);
 }
 
@@ -38,17 +48,28 @@ router.post('/register', async (req: Request, res: Response) => {
     const { email, password, name, role = 'ATHLETE' } = req.body;
 
     if (!email || !password || !name) {
-      return res.status(400).json({ error: 'Missing mandatory fields (email, password, name)' });
+      return res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'Campos obrigatórios ausentes: email, senha, nome' },
+      });
     }
 
     if (password.length < 8) {
-      return res.status(400).json({ error: 'Password must have minimum 8 characters for cryptographic strength' });
+      return res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'A senha deve conter no mínimo 8 caracteres' },
+      });
     }
 
-    const index = readUsersIndex();
-    const existing = index.find((u) => u.email.toLowerCase() === email.toLowerCase());
-    if (existing) {
-      return res.status(409).json({ error: 'Identity already provisioned in enclave' });
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // 1. Checagem no PostgreSQL (Fonte oficial da verdade)
+    const existingPgUser = await UserRepository.findByEmail(normalizedEmail);
+    if (existingPgUser) {
+      return res.status(409).json({
+        success: false,
+        error: { code: 'CONFLICT', message: 'Identidade já provisionada no enclave' },
+      });
     }
 
     const userId = `usr-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
@@ -57,194 +78,301 @@ router.post('/register', async (req: Request, res: Response) => {
 
     const requestedRole = (role || 'USER').toUpperCase();
     const normalizedRole = requestedRole === 'ATHLETE' ? 'USER' : requestedRole;
-    const finalRole = ['USER', 'COACH', 'NUTRITIONIST', 'GYM', 'ADMIN'].includes(normalizedRole) ? normalizedRole : 'USER';
+    const finalRole = ['USER', 'COACH', 'NUTRITIONIST', 'GYM', 'ADMIN'].includes(normalizedRole)
+      ? normalizedRole
+      : 'USER';
 
-    const newUser: UserRecord = {
+    // 2. Persistência Principal: PostgreSQL
+    await UserRepository.createUser({
       id: userId,
-      email: email.toLowerCase(),
+      email: normalizedEmail,
       name,
       passwordHash,
       recoveryKeyHash: keyHash,
-      twoFactorEnabled: false,
-      role: finalRole as any,
+      role: finalRole,
       isDemo: false,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    const newPartition: UserDatabasePartition = {
-      user: newUser,
-      workouts: [],
-      nutrition: [],
-      sleep: [],
-      body: [],
-      auditLogs: [],
-      vault: {},
-    };
-
-    writeUserPartition(userId, newPartition);
-
-    index.push({
-      id: userId,
-      email: newUser.email,
-      createdAt: newUser.createdAt,
     });
-    writeUsersIndex(index);
 
-    logAuditEvent(userId, 'AUTH_LOGIN_SUCCESS', 'SUCCESS', {
-      ip: req.ip,
-      userAgent: req.headers['user-agent'],
-    }, { action: 'INITIAL_REGISTRATION' });
-
+    // 3. Criação de Sessão Persistente no PostgreSQL
     const sessionToken = createSessionToken(userId);
+    await SessionRepository.createSession({
+      userId,
+      token: sessionToken,
+      ip: req.ip,
+      userAgent: req.headers['user-agent'] as string,
+      deviceName: 'Web Browser Session',
+    });
+
+    // 4. Auditoria Centralizada no PostgreSQL
+    await AuditRepository.logEvent(userId, 'AUTH_LOGIN_SUCCESS', userId, { action: 'INITIAL_REGISTRATION' }, {
+      ip: req.ip,
+      userAgent: req.headers['user-agent'] as string,
+    });
+
+    // 5. Cache local / Fallback compatibilidade (não-bloqueante)
+    try {
+      const index = readUsersIndex();
+      index.push({ id: userId, email: normalizedEmail, createdAt: new Date().toISOString() });
+      writeUsersIndex(index);
+      writeUserPartition(userId, {
+        user: {
+          id: userId,
+          email: normalizedEmail,
+          name,
+          passwordHash,
+          recoveryKeyHash: keyHash,
+          twoFactorEnabled: false,
+          role: finalRole as any,
+          isDemo: false,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+        workouts: [],
+        nutrition: [],
+        sleep: [],
+        body: [],
+        auditLogs: [],
+        vault: {},
+      });
+    } catch {}
 
     return res.status(201).json({
-      message: 'Athlete enclave successfully initialized with scrypt KDF',
+      success: true,
+      message: 'Atleta inicializado com sucesso no enclave com KDF scrypt',
       sessionToken,
-      recoveryKey: plainTextKey, // Shown ONLY ONCE to user upon registration
+      recoveryKey: plainTextKey,
       user: {
-        id: newUser.id,
-        email: newUser.email,
-        name: newUser.name,
-        role: newUser.role,
+        id: userId,
+        email: normalizedEmail,
+        name,
+        role: finalRole,
         twoFactorEnabled: false,
       },
     });
   } catch (err: any) {
     console.error('Registration failed:', err);
-    return res.status(500).json({ error: 'Registration failed in cryptographic enclave' });
+    return res.status(500).json({
+      success: false,
+      error: { code: 'DATABASE_ERROR', message: 'Falha ao registrar identidade no banco relacional' },
+    });
   }
 });
 
-// 2. Login (Protected by authRateLimiter: 5 attempts/min with 15-min lockout)
+// 2. Login
 router.post('/login', authRateLimiter, async (req: Request, res: Response) => {
   try {
     const { email, password, totpCode } = req.body;
 
     if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password required' });
+      return res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'Email e senha são obrigatórios' },
+      });
     }
 
-    const index = readUsersIndex();
-    const entry = index.find((u) => u.email.toLowerCase() === email.toLowerCase());
+    const normalizedEmail = email.toLowerCase().trim();
 
-    if (!entry) {
-      // Artificial delay to prevent timing side-channel attacks
+    // 1. Busca no PostgreSQL
+    let user = await UserRepository.findByEmail(normalizedEmail);
+
+    // Fallback de transição: se não achou no PG, checar partição local e migrar on-the-fly
+    if (!user) {
+      const index = readUsersIndex();
+      const localEntry = index.find((u) => u.email.toLowerCase() === normalizedEmail);
+      if (localEntry) {
+        const localPart = readUserPartition(localEntry.id);
+        if (localPart?.user) {
+          await UserRepository.createUser({
+            id: localPart.user.id,
+            email: localPart.user.email,
+            name: localPart.user.name,
+            passwordHash: localPart.user.passwordHash,
+            recoveryKeyHash: localPart.user.recoveryKeyHash,
+            role: localPart.user.role,
+            isDemo: localPart.user.isDemo,
+          });
+          user = await UserRepository.findById(localPart.user.id);
+        }
+      }
+    }
+
+    if (!user || !user.passwordHash) {
       await new Promise((r) => setTimeout(r, 200));
-      return res.status(401).json({ error: 'Invalid cryptographic credentials' });
+      return res.status(401).json({
+        success: false,
+        error: { code: 'UNAUTHORIZED', message: 'Credenciais inválidas' },
+      });
     }
 
-    const partition = readUserPartition(entry.id);
-    if (!partition) {
-      return res.status(401).json({ error: 'User partition missing or unreadable' });
-    }
-
-    const isValid = verifyPassword(password, partition.user.passwordHash);
+    const isValid = verifyPassword(password, user.passwordHash);
     if (!isValid) {
-      logAuditEvent(entry.id, 'AUTH_LOGIN_FAILURE', 'DENIED', {
+      await AuditRepository.logEvent(user.id, 'AUTH_LOGIN_FAILURE', user.id, { reason: 'PASSWORD_MISMATCH' }, {
         ip: req.ip,
-        userAgent: req.headers['user-agent'],
-      }, { reason: 'PASSWORD_MISMATCH' });
-      return res.status(401).json({ error: 'Invalid cryptographic credentials' });
+        userAgent: req.headers['user-agent'] as string,
+      });
+      return res.status(401).json({
+        success: false,
+        error: { code: 'UNAUTHORIZED', message: 'Credenciais inválidas' },
+      });
     }
 
-    // Check 2FA if enabled
-    if (partition.user.twoFactorEnabled && partition.user.twoFactorSecret) {
+    // 2. Verificação de 2FA
+    if (user.twoFactorEnabled && user.twoFactorSecret) {
       if (!totpCode) {
         return res.status(200).json({
+          success: true,
           requires2FA: true,
-          message: 'RFC 6238 TOTP 6-digit code required',
+          message: 'Código RFC 6238 TOTP de 6 dígitos obrigatório',
         });
       }
 
-      const totpValid = verifyTotpCode(partition.user.twoFactorSecret, totpCode);
+      const totpValid = verifyTotpCode(user.twoFactorSecret, totpCode);
       if (!totpValid) {
-        logAuditEvent(entry.id, 'AUTH_LOGIN_FAILURE', 'DENIED', {
+        await AuditRepository.logEvent(user.id, 'AUTH_LOGIN_FAILURE', user.id, { reason: 'TOTP_MISMATCH' }, {
           ip: req.ip,
-          userAgent: req.headers['user-agent'],
-        }, { reason: 'TOTP_MISMATCH' });
-        return res.status(401).json({ error: 'Invalid 2FA authentication code' });
+          userAgent: req.headers['user-agent'] as string,
+        });
+        return res.status(401).json({
+          success: false,
+          error: { code: 'UNAUTHORIZED', message: 'Código de autenticação em 2 fatores inválido' },
+        });
       }
     }
 
-    const sessionToken = createSessionToken(entry.id);
-
-    logAuditEvent(entry.id, 'AUTH_LOGIN_SUCCESS', 'SUCCESS', {
+    // 3. Criação de Sessão no PostgreSQL
+    const sessionToken = createSessionToken(user.id);
+    await SessionRepository.createSession({
+      userId: user.id,
+      token: sessionToken,
       ip: req.ip,
-      userAgent: req.headers['user-agent'],
-    }, { method: partition.user.twoFactorEnabled ? 'PASSWORD_AND_2FA' : 'PASSWORD_ONLY' });
+      userAgent: req.headers['user-agent'] as string,
+      deviceName: 'Web Browser Login',
+    });
+
+    await AuditRepository.logEvent(user.id, 'AUTH_LOGIN_SUCCESS', user.id, {
+      method: user.twoFactorEnabled ? 'PASSWORD_AND_2FA' : 'PASSWORD_ONLY',
+    }, {
+      ip: req.ip,
+      userAgent: req.headers['user-agent'] as string,
+    });
+
+    const roles = await UserRepository.getUserRoles(user.id);
+    const primaryRole = roles[0] || 'USER';
 
     return res.json({
-      message: 'Enclave session established',
+      success: true,
+      message: 'Sessão do enclave estabelecida',
       sessionToken,
       user: {
-        id: partition.user.id,
-        email: partition.user.email,
-        name: partition.user.name,
-        role: partition.user.role,
-        twoFactorEnabled: partition.user.twoFactorEnabled,
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: primaryRole,
+        twoFactorEnabled: user.twoFactorEnabled,
       },
     });
   } catch (err: any) {
     console.error('Login error:', err);
-    return res.status(500).json({ error: 'Authentication enclave failure' });
+    return res.status(500).json({
+      success: false,
+      error: { code: 'DATABASE_ERROR', message: 'Falha de autenticação no banco' },
+    });
   }
 });
 
 // 3. Current Session Check
-router.get('/session', (req: Request, res: Response) => {
-  const userId = getAuthenticatedUserId(req);
+router.get('/session', async (req: Request, res: Response) => {
+  const userId = await getAuthenticatedUserId(req);
   if (!userId) {
-    return res.status(401).json({ authenticated: false });
+    return res.status(401).json({ success: false, authenticated: false });
   }
 
-  const partition = readUserPartition(userId);
-  if (!partition) {
-    return res.status(401).json({ authenticated: false });
+  const user = await UserRepository.findById(userId);
+  if (!user) {
+    return res.status(401).json({ success: false, authenticated: false });
   }
+
+  const roles = await UserRepository.getUserRoles(userId);
 
   return res.json({
+    success: true,
     authenticated: true,
     user: {
-      id: partition.user.id,
-      email: partition.user.email,
-      name: partition.user.name,
-      role: partition.user.role,
-      twoFactorEnabled: partition.user.twoFactorEnabled,
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: roles[0] || 'USER',
+      twoFactorEnabled: user.twoFactorEnabled,
     },
   });
 });
 
-// 4. Logout
-router.post('/logout', (req: Request, res: Response) => {
-  const userId = getAuthenticatedUserId(req);
+// 4. Logout (Revoga sessão específica)
+router.post('/logout', async (req: Request, res: Response) => {
+  const token = getAuthenticatedToken(req);
+  const userId = await getAuthenticatedUserId(req);
+
+  if (token) {
+    await SessionRepository.revokeSession(token);
+  }
+
   if (userId) {
-    logAuditEvent(userId, 'AUTH_LOGOUT', 'SUCCESS', {
+    await AuditRepository.logEvent(userId, 'AUTH_LOGOUT', userId, {}, {
       ip: req.ip,
-      userAgent: req.headers['user-agent'],
+      userAgent: req.headers['user-agent'] as string,
     });
   }
-  return res.json({ message: 'Session terminated' });
+
+  return res.json({ success: true, message: 'Sessão revogada com sucesso' });
 });
 
-// 5. Generate 2FA Secret (RFC 6238 TOTP)
-router.post('/2fa/generate', (req: Request, res: Response) => {
-  const userId = getAuthenticatedUserId(req);
+// 5. Logout de Todas as Sessões
+router.post('/logout-all', async (req: Request, res: Response) => {
+  const userId = await getAuthenticatedUserId(req);
   if (!userId) {
-    return res.status(401).json({ error: 'Unauthorized' });
+    return res.status(401).json({
+      success: false,
+      error: { code: 'UNAUTHORIZED', message: 'Usuário não autenticado' },
+    });
   }
 
-  const partition = readUserPartition(userId);
-  if (!partition) return res.status(404).json({ error: 'Tenant not found' });
-
-  const secret = generateTotpSecret();
-  // Temporarily store pending secret
-  partition.user.twoFactorSecret = secret;
-  writeUserPartition(userId, partition);
-
-  const otpAuthUrl = `otpauth://totp/GymLabs:${partition.user.email}?secret=${secret}&issuer=GymLabs`;
+  const count = await SessionRepository.revokeAllForUser(userId);
+  await AuditRepository.logEvent(userId, 'AUTH_LOGOUT_ALL', userId, { revokedCount: count }, {
+    ip: req.ip,
+    userAgent: req.headers['user-agent'] as string,
+  });
 
   return res.json({
+    success: true,
+    message: `${count} sessões ativas foram revogadas com sucesso`,
+  });
+});
+
+// 6. Generate 2FA Secret
+router.post('/2fa/generate', async (req: Request, res: Response) => {
+  const userId = await getAuthenticatedUserId(req);
+  if (!userId) {
+    return res.status(401).json({
+      success: false,
+      error: { code: 'UNAUTHORIZED', message: 'Não autorizado' },
+    });
+  }
+
+  const user = await UserRepository.findById(userId);
+  if (!user) {
+    return res.status(404).json({
+      success: false,
+      error: { code: 'NOT_FOUND', message: 'Usuário não encontrado' },
+    });
+  }
+
+  const secret = generateTotpSecret();
+  await UserRepository.updateUser(userId, { twoFactorSecret: secret });
+
+  const otpAuthUrl = `otpauth://totp/GymLabs:${user.email}?secret=${secret}&issuer=GymLabs`;
+
+  return res.json({
+    success: true,
     secret,
     otpAuthUrl,
     stepSeconds: 30,
@@ -252,72 +380,98 @@ router.post('/2fa/generate', (req: Request, res: Response) => {
   });
 });
 
-// 6. Verify & Enable 2FA
-router.post('/2fa/verify', (req: Request, res: Response) => {
-  const userId = getAuthenticatedUserId(req);
-  if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+// 7. Verify & Enable 2FA
+router.post('/2fa/verify', async (req: Request, res: Response) => {
+  const userId = await getAuthenticatedUserId(req);
+  if (!userId) {
+    return res.status(401).json({
+      success: false,
+      error: { code: 'UNAUTHORIZED', message: 'Não autorizado' },
+    });
+  }
 
   const { code } = req.body;
-  if (!code) return res.status(400).json({ error: '6-digit code required' });
-
-  const partition = readUserPartition(userId);
-  if (!partition || !partition.user.twoFactorSecret) {
-    return res.status(400).json({ error: 'No 2FA secret staged' });
+  if (!code) {
+    return res.status(400).json({
+      success: false,
+      error: { code: 'VALIDATION_ERROR', message: 'Código de 6 dígitos obrigatório' },
+    });
   }
 
-  const valid = verifyTotpCode(partition.user.twoFactorSecret, code);
+  const user = await UserRepository.findById(userId);
+  if (!user || !user.twoFactorSecret) {
+    return res.status(400).json({
+      success: false,
+      error: { code: 'VALIDATION_ERROR', message: 'Nenhum segredo 2FA aguardando verificação' },
+    });
+  }
+
+  const valid = verifyTotpCode(user.twoFactorSecret, code);
   if (!valid) {
-    return res.status(400).json({ error: 'Invalid 2FA code' });
+    return res.status(400).json({
+      success: false,
+      error: { code: 'VALIDATION_ERROR', message: 'Código 2FA inválido' },
+    });
   }
 
-  partition.user.twoFactorEnabled = true;
-  writeUserPartition(userId, partition);
-
-  logAuditEvent(userId, 'AUTH_2FA_ENABLED', 'SUCCESS', {
+  await UserRepository.updateUser(userId, { twoFactorEnabled: true });
+  await AuditRepository.logEvent(userId, 'AUTH_2FA_ENABLED', userId, {}, {
     ip: req.ip,
-    userAgent: req.headers['user-agent'],
+    userAgent: req.headers['user-agent'] as string,
   });
 
-  return res.json({ message: '2FA successfully activated on athlete enclave' });
+  return res.json({
+    success: true,
+    message: '2FA ativado com sucesso no enclave do atleta',
+  });
 });
 
-// 7. Cryptographic Recovery Key Password Reset
-router.post('/recover', (req: Request, res: Response) => {
+// 8. Recovery Key Password Reset
+router.post('/recover', async (req: Request, res: Response) => {
   const { email, recoveryKey, newPassword } = req.body;
   if (!email || !recoveryKey || !newPassword) {
-    return res.status(400).json({ error: 'Email, recovery key, and new password required' });
+    return res.status(400).json({
+      success: false,
+      error: { code: 'VALIDATION_ERROR', message: 'Email, chave de recuperação e nova senha são obrigatórios' },
+    });
   }
 
-  const index = readUsersIndex();
-  const entry = index.find((u) => u.email.toLowerCase() === email.toLowerCase());
-  if (!entry) return res.status(404).json({ error: 'Identity not located' });
+  const user = await UserRepository.findByEmail(email);
+  if (!user || !user.recoveryKeyHash) {
+    return res.status(404).json({
+      success: false,
+      error: { code: 'NOT_FOUND', message: 'Identidade não encontrada' },
+    });
+  }
 
-  const partition = readUserPartition(entry.id);
-  if (!partition) return res.status(404).json({ error: 'Partition not located' });
-
-  const validKey = verifyRecoveryKey(recoveryKey, partition.user.recoveryKeyHash);
+  const validKey = verifyRecoveryKey(recoveryKey, user.recoveryKeyHash);
   if (!validKey) {
-    logAuditEvent(entry.id, 'AUTH_LOGIN_FAILURE', 'DENIED', {
+    await AuditRepository.logEvent(user.id, 'AUTH_LOGIN_FAILURE', user.id, { reason: 'INVALID_RECOVERY_KEY' }, {
       ip: req.ip,
-      userAgent: req.headers['user-agent'],
-    }, { reason: 'INVALID_RECOVERY_KEY' });
-    return res.status(401).json({ error: 'Invalid Cryptographic Recovery Key' });
+      userAgent: req.headers['user-agent'] as string,
+    });
+    return res.status(401).json({
+      success: false,
+      error: { code: 'UNAUTHORIZED', message: 'Chave de recuperação inválida' },
+    });
   }
 
-  // Generate new password hash via scrypt
-  partition.user.passwordHash = hashPassword(newPassword);
-  // Regenerate new recovery key to prevent replay
-  const { plainTextKey: newKey, keyHash: newHash } = generateRecoveryKey();
-  partition.user.recoveryKeyHash = newHash;
-  writeUserPartition(entry.id, partition);
+  const newHash = hashPassword(newPassword);
+  const { plainTextKey: newKey, keyHash: newRecoveryHash } = generateRecoveryKey();
 
-  logAuditEvent(entry.id, 'AUTH_PASSWORD_RESET', 'SUCCESS', {
+  await UserRepository.updateUser(user.id, {
+    passwordHash: newHash,
+    recoveryKeyHash: newRecoveryHash,
+  });
+
+  await AuditRepository.logEvent(user.id, 'AUTH_PASSWORD_RESET', user.id, { method: 'RECOVERY_KEY' }, {
     ip: req.ip,
-    userAgent: req.headers['user-agent'],
-  }, { method: 'RECOVERY_KEY' });
+    userAgent: req.headers['user-agent'] as string,
+  });
 
   return res.json({
-    message: 'Password successfully reset. Store your replacement recovery key safely.',
+    success: true,
+    message: 'Senha redefinida com sucesso. Guarde com segurança a nova chave de recuperação.',
     newRecoveryKey: newKey,
   });
 });

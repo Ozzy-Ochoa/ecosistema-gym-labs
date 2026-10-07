@@ -1,135 +1,227 @@
 import { Router, Request, Response } from 'express';
-import { getAuthenticatedUserId } from './auth';
-import { readUserPartition, writeUserPartition } from '../database/db';
+import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
+import { RelationshipRepository } from '../repositories/RelationshipRepository';
+import { UserRepository } from '../repositories/UserRepository';
+import { AuditRepository } from '../repositories/AuditRepository';
 
 const router = Router();
 
 // 1. List Relationships & Invitations
-router.get('/', (req: Request, res: Response) => {
-  const userId = getAuthenticatedUserId(req);
-  if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+router.get('/', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const user = await UserRepository.findById(userId);
 
-  const partition = readUserPartition(userId);
-  if (!partition) return res.status(404).json({ error: 'User partition missing' });
+    const [rels, invs, csts] = await Promise.all([
+      RelationshipRepository.getRelationships(userId),
+      RelationshipRepository.getInvitations(userId, user?.email),
+      RelationshipRepository.getConsents(userId),
+    ]);
 
-  return res.json({
-    relationships: partition.relationships || [],
-    invitations: partition.invitations || [],
-  });
+    return res.json({
+      success: true,
+      relationships: rels,
+      invitations: invs,
+      consents: csts,
+    });
+  } catch (err: any) {
+    console.error('Error fetching relationships:', err);
+    return res.status(500).json({
+      success: false,
+      error: { code: 'DATABASE_ERROR', message: 'Erro ao buscar relacionamentos no banco relacional' },
+    });
+  }
 });
 
 // 2. Create Invitation
-router.post('/invitations', (req: Request, res: Response) => {
-  const userId = getAuthenticatedUserId(req);
-  if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+router.post('/invitations', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const { targetEmail, targetName, role, notes } = req.body;
 
-  const { targetEmail, targetName, role, notes } = req.body;
-  if (!targetEmail) {
-    return res.status(400).json({ error: 'targetEmail é obrigatório' });
+    if (!targetEmail) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'targetEmail é obrigatório' },
+      });
+    }
+
+    const invitation = await RelationshipRepository.createInvitation({
+      senderId: userId,
+      targetEmail,
+      targetName,
+      targetRole: role || 'COACH',
+      notes,
+    });
+
+    await AuditRepository.logEvent(
+      userId,
+      'RELATIONSHIP_INVITED',
+      invitation.id,
+      { targetEmail, role: role || 'COACH', code: invitation.code },
+      { ip: req.ip, userAgent: req.headers['user-agent'] as string }
+    );
+
+    return res.status(201).json({
+      success: true,
+      invitation,
+    });
+  } catch (err: any) {
+    console.error('Error creating invitation:', err);
+    return res.status(500).json({
+      success: false,
+      error: { code: 'DATABASE_ERROR', message: 'Erro ao criar convite no banco de dados' },
+    });
   }
-
-  const partition = readUserPartition(userId);
-  if (!partition) return res.status(404).json({ error: 'User partition missing' });
-
-  const invitation = {
-    id: `inv-${Date.now()}`,
-    senderId: userId,
-    senderName: partition.user.name,
-    senderRole: partition.user.role,
-    targetEmail,
-    targetName: targetName || '',
-    targetRole: role || 'COACH',
-    code: `GL-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
-    status: 'PENDING',
-    createdAt: new Date().toISOString(),
-    notes: notes || '',
-  };
-
-  if (!partition.invitations) partition.invitations = [];
-  partition.invitations.unshift(invitation);
-  writeUserPartition(userId, partition);
-
-  return res.status(201).json({ invitation });
 });
 
-// 3. Respond Invitation (Accept/Reject)
-router.post('/invitations/respond', (req: Request, res: Response) => {
-  const userId = getAuthenticatedUserId(req);
-  if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+// 3. Respond Invitation (Accept/Reject with ACID Transaction)
+router.post('/invitations/respond', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const { code, invitationId, action, rejectionReason } = req.body;
 
-  const { invitationId, action, rejectionReason } = req.body;
-  if (!invitationId || !action) {
-    return res.status(400).json({ error: 'invitationId e action são obrigatórios' });
-  }
+    const inviteCode = code || invitationId;
+    if (!inviteCode || !action) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'Código do convite (code) e ação (action) são obrigatórios' },
+      });
+    }
 
-  const partition = readUserPartition(userId);
-  if (!partition) return res.status(404).json({ error: 'User partition missing' });
+    if (action.toUpperCase() === 'ACCEPT') {
+      const result = await RelationshipRepository.acceptInvitation(inviteCode, userId);
 
-  if (!partition.invitations) partition.invitations = [];
-  const inv = partition.invitations.find((i: any) => i.id === invitationId);
-
-  if (inv) {
-    inv.status = action === 'ACCEPT' ? 'ACCEPTED' : 'REJECTED';
-    inv.respondedAt = new Date().toISOString();
-    if (rejectionReason) inv.rejectionReason = rejectionReason;
-
-    let relationship = null;
-    if (action === 'ACCEPT') {
-      relationship = {
-        id: `rel-${Date.now()}`,
+      await AuditRepository.logEvent(
         userId,
-        userName: partition.user.name,
-        userEmail: partition.user.email,
-        professionalId: inv.senderId,
-        professionalName: inv.senderName,
-        professionalRole: inv.senderRole,
-        status: 'ACTIVE',
-        requestedAt: inv.createdAt,
-        acceptedAt: new Date().toISOString(),
-        permissions: {
-          canViewWorkouts: true,
-          canViewDiet: true,
-          canViewBodyMetrics: true,
-          canViewHydrationAndSleep: true,
-          canPrescribeWorkouts: true,
-          canPrescribeDiet: true,
-        },
-      };
+        'RELATIONSHIP_ACCEPTED',
+        result.relationshipId,
+        { code: inviteCode },
+        { ip: req.ip, userAgent: req.headers['user-agent'] as string }
+      );
 
-      if (!partition.relationships) partition.relationships = [];
-      partition.relationships.unshift(relationship);
+      return res.json({
+        success: true,
+        message: 'Convite aceito com sucesso e vínculo estabelecido',
+        relationshipId: result.relationshipId,
+        invitation: result.invitation,
+      });
+    } else {
+      await RelationshipRepository.rejectInvitation(inviteCode, userId);
+
+      await AuditRepository.logEvent(
+        userId,
+        'RELATIONSHIP_REJECTED',
+        inviteCode,
+        { reason: rejectionReason || 'Rejeitado pelo destinatário' },
+        { ip: req.ip, userAgent: req.headers['user-agent'] as string }
+      );
+
+      return res.json({
+        success: true,
+        message: 'Convite rejeitado',
+      });
     }
-
-    writeUserPartition(userId, partition);
-    return res.json({ success: true, relationship });
+  } catch (err: any) {
+    console.error('Error responding invitation:', err);
+    const isValidation = err.message.includes('inválido') || err.message.includes('processado') || err.message.includes('outro endereço');
+    return res.status(isValidation ? 400 : 500).json({
+      success: false,
+      error: {
+        code: isValidation ? 'VALIDATION_ERROR' : 'DATABASE_ERROR',
+        message: err.message || 'Falha ao processar resposta ao convite',
+      },
+    });
   }
-
-  return res.status(404).json({ error: 'Convite não encontrado' });
 });
 
-// 4. Terminate Relationship
-router.delete('/:id', (req: Request, res: Response) => {
-  const userId = getAuthenticatedUserId(req);
-  if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+// 4. Terminate Relationship (Soft Delete com Histórico)
+router.post('/terminate', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const { relationshipId, reason } = req.body;
 
-  const relationshipId = req.params.id;
-  const terminationReason = (req.headers['x-termination-reason'] as string) || 'Vínculo revogado pelo usuário';
-
-  const partition = readUserPartition(userId);
-  if (!partition) return res.status(404).json({ error: 'User partition missing' });
-
-  if (partition.relationships) {
-    const rel = partition.relationships.find((r: any) => r.id === relationshipId);
-    if (rel) {
-      rel.status = 'TERMINATED';
-      rel.terminatedAt = new Date().toISOString();
-      rel.terminationReason = terminationReason;
-      writeUserPartition(userId, partition);
-      return res.json({ success: true });
+    if (!relationshipId) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'relationshipId é obrigatório' },
+      });
     }
-  }
 
-  return res.status(404).json({ error: 'Relacionamento não encontrado' });
+    const result = await RelationshipRepository.terminateRelationship(
+      relationshipId,
+      userId,
+      reason || 'Encerramento solicitado pelo usuário'
+    );
+
+    if (!result) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'NOT_FOUND', message: 'Relacionamento não encontrado' },
+      });
+    }
+
+    await AuditRepository.logEvent(
+      userId,
+      'RELATIONSHIP_TERMINATED',
+      relationshipId,
+      { reason },
+      { ip: req.ip, userAgent: req.headers['user-agent'] as string }
+    );
+
+    return res.json({
+      success: true,
+      message: 'Vínculo encerrado com sucesso (status TERMINATED preservado no histórico)',
+    });
+  } catch (err: any) {
+    console.error('Error terminating relationship:', err);
+    return res.status(500).json({
+      success: false,
+      error: { code: 'DATABASE_ERROR', message: 'Erro ao encerrar relacionamento' },
+    });
+  }
+});
+
+// 5. Revoke LGPD Consent
+router.post('/consents/revoke', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const { consentId } = req.body;
+
+    if (!consentId) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'consentId é obrigatório' },
+      });
+    }
+
+    const result = await RelationshipRepository.revokeConsent(consentId, userId);
+    if (!result) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'NOT_FOUND', message: 'Consentimento não encontrado' },
+      });
+    }
+
+    await AuditRepository.logEvent(
+      userId,
+      'CONSENT_REVOKED',
+      consentId,
+      {},
+      { ip: req.ip, userAgent: req.headers['user-agent'] as string }
+    );
+
+    return res.json({
+      success: true,
+      message: 'Consentimento revogado com sucesso. Acesso bloqueado imediatamente.',
+    });
+  } catch (err: any) {
+    console.error('Error revoking consent:', err);
+    return res.status(500).json({
+      success: false,
+      error: { code: 'DATABASE_ERROR', message: 'Erro ao revogar consentimento' },
+    });
+  }
 });
 
 export default router;

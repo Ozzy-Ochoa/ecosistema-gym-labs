@@ -1,4 +1,5 @@
 import { DataProvenance, MetricValue } from './provenance';
+import { SyncStatus } from './api';
 
 export interface FoodItem {
   id: string;
@@ -31,6 +32,7 @@ export interface MealEntry {
   totalProteinG: MetricValue<number>;
   totalCarbsG: MetricValue<number>;
   totalFatsG: MetricValue<number>;
+  syncStatus?: SyncStatus;
 }
 
 export interface HydrationLog {

@@ -15,13 +15,16 @@ export class HealthRepository implements IHealthRepository {
   }
 
   public async addBodyRecord(record: BodyCompositionRecord): Promise<void> {
-    this.localStore.addBodyRecord(record);
-
     try {
-      await healthApi.logBodyRecord(record);
-    } catch {
-      // Local fallback preservado
+      const res = await healthApi.logBodyRecord(record);
+      if (res.success) {
+        this.localStore.addBodyRecord({ ...record, syncStatus: 'SYNCED' });
+        return;
+      }
+    } catch (err) {
+      console.warn('[HealthRepository] API indisponível, gravando local com status PENDING:', err);
     }
+    this.localStore.addBodyRecord({ ...record, syncStatus: 'PENDING' });
   }
 
   public getCircumferences(): CircumferenceRecord[] {
@@ -29,13 +32,16 @@ export class HealthRepository implements IHealthRepository {
   }
 
   public async addCircumference(record: CircumferenceRecord): Promise<void> {
-    this.localStore.addCircumference(record);
-
     try {
-      await healthApi.logCircumference(record);
-    } catch {
-      // Local fallback preservado
+      const res = await healthApi.logCircumference(record);
+      if (res.success) {
+        this.localStore.addCircumference({ ...record, syncStatus: 'SYNCED' });
+        return;
+      }
+    } catch (err) {
+      console.warn('[HealthRepository] API indisponível, gravando local com status PENDING:', err);
     }
+    this.localStore.addCircumference({ ...record, syncStatus: 'PENDING' });
   }
 
   public async syncRemote(): Promise<boolean> {
