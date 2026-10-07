@@ -9,6 +9,8 @@ import workoutsRoutes from './server/routes/workouts';
 import nutritionRoutes from './server/routes/nutrition';
 import sleepRoutes from './server/routes/sleep';
 import intelligenceRoutes from './server/routes/intelligence';
+import relationshipsRoutes from './server/routes/relationships';
+import chatRoutes from './server/routes/chat';
 
 dotenv.config();
 
@@ -37,6 +39,8 @@ app.use('/api/workouts', workoutsRoutes);
 app.use('/api/nutrition', nutritionRoutes);
 app.use('/api/sleep', sleepRoutes);
 app.use('/api/intelligence', intelligenceRoutes);
+app.use('/api/relationships', relationshipsRoutes);
+app.use('/api/chat', chatRoutes);
 
 // Setup Vite middleware in dev or static files in production
 async function startServer() {

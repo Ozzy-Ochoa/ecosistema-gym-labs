@@ -7,6 +7,20 @@ export type UserRole =
   | 'GYM'
   | 'ADMIN';
 
+export type ExtendedUserRole =
+  | 'USER'
+  | 'PERSONAL_TRAINER'
+  | 'NUTRITIONIST'
+  | 'ACADEMY_ADMIN'
+  | 'ACADEMY_STAFF'
+  | 'SUPPORT'
+  | 'ADMIN'
+  | 'COACH'
+  | 'GYM'
+  | 'ATHLETE';
+
+export type UserStatus = 'ACTIVE' | 'PENDING_VERIFICATION' | 'SUSPENDED' | 'ARCHIVED';
+
 export type JurisdictionCode = 'BR' | 'US' | 'EU' | 'MX' | 'GLOBAL';
 
 export type UnitSystem = 'METRIC' | 'IMPERIAL';
@@ -19,10 +33,14 @@ export interface UserIdentity {
   dateOfBirth?: string; // YYYY-MM-DD
   biologicalSex?: 'MALE' | 'FEMALE' | 'NOT_SPECIFIED';
   jurisdiction: JurisdictionCode;
+  country?: string;
   language: 'pt' | 'en' | 'es';
   timezone: string;
   unitSystem: UnitSystem;
   role: UserRole;
+  roles?: ExtendedUserRole[];
+  permissions?: string[];
+  status?: UserStatus;
   isDemo?: boolean;
   createdAt: string;
   weightKg?: number;

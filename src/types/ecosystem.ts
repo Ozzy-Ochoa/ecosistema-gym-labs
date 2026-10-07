@@ -77,6 +77,14 @@ export type RelationshipStatus =
   | 'ENDED'         // Encerrado
   | 'EXPIRED';      // Expirado por decurso de prazo
 
+export type UniversalRelationshipType = 
+  | 'USER_PERSONAL' 
+  | 'USER_NUTRITIONIST' 
+  | 'USER_ACADEMY' 
+  | 'PERSONAL_NUTRITIONIST' 
+  | 'PERSONAL_ACADEMY' 
+  | 'NUTRITIONIST_ACADEMY';
+
 export interface ProfessionalRelationship {
   id: string;
   userId: string;
@@ -85,12 +93,18 @@ export interface ProfessionalRelationship {
   professionalId: string;
   professionalName: string;
   professionalRole: 'COACH' | 'NUTRITIONIST' | 'GYM';
+  sourceUserId?: string;
+  targetUserId?: string;
+  relationshipType?: UniversalRelationshipType;
   organizationId?: string;
-  status: 'PENDING' | 'ACTIVE' | 'REJECTED' | 'REVOKED' | 'ENDED';
+  status: 'PENDING' | 'ACTIVE' | 'REJECTED' | 'REVOKED' | 'ENDED' | 'TERMINATED';
   requestedAt: string;
   requestedBy: 'USER' | 'PROFESSIONAL';
   acceptedAt?: string;
   endedAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  terminatedAt?: string;
   terminationReason?: string;
   permissions: {
     canViewWorkouts: boolean;

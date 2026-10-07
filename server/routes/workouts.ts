@@ -2,14 +2,28 @@ import { Router, Request, Response } from 'express';
 import { getAuthenticatedUserId } from './auth';
 import { readUserPartition, writeUserPartition } from '../database/db';
 import { validateWorkoutSessionInput } from '../validators/schemaValidators';
+import { dbServices } from '../services/dbServices';
 
 const router = Router();
 
 // 1. Get Workout Sessions
-router.get('/', (req: Request, res: Response) => {
+router.get('/', async (req: Request, res: Response) => {
   const userId = getAuthenticatedUserId(req);
   if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
+  try {
+    const targetUserId = (req.query.studentId as string) || userId;
+    const dbWorkouts = await dbServices.getWorkoutsForUser(userId, targetUserId);
+    if (dbWorkouts && dbWorkouts.length > 0) {
+      return res.json({ workouts: dbWorkouts });
+    }
+  } catch (err: any) {
+    if (err.message && err.message.includes('Acesso negado')) {
+      return res.status(403).json({ error: err.message });
+    }
+  }
+
+  // Local fallback
   const partition = readUserPartition(userId);
   if (!partition) return res.status(404).json({ error: 'User partition missing' });
 
@@ -17,7 +31,7 @@ router.get('/', (req: Request, res: Response) => {
 });
 
 // 2. Log Workout Session
-router.post('/', (req: Request, res: Response) => {
+router.post('/', async (req: Request, res: Response) => {
   const userId = getAuthenticatedUserId(req);
   if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
@@ -26,12 +40,10 @@ router.post('/', (req: Request, res: Response) => {
     return res.status(400).json({ error: 'Validation failed', details: validation.errors });
   }
 
-  const partition = readUserPartition(userId);
-  if (!partition) return res.status(404).json({ error: 'User partition missing' });
-
   const payload = req.body.workout && typeof req.body.workout === 'object' ? req.body.workout : req.body;
+  const sessionId = payload.id || `wkt-${Date.now()}`;
   const newSession = {
-    id: `wkt-${Date.now()}`,
+    id: sessionId,
     userId,
     startedAt: payload.startedAt || new Date().toISOString(),
     completedAt: payload.completedAt || new Date().toISOString(),
@@ -45,9 +57,32 @@ router.post('/', (req: Request, res: Response) => {
     recordedAt: new Date().toISOString(),
   };
 
-  if (!partition.workouts) partition.workouts = [];
-  partition.workouts.unshift(newSession);
-  writeUserPartition(userId, partition);
+  // 1. Persistência relacional no Cloud SQL
+  try {
+    await dbServices.createWorkoutSession({
+      id: sessionId,
+      userId,
+      title: newSession.name,
+      startedAt: new Date(newSession.startedAt),
+      endedAt: new Date(newSession.completedAt),
+      durationMinutes: newSession.durationMinutes,
+      sessionRpe: newSession.sessionRpe,
+      workloadUnits: newSession.workloadUnits,
+      exercisesJson: newSession.exercises,
+      notes: newSession.notes,
+      provenanceType: 'REAL',
+    });
+  } catch (err) {
+    console.warn('Fallback: Cloud SQL insert failed, preserving in local partition:', err);
+  }
+
+  // 2. Persistência local (Write-Through)
+  const partition = readUserPartition(userId);
+  if (partition) {
+    if (!partition.workouts) partition.workouts = [];
+    partition.workouts.unshift(newSession);
+    writeUserPartition(userId, partition);
+  }
 
   return res.status(201).json({ workout: newSession });
 });

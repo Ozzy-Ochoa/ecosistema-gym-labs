@@ -19,13 +19,40 @@ import { HealthTeamMember, InterProfessionalConsent, ChatMessage, ProfessionalIn
 import { NutriPatient, NutriConsultation, NutriAssessment, NutriMealPlan, NutriFinanceTransaction, NutriLibraryItem } from '../types/nutri';
 import { TrainerStudent, TrainerWorkoutPlan, TrainerAssessment, TrainerScheduleAppointment, TrainerFinanceTransaction } from '../types/trainer';
 import { AuditRecord, AuditEventType } from '../types/audit';
+import { UserRepository } from '../repositories/UserRepository';
+import { WorkoutRepository } from '../repositories/WorkoutRepository';
+import { NutritionRepository } from '../repositories/NutritionRepository';
+import { SleepRepository } from '../repositories/SleepRepository';
+import { HealthRepository } from '../repositories/HealthRepository';
+import { RelationshipRepository } from '../repositories/RelationshipRepository';
+import { ChatRepository } from '../repositories/ChatRepository';
+import { IntelligenceRepository } from '../repositories/IntelligenceRepository';
+import { IntelligenceQueryRequest, IntelligenceQueryResponse } from '../types/api';
 
 export class GymLabsService {
   private static instance: GymLabsService;
   private dataStore: GymLabsDataStore;
 
+  // Repositórios desacoplados da persistência física
+  public readonly users: UserRepository;
+  public readonly workouts: WorkoutRepository;
+  public readonly nutrition: NutritionRepository;
+  public readonly sleep: SleepRepository;
+  public readonly health: HealthRepository;
+  public readonly relationships: RelationshipRepository;
+  public readonly chat: ChatRepository;
+  public readonly intelligence: IntelligenceRepository;
+
   private constructor() {
     this.dataStore = GymLabsDataStore.getInstance();
+    this.users = new UserRepository(this.dataStore);
+    this.workouts = new WorkoutRepository(this.dataStore);
+    this.nutrition = new NutritionRepository(this.dataStore);
+    this.sleep = new SleepRepository(this.dataStore);
+    this.health = new HealthRepository(this.dataStore);
+    this.relationships = new RelationshipRepository(this.dataStore);
+    this.chat = new ChatRepository(this.dataStore);
+    this.intelligence = new IntelligenceRepository();
   }
 
   public static getInstance(): GymLabsService {
@@ -33,6 +60,21 @@ export class GymLabsService {
       GymLabsService.instance = new GymLabsService();
     }
     return GymLabsService.instance;
+  }
+
+  // --- Operações Assíncronas & Sincronização Remota (Fase 02) ---
+  public async queryIntelligence(request: IntelligenceQueryRequest): Promise<IntelligenceQueryResponse> {
+    return this.intelligence.query(request);
+  }
+
+  public async syncAllRemote(): Promise<{ workouts: boolean; nutrition: boolean; sleep: boolean; relationships: boolean }> {
+    const [workouts, nutrition, sleep, relationships] = await Promise.all([
+      this.workouts.syncRemote(),
+      this.nutrition.syncRemote(),
+      this.sleep.syncRemote(),
+      this.relationships.syncRemote(),
+    ]);
+    return { workouts, nutrition, sleep, relationships };
   }
 
   // --- Autenticação e Sessão ---

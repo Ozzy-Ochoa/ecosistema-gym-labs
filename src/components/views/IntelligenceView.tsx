@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useGymLabs } from '../../context/GymLabsContext';
+import { GymLabsService } from '../../services/GymLabsService';
 import { ProvenanceBadge } from '../common/ProvenanceBadge';
 import {
   Send,
@@ -65,42 +66,48 @@ export const IntelligenceView: React.FC = () => {
     setQuery('');
     setIsLoading(true);
 
-    setTimeout(() => {
-      let responseText = '';
-      let citations: string[] = [];
+    try {
+      const athleteContext = {
+        weightKg: includeNutrition ? latestBodyRecord?.weightKg?.value : undefined,
+        heightCm: identity.heightCm,
+        biologicalSex: identity.biologicalSex,
+        bmr: includeNutrition ? bmrCalculation.result?.bmrKcal : undefined,
+        tdee: includeNutrition ? tdeeCalculation.result || undefined : undefined,
+        recoveryScore: includeRecovery ? glRecoveryScore.result?.score : undefined,
+        acwr: includeTraining && acwrMetrics.uncoupledRatio !== null ? acwrMetrics.uncoupledRatio : undefined,
+      };
 
-      const lower = (userText || '').toLowerCase();
-
-      if (lower.includes('acwr') || lower.includes('carga') || lower.includes('lesão') || lower.includes('volume')) {
-        const ratio = acwrMetrics.uncoupledRatio !== null ? acwrMetrics.uncoupledRatio : 1.05;
-        responseText = `Sua razão Agudo:Crônico desacoplada está em ${ratio}. De acordo com o modelo de Gabbett (2016) e Blanch & Gabbett (2016), a faixa entre 0.8 e 1.3 representa a zona de menor risco relativo de sobrecarga mecânica. Mantenha os incrementos semanais de carga dentro de 5% a 10% para preservar as adaptações teciduais.`;
-        citations = ['Gabbett TJ (2016) Br J Sports Med', 'Blanch P & Gabbett TJ (2016) Br J Sports Med'];
-      } else if (lower.includes('creatina') || lower.includes('suplemento')) {
-        responseText = `A saturação de fosfocreatina intramuscular via monohidrato de creatina é a intervenção ergogênica mais respaldada na literatura. O protocolo de manutenção contínua de 3 a 5 g/dia (ou 0.05 g/kg/dia) atinge saturação em 3 a 4 semanas com menor desconforto gastrointestinal em relação à fase de carga tradicional (20 g/dia por 5 dias).`;
-        citations = ['Kreider RB et al. (2017) J Int Soc Sports Nutr', 'Rawson ES & Volek JS (2003) J Strength Cond Res'];
-      } else if (lower.includes('sono') || lower.includes('recuperação') || lower.includes('hrv')) {
-        const hrvVal = latestSleep?.nocturnalHrvRmsddMs?.value || 62;
-        responseText = `Seu HRV noturno rMSSD recente foi aferido em ${hrvVal} ms com score de prontidão em ${glRecoveryScore.result?.score || 82}%. A literatura de Plews et al. (2013) demonstra que variações superiores a 1 desvio-padrão abaixo da sua linha de base de 7 dias justificam modulação na intensidade do mesociclo.`;
-        citations = ['Plews DJ et al. (2013) Sports Med', 'Buchheit M (2014) Front Physiol'];
-      } else {
-        const bmrVal = bmrCalculation.result?.bmrKcal || 1850;
-        responseText = `Analisando seu perfil registrado: TMB calculada em ${bmrVal} kcal/dia (Katch-McArdle / Cunningham). Para hipertrofia muscular esquelética com acúmulo adiposo minimizado, Morton et al. (2018) recomendam aporte proteico diário entre 1.6 e 2.2 g/kg/dia, distribuídos em 3 a 5 refeições equidistantes com &ge; 0.4 g/kg de proteína de alto valor biológico por refeição.`;
-        citations = ['Morton RW et al. (2018) Br J Sports Med', 'Schoenfeld BJ & Aragon AA (2018) J Int Soc Sports Nutr'];
-      }
+      const result = await GymLabsService.getInstance().queryIntelligence({
+        question: userText.trim(),
+        athleteContext,
+        domain: 'performance_science',
+        language: 'pt',
+      });
 
       const assistantMsg: ChatMessage = {
         id: `asst-${Date.now()}`,
         sender: 'assistant',
-        timestamp: new Date().toISOString(),
-        text: responseText,
-        citations,
-        uncertaintyDeclared: 'Resumo biomecânico gerado a partir de correlações determinísticas dos parâmetros registrados.',
-        clinicalDisclaimer: 'Diretriz estritamente informativa baseada em literatura científica.',
+        timestamp: result.timestamp || new Date().toISOString(),
+        text: result.response,
+        citations: result.citations || [],
+        uncertaintyDeclared: result.limitations || 'Resumo biomecânico gerado a partir de correlações determinísticas dos parâmetros registrados.',
+        clinicalDisclaimer: result.disclaimer || 'Diretriz estritamente informativa baseada em literatura científica.',
       };
 
       setMessages((prev) => [...prev, assistantMsg]);
+    } catch {
+      const fallbackMsg: ChatMessage = {
+        id: `asst-${Date.now()}`,
+        sender: 'assistant',
+        timestamp: new Date().toISOString(),
+        text: 'Não foi possível completar a síntese no momento. O motor determinístico de regras permanece ativo localmente.',
+        citations: ['Gabbett TJ (2016)', 'Mifflin MD (1990)'],
+        clinicalDisclaimer: 'Diretriz informativa.',
+      };
+      setMessages((prev) => [...prev, fallbackMsg]);
+    } finally {
       setIsLoading(false);
-    }, 600);
+    }
   };
 
   return (

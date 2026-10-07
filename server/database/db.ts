@@ -26,6 +26,9 @@ export interface UserDatabasePartition {
   body: any[];
   auditLogs: any[];
   vault: Record<string, string>;
+  relationships?: any[];
+  invitations?: any[];
+  messages?: any[];
 }
 
 const DATA_DIR = path.join(process.cwd(), 'data_store');
