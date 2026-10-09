@@ -86,6 +86,14 @@ export class UserRepository implements IUserRepository {
       }
     }
 
+    // Se for acesso direto por email sem senha (acesso a conta de demonstração/DEMO)
+    if (credentials.email && !credentials.password) {
+      const localCheck = this.localStore.login(credentials);
+      if (localCheck.success && this.localStore.getIdentity().isDemo) {
+        return localCheck;
+      }
+    }
+
     // Se for login por accountId (troca de perfil rápido local)
     if (credentials.accountId) {
       const savedAccounts = this.localStore.getSavedAccounts();

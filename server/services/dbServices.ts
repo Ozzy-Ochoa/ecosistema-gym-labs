@@ -94,7 +94,10 @@ export const dbServices = {
   },
 
   async createWorkoutSession(sessionData: typeof workoutSessions.$inferInsert) {
-    const inserted = await db.insert(workoutSessions).values(sessionData).returning();
+    const inserted = await db.insert(workoutSessions).values({
+      ...sessionData,
+      exercisesJson: sessionData.exercisesJson || [],
+    }).returning();
     return inserted[0];
   },
 

@@ -52,23 +52,23 @@ export class UserRepository {
         updatedAt: now,
       });
 
-      // Profile inicial
+      // Profile inicial (obrigatório para consistência da identidade)
       await tx.insert(profiles).values({
         id: `prf-${dto.id}`,
         userId: dto.id,
         provenanceType: dto.isDemo ? 'DEMO' : 'REAL',
         createdAt: now,
         updatedAt: now,
-      }).catch(() => {});
+      });
 
-      // Atribuir papel padrão
+      // Atribuir papel padrão (obrigatório para controle de acesso RBAC)
       const roleName = (dto.role || 'USER').toUpperCase();
       await tx.insert(userRoles).values({
         id: `ur-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
         userId: dto.id,
         roleName: ['USER', 'COACH', 'NUTRITIONIST', 'GYM', 'ADMIN'].includes(roleName) ? roleName : 'USER',
         assignedAt: now,
-      }).catch(() => {});
+      });
 
       const created = await tx
         .select()

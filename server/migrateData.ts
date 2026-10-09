@@ -13,16 +13,27 @@ async function runDataMigration() {
   }
 
   console.log('Iniciando migração idempotente de partições locais para o PostgreSQL...');
-  const summary = await runLocalToPostgresMigration();
-  console.log('✓ Resumo da migração de dados legados:');
-  console.log(JSON.stringify(summary, null, 2));
+  try {
+    const summary = await runLocalToPostgresMigration();
+    console.log('\n--- RESUMO DA MIGRAÇÃO DE DADOS LEGADOS ---');
+    console.log(`Registros Encontrados: ${summary.recordsFound}`);
+    console.log(`Registros Migrados:    ${summary.recordsMigrated}`);
+    console.log(`Registros Ignorados:   ${summary.recordsSkipped}`);
+    console.log(`Registros Falhados:    ${summary.recordsFailed}`);
 
-  if (summary.recordsFailed > 0) {
-    console.warn(`Atenção: ${summary.recordsFailed} registros falharam durante a migração.`);
-    process.exit(1);
+    if (summary.recordsFailed > 0 || summary.errors.length > 0) {
+      console.error('\n✗ ERROS NA MIGRAÇÃO:');
+      summary.errors.forEach((err, idx) => console.error(`  [${idx + 1}] ${err}`));
+      process.exit(1);
+    }
+
+    console.log('\n✓ Migração de dados legados concluída com sucesso!');
+    process.exit(0);
+  } finally {
+    try {
+      await pool.end();
+    } catch {}
   }
-
-  process.exit(0);
 }
 
 runDataMigration().catch((err) => {

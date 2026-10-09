@@ -12,6 +12,7 @@ import {
   circumferences,
   relationships,
   invitations,
+  conversations,
   messages,
   auditEvents,
 } from './schema.ts';
@@ -34,6 +35,7 @@ export interface MigrationSummary {
     circumferences: number;
     relationships: number;
     invitations: number;
+    conversations: number;
     messages: number;
     auditEvents: number;
   };
@@ -57,6 +59,7 @@ export async function runLocalToPostgresMigration(): Promise<MigrationSummary> {
       circumferences: 0,
       relationships: 0,
       invitations: 0,
+      conversations: 0,
       messages: 0,
       auditEvents: 0,
     },
@@ -65,7 +68,6 @@ export async function runLocalToPostgresMigration(): Promise<MigrationSummary> {
 
   try {
     const userIndex = readUsersIndex();
-    summary.recordsFound += userIndex.length;
 
     for (const indexEntry of userIndex) {
       try {
@@ -77,9 +79,29 @@ export async function runLocalToPostgresMigration(): Promise<MigrationSummary> {
 
         const u = partition.user;
 
-        // Migração transacional por partição de usuário para evitar estados parciais inconsistentes
+        // Buffers locais para contagem pós-confirmação real da transação
+        const pendingCounts = {
+          users: 0,
+          profiles: 0,
+          roles: 0,
+          workouts: 0,
+          meals: 0,
+          sleep: 0,
+          bodyRecords: 0,
+          circumferences: 0,
+          relationships: 0,
+          invitations: 0,
+          conversations: 0,
+          messages: 0,
+          auditEvents: 0,
+        };
+        let pendingMigrated = 0;
+        let pendingSkipped = 0;
+        let pendingFound = 1; // O próprio usuário
+
+        // Migração transacional ACID por partição de usuário
         await db.transaction(async (tx) => {
-          // 1. Migrar Usuário (Upsert idempotente)
+          // 1. Migrar Usuário (Idempotente, sem sobrescrever registros PostgreSQL existentes)
           const existingUser = await tx.select().from(users).where(eq(users.id, u.id)).limit(1);
           if (existingUser.length === 0) {
             await tx.insert(users).values({
@@ -100,42 +122,53 @@ export async function runLocalToPostgresMigration(): Promise<MigrationSummary> {
               createdAt: u.createdAt ? new Date(u.createdAt) : new Date(),
               updatedAt: u.updatedAt ? new Date(u.updatedAt) : new Date(),
             });
-            summary.recordsMigrated++;
-            summary.details.users++;
+            pendingMigrated++;
+            pendingCounts.users++;
+          } else {
+            pendingSkipped++;
+          }
 
-            // 2. Perfil Inicial
+          // 2. Perfil Inicial (garante integridade referencial mesmo para usuários preexistentes)
+          const existingProfile = await tx.select().from(profiles).where(eq(profiles.userId, u.id)).limit(1);
+          if (existingProfile.length === 0) {
             await tx.insert(profiles).values({
               id: `prf-${u.id}`,
               userId: u.id,
               provenanceType: u.isDemo ? 'DEMO' : 'REAL',
               createdAt: new Date(),
               updatedAt: new Date(),
-            }).catch(() => {});
-            summary.recordsMigrated++;
-            summary.details.profiles++;
+            });
+            pendingMigrated++;
+            pendingCounts.profiles++;
+          } else {
+            pendingSkipped++;
+          }
 
-            // 3. Papel de Acesso (RBAC)
+          // 3. Papel de Acesso (RBAC obrigatório para usuário completo)
+          const existingRoles = await tx.select().from(userRoles).where(eq(userRoles.userId, u.id)).limit(1);
+          if (existingRoles.length === 0) {
             const roleName = (u.role || 'USER').toUpperCase();
             await tx.insert(userRoles).values({
-              id: `ur-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+              id: `ur-${u.id}-${Date.now()}`,
               userId: u.id,
               roleName: ['USER', 'COACH', 'NUTRITIONIST', 'GYM', 'ADMIN'].includes(roleName) ? roleName : 'USER',
               assignedAt: new Date(),
-            }).catch(() => {});
-            summary.recordsMigrated++;
-            summary.details.roles++;
+            });
+            pendingMigrated++;
+            pendingCounts.roles++;
           } else {
-            summary.recordsSkipped++;
+            pendingSkipped++;
           }
 
           // 4. Workouts
           if (Array.isArray(partition.workouts)) {
-            summary.recordsFound += partition.workouts.length;
+            pendingFound += partition.workouts.length;
             for (const w of partition.workouts) {
-              const existingWkt = await tx.select().from(workoutSessions).where(eq(workoutSessions.id, w.id)).limit(1);
+              const wktId = w.id || `wkt-${u.id}-${w.startedAt || w.recordedAt || Date.now()}`;
+              const existingWkt = await tx.select().from(workoutSessions).where(eq(workoutSessions.id, wktId)).limit(1);
               if (existingWkt.length === 0) {
                 await tx.insert(workoutSessions).values({
-                  id: w.id || `wkt-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+                  id: wktId,
                   userId: u.id,
                   title: w.name || w.title || 'Treino Registrado',
                   startedAt: w.startedAt ? new Date(w.startedAt) : new Date(),
@@ -148,20 +181,23 @@ export async function runLocalToPostgresMigration(): Promise<MigrationSummary> {
                   provenanceType: u.isDemo ? 'DEMO' : 'REAL',
                   createdAt: w.recordedAt ? new Date(w.recordedAt) : new Date(),
                 });
-                summary.recordsMigrated++;
-                summary.details.workouts++;
+                pendingMigrated++;
+                pendingCounts.workouts++;
+              } else {
+                pendingSkipped++;
               }
             }
           }
 
           // 5. Nutrição / Meals
           if (Array.isArray(partition.nutrition)) {
-            summary.recordsFound += partition.nutrition.length;
+            pendingFound += partition.nutrition.length;
             for (const m of partition.nutrition) {
-              const existingMeal = await tx.select().from(meals).where(eq(meals.id, m.id)).limit(1);
+              const mealId = m.id || `nut-${u.id}-${m.timestamp || Date.now()}`;
+              const existingMeal = await tx.select().from(meals).where(eq(meals.id, mealId)).limit(1);
               if (existingMeal.length === 0) {
                 await tx.insert(meals).values({
-                  id: m.id || `nut-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+                  id: mealId,
                   userId: u.id,
                   name: m.name || 'Refeição',
                   consumedAt: m.timestamp ? new Date(m.timestamp) : new Date(),
@@ -173,20 +209,23 @@ export async function runLocalToPostgresMigration(): Promise<MigrationSummary> {
                   provenanceType: u.isDemo ? 'DEMO' : 'REAL',
                   createdAt: new Date(),
                 });
-                summary.recordsMigrated++;
-                summary.details.meals++;
+                pendingMigrated++;
+                pendingCounts.meals++;
+              } else {
+                pendingSkipped++;
               }
             }
           }
 
           // 6. Sono
           if (Array.isArray(partition.sleep)) {
-            summary.recordsFound += partition.sleep.length;
+            pendingFound += partition.sleep.length;
             for (const s of partition.sleep) {
-              const existingSleep = await tx.select().from(sleepSessions).where(eq(sleepSessions.id, s.id)).limit(1);
+              const sleepId = s.id || `slp-${u.id}-${s.bedtime || Date.now()}`;
+              const existingSleep = await tx.select().from(sleepSessions).where(eq(sleepSessions.id, sleepId)).limit(1);
               if (existingSleep.length === 0) {
                 await tx.insert(sleepSessions).values({
-                  id: s.id || `slp-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+                  id: sleepId,
                   userId: u.id,
                   bedtime: s.bedtime ? new Date(s.bedtime) : new Date(),
                   wakeTime: s.wakeTime ? new Date(s.wakeTime) : new Date(),
@@ -200,18 +239,20 @@ export async function runLocalToPostgresMigration(): Promise<MigrationSummary> {
                   provenanceType: u.isDemo ? 'DEMO' : 'REAL',
                   createdAt: new Date(),
                 });
-                summary.recordsMigrated++;
-                summary.details.sleep++;
+                pendingMigrated++;
+                pendingCounts.sleep++;
+              } else {
+                pendingSkipped++;
               }
             }
           }
 
-          // 7. Biometria e Antropometria (bodyRecords e circumferences)
+          // 7. Biometria e Antropometria (bodyRecords e circumferences com idempotência)
           if (Array.isArray(partition.body)) {
-            summary.recordsFound += partition.body.length;
+            pendingFound += partition.body.length;
             for (const b of partition.body) {
+              const bId = b.id || `bdy-${u.id}-${b.recordedAt || b.timestamp || Date.now()}`;
               if (b.weightKg !== undefined || b.weight !== undefined) {
-                const bId = b.id || `bdy-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
                 const existingBody = await tx.select().from(bodyRecords).where(eq(bodyRecords.id, bId)).limit(1);
                 if (existingBody.length === 0) {
                   await tx.insert(bodyRecords).values({
@@ -225,40 +266,48 @@ export async function runLocalToPostgresMigration(): Promise<MigrationSummary> {
                     recordedAt: b.recordedAt || b.timestamp ? new Date(b.recordedAt || b.timestamp) : new Date(),
                     createdAt: new Date(),
                   });
-                  summary.recordsMigrated++;
-                  summary.details.bodyRecords++;
+                  pendingMigrated++;
+                  pendingCounts.bodyRecords++;
+                } else {
+                  pendingSkipped++;
                 }
               }
 
               if (b.circumferences && typeof b.circumferences === 'object') {
-                const cId = `circ-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
-                await tx.insert(circumferences).values({
-                  id: cId,
-                  userId: u.id,
-                  waistCm: b.circumferences.waistCm ? Number(b.circumferences.waistCm) : null,
-                  hipCm: b.circumferences.hipCm ? Number(b.circumferences.hipCm) : null,
-                  chestCm: b.circumferences.chestCm ? Number(b.circumferences.chestCm) : null,
-                  armCm: b.circumferences.armCm ? Number(b.circumferences.armCm) : null,
-                  thighCm: b.circumferences.thighCm ? Number(b.circumferences.thighCm) : null,
-                  calfCm: b.circumferences.calfCm ? Number(b.circumferences.calfCm) : null,
-                  provenanceType: u.isDemo ? 'DEMO' : 'REAL',
-                  recordedAt: b.recordedAt || b.timestamp ? new Date(b.recordedAt || b.timestamp) : new Date(),
-                  createdAt: new Date(),
-                });
-                summary.recordsMigrated++;
-                summary.details.circumferences++;
+                const cId = `circ-${bId}`;
+                const existingCirc = await tx.select().from(circumferences).where(eq(circumferences.id, cId)).limit(1);
+                if (existingCirc.length === 0) {
+                  await tx.insert(circumferences).values({
+                    id: cId,
+                    userId: u.id,
+                    waistCm: b.circumferences.waistCm ? Number(b.circumferences.waistCm) : null,
+                    hipCm: b.circumferences.hipCm ? Number(b.circumferences.hipCm) : null,
+                    chestCm: b.circumferences.chestCm ? Number(b.circumferences.chestCm) : null,
+                    armCm: b.circumferences.armCm ? Number(b.circumferences.armCm) : null,
+                    thighCm: b.circumferences.thighCm ? Number(b.circumferences.thighCm) : null,
+                    calfCm: b.circumferences.calfCm ? Number(b.circumferences.calfCm) : null,
+                    provenanceType: u.isDemo ? 'DEMO' : 'REAL',
+                    recordedAt: b.recordedAt || b.timestamp ? new Date(b.recordedAt || b.timestamp) : new Date(),
+                    createdAt: new Date(),
+                  });
+                  pendingMigrated++;
+                  pendingCounts.circumferences++;
+                } else {
+                  pendingSkipped++;
+                }
               }
             }
           }
 
           // 8. Relacionamentos
           if (Array.isArray(partition.relationships)) {
-            summary.recordsFound += partition.relationships.length;
+            pendingFound += partition.relationships.length;
             for (const r of partition.relationships) {
-              const existingRel = await tx.select().from(relationships).where(eq(relationships.id, r.id)).limit(1);
+              const rId = r.id || `rel-${r.userId || u.id}-${r.professionalId || r.targetUserId || u.id}`;
+              const existingRel = await tx.select().from(relationships).where(eq(relationships.id, rId)).limit(1);
               if (existingRel.length === 0) {
                 await tx.insert(relationships).values({
-                  id: r.id || `rel-${Date.now()}`,
+                  id: rId,
                   sourceUserId: r.userId || u.id,
                   targetUserId: r.professionalId || r.targetUserId || u.id,
                   relationshipType: r.relationshipType || 'USER_PERSONAL',
@@ -275,20 +324,23 @@ export async function runLocalToPostgresMigration(): Promise<MigrationSummary> {
                   createdAt: new Date(),
                   updatedAt: new Date(),
                 });
-                summary.recordsMigrated++;
-                summary.details.relationships++;
+                pendingMigrated++;
+                pendingCounts.relationships++;
+              } else {
+                pendingSkipped++;
               }
             }
           }
 
           // 9. Convites
           if (Array.isArray(partition.invitations)) {
-            summary.recordsFound += partition.invitations.length;
+            pendingFound += partition.invitations.length;
             for (const inv of partition.invitations) {
-              const existingInv = await tx.select().from(invitations).where(eq(invitations.id, inv.id)).limit(1);
+              const invId = inv.id || `inv-${u.id}-${inv.code || inv.targetEmail || Date.now()}`;
+              const existingInv = await tx.select().from(invitations).where(eq(invitations.id, invId)).limit(1);
               if (existingInv.length === 0) {
                 await tx.insert(invitations).values({
-                  id: inv.id || `inv-${Date.now()}`,
+                  id: invId,
                   senderId: inv.senderId || u.id,
                   targetEmail: inv.targetEmail || 'atleta@gymlabs.com',
                   targetName: inv.targetName,
@@ -298,41 +350,61 @@ export async function runLocalToPostgresMigration(): Promise<MigrationSummary> {
                   notes: inv.notes,
                   createdAt: inv.createdAt ? new Date(inv.createdAt) : new Date(),
                 });
-                summary.recordsMigrated++;
-                summary.details.invitations++;
+                pendingMigrated++;
+                pendingCounts.invitations++;
+              } else {
+                pendingSkipped++;
               }
             }
           }
 
-          // 10. Mensagens
+          // 10. Mensagens e Conversas (Garantir integridade referencial de chave estrangeira)
           if (Array.isArray(partition.messages)) {
-            summary.recordsFound += partition.messages.length;
+            pendingFound += partition.messages.length;
             for (const msg of partition.messages) {
-              const existingMsg = await tx.select().from(messages).where(eq(messages.id, msg.id)).limit(1);
+              const convId = msg.conversationId || `conv_default_${u.id}`;
+              const existingConv = await tx.select().from(conversations).where(eq(conversations.id, convId)).limit(1);
+              if (existingConv.length === 0) {
+                await tx.insert(conversations).values({
+                  id: convId,
+                  type: 'DIRECT',
+                  studentContextId: u.id,
+                  createdAt: msg.timestamp ? new Date(msg.timestamp) : new Date(),
+                  updatedAt: new Date(),
+                });
+                pendingMigrated++;
+                pendingCounts.conversations++;
+              }
+
+              const msgId = msg.id || `msg-${convId}-${msg.timestamp || Date.now()}`;
+              const existingMsg = await tx.select().from(messages).where(eq(messages.id, msgId)).limit(1);
               if (existingMsg.length === 0) {
                 await tx.insert(messages).values({
-                  id: msg.id || `msg-${Date.now()}`,
-                  conversationId: msg.conversationId || 'conv_default',
+                  id: msgId,
+                  conversationId: convId,
                   senderId: msg.senderId || u.id,
                   recipientId: msg.receiverId || u.id,
                   content: msg.text || msg.content || '',
                   read: Boolean(msg.read),
                   createdAt: msg.timestamp ? new Date(msg.timestamp) : new Date(),
                 });
-                summary.recordsMigrated++;
-                summary.details.messages++;
+                pendingMigrated++;
+                pendingCounts.messages++;
+              } else {
+                pendingSkipped++;
               }
             }
           }
 
           // 11. Trilha de Auditoria Histórica
           if (Array.isArray(partition.auditLogs)) {
-            summary.recordsFound += partition.auditLogs.length;
+            pendingFound += partition.auditLogs.length;
             for (const aud of partition.auditLogs) {
-              const existingAud = await tx.select().from(auditEvents).where(eq(auditEvents.id, aud.id)).limit(1);
+              const audId = aud.id || `aud-${u.id}-${aud.timestamp || aud.recordedAt || Date.now()}`;
+              const existingAud = await tx.select().from(auditEvents).where(eq(auditEvents.id, audId)).limit(1);
               if (existingAud.length === 0) {
                 await tx.insert(auditEvents).values({
-                  id: aud.id || `aud-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+                  id: audId,
                   userId: u.id,
                   eventType: aud.eventType || 'LEGACY_LOG',
                   resourceId: aud.resourceId || null,
@@ -341,15 +413,28 @@ export async function runLocalToPostgresMigration(): Promise<MigrationSummary> {
                   chainHash: aud.chainHash || 'LEGACY_MIGRATION_CHAIN_HASH',
                   recordedAt: aud.timestamp ? new Date(aud.timestamp) : new Date(),
                 });
-                summary.recordsMigrated++;
-                summary.details.auditEvents++;
+                pendingMigrated++;
+                pendingCounts.auditEvents++;
+              } else {
+                pendingSkipped++;
               }
             }
           }
         });
+
+        // Contabiliza com precisão SOMENTE após a transação ser concluída e validada
+        summary.recordsFound += pendingFound;
+        summary.recordsMigrated += pendingMigrated;
+        summary.recordsSkipped += pendingSkipped;
+        for (const [key, val] of Object.entries(pendingCounts)) {
+          (summary.details as any)[key] = ((summary.details as any)[key] || 0) + val;
+        }
       } catch (err: any) {
+        // Se a transação falhou e sofreu rollback, nenhum registro pendente é contabilizado como migrado!
         summary.recordsFailed++;
-        summary.errors.push(`User partition error for ${indexEntry.id}: ${err.message}`);
+        const safeErrMsg = String(err.message || 'Erro desconhecido')
+          .replace(/(password|token|secret|key|pin|hash)[=:][^\s,]+/gi, '$1=[REDACTED]');
+        summary.errors.push(`[USER: ${indexEntry.id}] ${safeErrMsg}`);
       }
     }
   } catch (err: any) {
