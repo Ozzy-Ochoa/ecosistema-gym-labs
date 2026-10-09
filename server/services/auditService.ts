@@ -74,20 +74,15 @@ export async function logAuditEvent(
 
 /**
  * Consulta trilha de auditoria oficial do PostgreSQL
+ * Não recorre silenciosamente ao JSON legado para mascarar falhas do banco oficial
  */
 export async function getUserAuditLogs(userId: string): Promise<AuditLogEntry[]> {
-  try {
-    const pgEvents = await AuditRepository.getEvents(userId, 500);
-    return pgEvents.map((e) => ({
-      id: e.id,
-      userId: e.userId,
-      eventType: e.eventType,
-      timestamp: e.recordedAt.toISOString(),
-      metadata: (e.detailsJson as any) || {},
-    }));
-  } catch {
-    // Fallback de contingência caso o banco esteja indisponível
-    const partition = readUserPartition(userId);
-    return (partition?.auditLogs as any) || [];
-  }
+  const pgEvents = await AuditRepository.getEvents(userId, 500);
+  return pgEvents.map((e) => ({
+    id: e.id,
+    userId: e.userId,
+    eventType: e.eventType,
+    timestamp: e.recordedAt.toISOString(),
+    metadata: (e.detailsJson as any) || {},
+  }));
 }

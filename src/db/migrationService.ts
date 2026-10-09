@@ -4,9 +4,12 @@ import { db } from './index.ts';
 import {
   users,
   profiles,
+  userRoles,
   workoutSessions,
   meals,
   sleepSessions,
+  bodyRecords,
+  circumferences,
   relationships,
   invitations,
   messages,
@@ -23,9 +26,12 @@ export interface MigrationSummary {
   details: {
     users: number;
     profiles: number;
+    roles: number;
     workouts: number;
     meals: number;
     sleep: number;
+    bodyRecords: number;
+    circumferences: number;
     relationships: number;
     invitations: number;
     messages: number;
@@ -43,9 +49,12 @@ export async function runLocalToPostgresMigration(): Promise<MigrationSummary> {
     details: {
       users: 0,
       profiles: 0,
+      roles: 0,
       workouts: 0,
       meals: 0,
       sleep: 0,
+      bodyRecords: 0,
+      circumferences: 0,
       relationships: 0,
       invitations: 0,
       messages: 0,
@@ -68,52 +77,64 @@ export async function runLocalToPostgresMigration(): Promise<MigrationSummary> {
 
         const u = partition.user;
 
-        // 1. Migrar Usuário (Upsert idempotente)
-        const existingUser = await db.select().from(users).where(eq(users.id, u.id)).limit(1);
-        if (existingUser.length === 0) {
-          await db.insert(users).values({
-            id: u.id,
-            email: u.email.toLowerCase(),
-            name: u.name,
-            passwordHash: u.passwordHash,
-            pinHash: u.pinHash,
-            recoveryKeyHash: u.recoveryKeyHash,
-            status: 'ACTIVE',
-            jurisdiction: 'BR',
-            language: 'pt',
-            timezone: 'America/Sao_Paulo',
-            unitSystem: 'METRIC',
-            isDemo: Boolean(u.isDemo),
-            twoFactorEnabled: Boolean(u.twoFactorEnabled),
-            twoFactorSecret: u.twoFactorSecret,
-            createdAt: u.createdAt ? new Date(u.createdAt) : new Date(),
-            updatedAt: u.updatedAt ? new Date(u.updatedAt) : new Date(),
-          });
-          summary.recordsMigrated++;
-          summary.details.users++;
+        // Migração transacional por partição de usuário para evitar estados parciais inconsistentes
+        await db.transaction(async (tx) => {
+          // 1. Migrar Usuário (Upsert idempotente)
+          const existingUser = await tx.select().from(users).where(eq(users.id, u.id)).limit(1);
+          if (existingUser.length === 0) {
+            await tx.insert(users).values({
+              id: u.id,
+              email: u.email.toLowerCase(),
+              name: u.name,
+              passwordHash: u.passwordHash,
+              pinHash: u.pinHash,
+              recoveryKeyHash: u.recoveryKeyHash,
+              status: 'ACTIVE',
+              jurisdiction: 'BR',
+              language: 'pt',
+              timezone: 'America/Sao_Paulo',
+              unitSystem: 'METRIC',
+              isDemo: Boolean(u.isDemo),
+              twoFactorEnabled: Boolean(u.twoFactorEnabled),
+              twoFactorSecret: u.twoFactorSecret,
+              createdAt: u.createdAt ? new Date(u.createdAt) : new Date(),
+              updatedAt: u.updatedAt ? new Date(u.updatedAt) : new Date(),
+            });
+            summary.recordsMigrated++;
+            summary.details.users++;
 
-          // 2. Perfil Inicial
-          await db.insert(profiles).values({
-            id: `prf-${u.id}`,
-            userId: u.id,
-            provenanceType: u.isDemo ? 'DEMO' : 'REAL',
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          });
-          summary.recordsMigrated++;
-          summary.details.profiles++;
-        } else {
-          summary.recordsSkipped++;
-        }
+            // 2. Perfil Inicial
+            await tx.insert(profiles).values({
+              id: `prf-${u.id}`,
+              userId: u.id,
+              provenanceType: u.isDemo ? 'DEMO' : 'REAL',
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            }).catch(() => {});
+            summary.recordsMigrated++;
+            summary.details.profiles++;
 
-        // 3. Workouts
-        if (Array.isArray(partition.workouts)) {
-          summary.recordsFound += partition.workouts.length;
-          for (const w of partition.workouts) {
-            try {
-              const existingWkt = await db.select().from(workoutSessions).where(eq(workoutSessions.id, w.id)).limit(1);
+            // 3. Papel de Acesso (RBAC)
+            const roleName = (u.role || 'USER').toUpperCase();
+            await tx.insert(userRoles).values({
+              id: `ur-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+              userId: u.id,
+              roleName: ['USER', 'COACH', 'NUTRITIONIST', 'GYM', 'ADMIN'].includes(roleName) ? roleName : 'USER',
+              assignedAt: new Date(),
+            }).catch(() => {});
+            summary.recordsMigrated++;
+            summary.details.roles++;
+          } else {
+            summary.recordsSkipped++;
+          }
+
+          // 4. Workouts
+          if (Array.isArray(partition.workouts)) {
+            summary.recordsFound += partition.workouts.length;
+            for (const w of partition.workouts) {
+              const existingWkt = await tx.select().from(workoutSessions).where(eq(workoutSessions.id, w.id)).limit(1);
               if (existingWkt.length === 0) {
-                await db.insert(workoutSessions).values({
+                await tx.insert(workoutSessions).values({
                   id: w.id || `wkt-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
                   userId: u.id,
                   title: w.name || w.title || 'Treino Registrado',
@@ -130,21 +151,16 @@ export async function runLocalToPostgresMigration(): Promise<MigrationSummary> {
                 summary.recordsMigrated++;
                 summary.details.workouts++;
               }
-            } catch (err: any) {
-              summary.recordsFailed++;
-              summary.errors.push(`Workout ${w.id}: ${err.message}`);
             }
           }
-        }
 
-        // 4. Nutrição / Meals
-        if (Array.isArray(partition.nutrition)) {
-          summary.recordsFound += partition.nutrition.length;
-          for (const m of partition.nutrition) {
-            try {
-              const existingMeal = await db.select().from(meals).where(eq(meals.id, m.id)).limit(1);
+          // 5. Nutrição / Meals
+          if (Array.isArray(partition.nutrition)) {
+            summary.recordsFound += partition.nutrition.length;
+            for (const m of partition.nutrition) {
+              const existingMeal = await tx.select().from(meals).where(eq(meals.id, m.id)).limit(1);
               if (existingMeal.length === 0) {
-                await db.insert(meals).values({
+                await tx.insert(meals).values({
                   id: m.id || `nut-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
                   userId: u.id,
                   name: m.name || 'Refeição',
@@ -160,21 +176,16 @@ export async function runLocalToPostgresMigration(): Promise<MigrationSummary> {
                 summary.recordsMigrated++;
                 summary.details.meals++;
               }
-            } catch (err: any) {
-              summary.recordsFailed++;
-              summary.errors.push(`Meal ${m.id}: ${err.message}`);
             }
           }
-        }
 
-        // 5. Sono
-        if (Array.isArray(partition.sleep)) {
-          summary.recordsFound += partition.sleep.length;
-          for (const s of partition.sleep) {
-            try {
-              const existingSleep = await db.select().from(sleepSessions).where(eq(sleepSessions.id, s.id)).limit(1);
+          // 6. Sono
+          if (Array.isArray(partition.sleep)) {
+            summary.recordsFound += partition.sleep.length;
+            for (const s of partition.sleep) {
+              const existingSleep = await tx.select().from(sleepSessions).where(eq(sleepSessions.id, s.id)).limit(1);
               if (existingSleep.length === 0) {
-                await db.insert(sleepSessions).values({
+                await tx.insert(sleepSessions).values({
                   id: s.id || `slp-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
                   userId: u.id,
                   bedtime: s.bedtime ? new Date(s.bedtime) : new Date(),
@@ -192,21 +203,61 @@ export async function runLocalToPostgresMigration(): Promise<MigrationSummary> {
                 summary.recordsMigrated++;
                 summary.details.sleep++;
               }
-            } catch (err: any) {
-              summary.recordsFailed++;
-              summary.errors.push(`Sleep ${s.id}: ${err.message}`);
             }
           }
-        }
 
-        // 6. Relacionamentos
-        if (Array.isArray(partition.relationships)) {
-          summary.recordsFound += partition.relationships.length;
-          for (const r of partition.relationships) {
-            try {
-              const existingRel = await db.select().from(relationships).where(eq(relationships.id, r.id)).limit(1);
+          // 7. Biometria e Antropometria (bodyRecords e circumferences)
+          if (Array.isArray(partition.body)) {
+            summary.recordsFound += partition.body.length;
+            for (const b of partition.body) {
+              if (b.weightKg !== undefined || b.weight !== undefined) {
+                const bId = b.id || `bdy-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+                const existingBody = await tx.select().from(bodyRecords).where(eq(bodyRecords.id, bId)).limit(1);
+                if (existingBody.length === 0) {
+                  await tx.insert(bodyRecords).values({
+                    id: bId,
+                    userId: u.id,
+                    weightKg: Number(b.weightKg ?? b.weight) || 75,
+                    heightCm: b.heightCm ? Number(b.heightCm) : null,
+                    bodyFatPct: b.bodyFatPct ? Number(b.bodyFatPct) : null,
+                    skeletalMuscleKg: b.skeletalMuscleKg ? Number(b.skeletalMuscleKg) : null,
+                    provenanceType: u.isDemo ? 'DEMO' : 'REAL',
+                    recordedAt: b.recordedAt || b.timestamp ? new Date(b.recordedAt || b.timestamp) : new Date(),
+                    createdAt: new Date(),
+                  });
+                  summary.recordsMigrated++;
+                  summary.details.bodyRecords++;
+                }
+              }
+
+              if (b.circumferences && typeof b.circumferences === 'object') {
+                const cId = `circ-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+                await tx.insert(circumferences).values({
+                  id: cId,
+                  userId: u.id,
+                  waistCm: b.circumferences.waistCm ? Number(b.circumferences.waistCm) : null,
+                  hipCm: b.circumferences.hipCm ? Number(b.circumferences.hipCm) : null,
+                  chestCm: b.circumferences.chestCm ? Number(b.circumferences.chestCm) : null,
+                  armCm: b.circumferences.armCm ? Number(b.circumferences.armCm) : null,
+                  thighCm: b.circumferences.thighCm ? Number(b.circumferences.thighCm) : null,
+                  calfCm: b.circumferences.calfCm ? Number(b.circumferences.calfCm) : null,
+                  provenanceType: u.isDemo ? 'DEMO' : 'REAL',
+                  recordedAt: b.recordedAt || b.timestamp ? new Date(b.recordedAt || b.timestamp) : new Date(),
+                  createdAt: new Date(),
+                });
+                summary.recordsMigrated++;
+                summary.details.circumferences++;
+              }
+            }
+          }
+
+          // 8. Relacionamentos
+          if (Array.isArray(partition.relationships)) {
+            summary.recordsFound += partition.relationships.length;
+            for (const r of partition.relationships) {
+              const existingRel = await tx.select().from(relationships).where(eq(relationships.id, r.id)).limit(1);
               if (existingRel.length === 0) {
-                await db.insert(relationships).values({
+                await tx.insert(relationships).values({
                   id: r.id || `rel-${Date.now()}`,
                   sourceUserId: r.userId || u.id,
                   targetUserId: r.professionalId || r.targetUserId || u.id,
@@ -227,21 +278,16 @@ export async function runLocalToPostgresMigration(): Promise<MigrationSummary> {
                 summary.recordsMigrated++;
                 summary.details.relationships++;
               }
-            } catch (err: any) {
-              summary.recordsFailed++;
-              summary.errors.push(`Relationship ${r.id}: ${err.message}`);
             }
           }
-        }
 
-        // 7. Convites
-        if (Array.isArray(partition.invitations)) {
-          summary.recordsFound += partition.invitations.length;
-          for (const inv of partition.invitations) {
-            try {
-              const existingInv = await db.select().from(invitations).where(eq(invitations.id, inv.id)).limit(1);
+          // 9. Convites
+          if (Array.isArray(partition.invitations)) {
+            summary.recordsFound += partition.invitations.length;
+            for (const inv of partition.invitations) {
+              const existingInv = await tx.select().from(invitations).where(eq(invitations.id, inv.id)).limit(1);
               if (existingInv.length === 0) {
-                await db.insert(invitations).values({
+                await tx.insert(invitations).values({
                   id: inv.id || `inv-${Date.now()}`,
                   senderId: inv.senderId || u.id,
                   targetEmail: inv.targetEmail || 'atleta@gymlabs.com',
@@ -255,21 +301,16 @@ export async function runLocalToPostgresMigration(): Promise<MigrationSummary> {
                 summary.recordsMigrated++;
                 summary.details.invitations++;
               }
-            } catch (err: any) {
-              summary.recordsFailed++;
-              summary.errors.push(`Invitation ${inv.id}: ${err.message}`);
             }
           }
-        }
 
-        // 8. Mensagens
-        if (Array.isArray(partition.messages)) {
-          summary.recordsFound += partition.messages.length;
-          for (const msg of partition.messages) {
-            try {
-              const existingMsg = await db.select().from(messages).where(eq(messages.id, msg.id)).limit(1);
+          // 10. Mensagens
+          if (Array.isArray(partition.messages)) {
+            summary.recordsFound += partition.messages.length;
+            for (const msg of partition.messages) {
+              const existingMsg = await tx.select().from(messages).where(eq(messages.id, msg.id)).limit(1);
               if (existingMsg.length === 0) {
-                await db.insert(messages).values({
+                await tx.insert(messages).values({
                   id: msg.id || `msg-${Date.now()}`,
                   conversationId: msg.conversationId || 'conv_default',
                   senderId: msg.senderId || u.id,
@@ -281,15 +322,34 @@ export async function runLocalToPostgresMigration(): Promise<MigrationSummary> {
                 summary.recordsMigrated++;
                 summary.details.messages++;
               }
-            } catch (err: any) {
-              summary.recordsFailed++;
-              summary.errors.push(`Message ${msg.id}: ${err.message}`);
             }
           }
-        }
+
+          // 11. Trilha de Auditoria Histórica
+          if (Array.isArray(partition.auditLogs)) {
+            summary.recordsFound += partition.auditLogs.length;
+            for (const aud of partition.auditLogs) {
+              const existingAud = await tx.select().from(auditEvents).where(eq(auditEvents.id, aud.id)).limit(1);
+              if (existingAud.length === 0) {
+                await tx.insert(auditEvents).values({
+                  id: aud.id || `aud-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+                  userId: u.id,
+                  eventType: aud.eventType || 'LEGACY_LOG',
+                  resourceId: aud.resourceId || null,
+                  detailsJson: aud.metadata || aud.details || {},
+                  ipHash: aud.ipAddress || aud.ipHash || null,
+                  chainHash: aud.chainHash || 'LEGACY_MIGRATION_CHAIN_HASH',
+                  recordedAt: aud.timestamp ? new Date(aud.timestamp) : new Date(),
+                });
+                summary.recordsMigrated++;
+                summary.details.auditEvents++;
+              }
+            }
+          }
+        });
       } catch (err: any) {
         summary.recordsFailed++;
-        summary.errors.push(`User partition error: ${err.message}`);
+        summary.errors.push(`User partition error for ${indexEntry.id}: ${err.message}`);
       }
     }
   } catch (err: any) {

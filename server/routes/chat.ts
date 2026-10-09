@@ -127,6 +127,12 @@ router.patch('/conversations/:id/read', requireAuth, async (req: AuthenticatedRe
       message: 'Conversa marcada como lida',
     });
   } catch (err: any) {
+    if (err.message === 'FORBIDDEN_NOT_PARTICIPANT') {
+      return res.status(403).json({
+        success: false,
+        error: { code: 'FORBIDDEN', message: 'Acesso negado: o usuário não é participante desta conversa' },
+      });
+    }
     console.error('Error marking conversation read:', err);
     return res.status(500).json({
       success: false,

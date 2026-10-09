@@ -175,6 +175,11 @@ export class ChatRepository {
   }
 
   public static async markAsRead(conversationId: string, userId: string) {
+    const ok = await this.isParticipant(conversationId, userId);
+    if (!ok) {
+      throw new Error('FORBIDDEN_NOT_PARTICIPANT');
+    }
+
     const now = new Date();
     await db
       .update(messages)

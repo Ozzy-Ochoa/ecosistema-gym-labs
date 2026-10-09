@@ -72,20 +72,43 @@ export class UserRepository implements IUserRepository {
           return { success: false, error: errMsg };
         }
       } catch (err) {
-        console.warn('[UserRepository] Falha ao comunicar com backend, recorrendo ao cache local/DEMO:', err);
+        console.warn('[UserRepository] Falha ao comunicar com backend:', err);
+        // Em caso de falha de rede/backend indisponível:
+        // PERMITIR APENAS se a conta for explicitamente identificada como DEMO
+        const localCheck = this.localStore.login(credentials);
+        if (localCheck.success && this.localStore.getIdentity().isDemo) {
+          return localCheck;
+        }
+        return {
+          success: false,
+          error: 'Servidor indisponível. O acesso offline é permitido exclusivamente para contas de demonstração (DEMO).',
+        };
       }
     }
 
-    // 2. Fallback Offline / DEMO Data Store
-    return this.localStore.login(credentials);
+    // Se for login por accountId (troca de perfil rápido local)
+    if (credentials.accountId) {
+      const savedAccounts = this.localStore.getSavedAccounts();
+      const target = savedAccounts.find((a) => a.id === credentials.accountId);
+      if (target?.isDemo) {
+        return this.localStore.login(credentials);
+      }
+    }
+
+    // Contas reais não podem efetuar login offline sem autenticação confirmada no backend
+    return {
+      success: false,
+      error: 'Autenticação no servidor central necessária para contas reais. Modo offline restrito a perfis DEMO.',
+    };
   }
 
   public async register(data: RegisterUserData): Promise<{ success: boolean; error?: string; account?: SavedUserAccount }> {
     // 1. Criação no PostgreSQL via REST API (Fonte Oficial da Verdade)
+    // Contas reais NUNCA podem ser criadas apenas no armazenamento local em caso de falha de rede
     try {
       const remoteRes = await authApi.register(data);
       if (remoteRes.success && remoteRes.data) {
-        // Atualiza cache local para continuidade off-line
+        // Atualiza cache local para continuidade pós-confirmação
         const localResult = this.localStore.register(data);
         return localResult;
       } else if (remoteRes.error) {
@@ -93,11 +116,17 @@ export class UserRepository implements IUserRepository {
         return { success: false, error: errMsg };
       }
     } catch (err) {
-      console.warn('[UserRepository] Backend offline, registrando no cache local:', err);
+      console.warn('[UserRepository] Falha de comunicação com o backend durante o cadastro:', err);
+      return {
+        success: false,
+        error: 'Falha de comunicação com os servidores centrais. O cadastro de contas reais requer conexão com o backend.',
+      };
     }
 
-    // 2. Fallback offline
-    return this.localStore.register(data);
+    return {
+      success: false,
+      error: 'Não foi possível registrar a conta.',
+    };
   }
 
   public async logout(): Promise<void> {

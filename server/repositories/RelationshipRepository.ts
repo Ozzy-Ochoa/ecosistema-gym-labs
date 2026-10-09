@@ -95,6 +95,11 @@ export class RelationshipRepository {
     if (list.length === 0) return null;
 
     const rel = list[0];
+    // Validação estrita multi-tenant: apenas as partes envolvidas podem encerrar o vínculo
+    if (rel.sourceUserId !== changedByUserId && rel.targetUserId !== changedByUserId) {
+      throw new Error('FORBIDDEN_NOT_PARTY');
+    }
+
     const now = new Date();
 
     // Executa em transação para garantir integridade
@@ -292,6 +297,11 @@ export class RelationshipRepository {
     if (list.length === 0) return null;
 
     const c = list[0];
+    // Validação estrita LGPD: titular ou beneficiário do consentimento
+    if (c.userId !== revokingUserId && c.granteeId !== revokingUserId) {
+      throw new Error('FORBIDDEN_NOT_PARTY');
+    }
+
     const now = new Date();
 
     return await db.transaction(async (tx) => {

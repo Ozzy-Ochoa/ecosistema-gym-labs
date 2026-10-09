@@ -174,6 +174,12 @@ router.post('/terminate', requireAuth, async (req: AuthenticatedRequest, res: Re
       message: 'Vínculo encerrado com sucesso (status TERMINATED preservado no histórico)',
     });
   } catch (err: any) {
+    if (err.message === 'FORBIDDEN_NOT_PARTY') {
+      return res.status(403).json({
+        success: false,
+        error: { code: 'FORBIDDEN', message: 'Acesso negado: você não é participante deste relacionamento' },
+      });
+    }
     console.error('Error terminating relationship:', err);
     return res.status(500).json({
       success: false,
@@ -216,6 +222,12 @@ router.post('/consents/revoke', requireAuth, async (req: AuthenticatedRequest, r
       message: 'Consentimento revogado com sucesso. Acesso bloqueado imediatamente.',
     });
   } catch (err: any) {
+    if (err.message === 'FORBIDDEN_NOT_PARTY') {
+      return res.status(403).json({
+        success: false,
+        error: { code: 'FORBIDDEN', message: 'Acesso negado: você não é titular nem beneficiário deste consentimento' },
+      });
+    }
     console.error('Error revoking consent:', err);
     return res.status(500).json({
       success: false,

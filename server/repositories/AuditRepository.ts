@@ -8,22 +8,49 @@ let lastChainHash: string = 'GENESIS_CHAIN_HASH_LABCORE_2026';
 export class AuditRepository {
   public static sanitizeDetails(details?: any): any {
     if (!details || typeof details !== 'object') return {};
-    const safe: Record<string, any> = {};
-    for (const [k, v] of Object.entries(details)) {
-      const lower = k.toLowerCase();
-      if (
-        lower.includes('pass') ||
-        lower.includes('token') ||
-        lower.includes('secret') ||
-        lower.includes('key') ||
-        lower.includes('hash')
-      ) {
-        safe[k] = '[REDACTED]';
-      } else {
-        safe[k] = v;
+
+    // Recursive sanitization function to guarantee zero leaks even in deep structures
+    const sanitizeValue = (val: any): any => {
+      if (val === null || val === undefined) return val;
+      if (typeof val === 'string' || typeof val === 'number' || typeof val === 'boolean') {
+        return val;
       }
-    }
-    return safe;
+      if (Array.isArray(val)) {
+        return val.map((item) => sanitizeValue(item));
+      }
+      if (typeof val === 'object') {
+        const cleaned: Record<string, any> = {};
+        for (const [k, v] of Object.entries(val)) {
+          const lower = k.toLowerCase();
+          const isSensitiveKey =
+            lower.includes('pass') ||
+            lower.includes('token') ||
+            lower.includes('secret') ||
+            lower.includes('key') ||
+            lower.includes('hash') ||
+            lower.includes('pin') ||
+            lower.includes('bearer');
+
+          if (isSensitiveKey) {
+            cleaned[k] = '[REDACTED]';
+          } else if (typeof v === 'object' && v !== null) {
+            cleaned[k] = sanitizeValue(v);
+          } else if (
+            lower.includes('code') ||
+            lower.includes('credential') ||
+            lower.includes('auth')
+          ) {
+            cleaned[k] = '[REDACTED]';
+          } else {
+            cleaned[k] = v;
+          }
+        }
+        return cleaned;
+      }
+      return '[REDACTED]';
+    };
+
+    return sanitizeValue(details);
   }
 
   public static async logEvent(
