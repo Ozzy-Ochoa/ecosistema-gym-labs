@@ -5,6 +5,7 @@ import { HealthRepository } from '../repositories/HealthRepository';
 import { WorkoutRepository } from '../repositories/WorkoutRepository';
 import { NutritionRepository } from '../repositories/NutritionRepository';
 import { SleepRepository } from '../repositories/SleepRepository';
+import { RelationshipRepository } from '../repositories/RelationshipRepository';
 import { AuditRepository } from '../repositories/AuditRepository';
 import { db } from '../../src/db/index';
 import { users } from '../../src/db/schema';
@@ -97,6 +98,19 @@ router.get('/body', requireAuth, async (req: AuthenticatedRequest, res: Response
     const callerId = req.userId!;
     const targetUserId = (req.query.studentId as string) || (req.query.userId as string) || callerId;
 
+    if (targetUserId !== callerId) {
+      const rel = await RelationshipRepository.getActiveRelationship(callerId, targetUserId);
+      if (!rel || !rel.canViewBodyMetrics) {
+        return res.status(403).json({
+          success: false,
+          error: {
+            code: 'FORBIDDEN',
+            message: 'Acesso negado: permissão para visualizar métricas corporais deste usuário inexistente no relacionamento ativo',
+          },
+        });
+      }
+    }
+
     const [bodyList, circList] = await Promise.all([
       HealthRepository.getBodyRecords(targetUserId),
       HealthRepository.getCircumferences(targetUserId),
@@ -120,6 +134,19 @@ router.post('/body', requireAuth, async (req: AuthenticatedRequest, res: Respons
     const callerId = req.userId!;
     const { weightKg, heightCm, bodyFatPct, skeletalMuscleKg, circumferences: circs, studentId } = req.body;
     const targetUserId = studentId || callerId;
+
+    if (targetUserId !== callerId) {
+      const rel = await RelationshipRepository.getActiveRelationship(callerId, targetUserId);
+      if (!rel || !rel.canViewBodyMetrics) {
+        return res.status(403).json({
+          success: false,
+          error: {
+            code: 'FORBIDDEN',
+            message: 'Acesso negado: permissão para registrar métricas corporais para este usuário inexistente no relacionamento ativo',
+          },
+        });
+      }
+    }
 
     if (!weightKg) {
       return res.status(400).json({

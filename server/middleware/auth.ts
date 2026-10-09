@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
 import { SessionRepository } from '../repositories/SessionRepository';
-import { verifySessionToken } from '../services/authService';
 import { RelationshipRepository } from '../repositories/RelationshipRepository';
 import { db } from '../../src/db/index';
 import { consents } from '../../src/db/schema';
@@ -28,7 +27,7 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
 
   const token = authHeader.substring(7).trim();
 
-  // 1. Tentar validação no PostgreSQL (Sessão com hash e revogação)
+  // 1. Validação estrita no PostgreSQL (Sessão com hash, TTL e revogação em tempo real)
   try {
     const sessionData = await SessionRepository.validateSession(token);
     if (sessionData) {
@@ -37,22 +36,23 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
       return next();
     }
   } catch (err) {
-    console.warn('Session DB validation exception, attempting cryptographic fallback:', err);
+    console.error('Session DB validation exception:', err);
+    // Falha de forma segura sem conceder acesso em caso de indisponibilidade
+    return res.status(401).json({
+      success: false,
+      error: {
+        code: 'UNAUTHORIZED',
+        message: 'Falha na validação segura da sessão',
+      },
+    });
   }
 
-  // 2. Fallback de validação criptográfica (HMAC / Scrypt token)
-  const fallbackUserId = verifySessionToken(token);
-  if (fallbackUserId) {
-    req.userId = fallbackUserId;
-    req.user = { id: fallbackUserId };
-    return next();
-  }
-
+  // Nenhuma sessão válida encontrada, expirada ou revogada: rejeição estrita (sem fallback permissivo)
   return res.status(401).json({
     success: false,
     error: {
       code: 'UNAUTHORIZED',
-      message: 'Sessão expirada ou revogada',
+      message: 'Sessão expirada, inexistente ou revogada',
     },
   });
 }

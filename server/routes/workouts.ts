@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { requireAuth, authorizeResource, AuthenticatedRequest } from '../middleware/auth';
 import { WorkoutRepository } from '../repositories/WorkoutRepository';
+import { RelationshipRepository } from '../repositories/RelationshipRepository';
 import { AuditRepository } from '../repositories/AuditRepository';
 import { validateWorkoutSessionInput } from '../validators/schemaValidators';
 
@@ -42,9 +43,18 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
     const payload = req.body.workout && typeof req.body.workout === 'object' ? req.body.workout : req.body;
     const targetUserId = payload.studentId || payload.userId || callerId;
 
-    // Se estiver prescrevendo para aluno, validar autorização
+    // Se estiver prescrevendo para aluno, validar autorização multi-tenant no PostgreSQL
     if (targetUserId !== callerId) {
-      // checado via authorizeResource
+      const rel = await RelationshipRepository.getActiveRelationship(callerId, targetUserId);
+      if (!rel || (!rel.canPrescribeWorkouts && !rel.canViewWorkouts)) {
+        return res.status(403).json({
+          success: false,
+          error: {
+            code: 'FORBIDDEN',
+            message: 'Acesso negado: permissão para prescrever treinos a este aluno inexistente no relacionamento ativo',
+          },
+        });
+      }
     }
 
     const durationMinutes = Number(payload.durationMinutes) || 60;

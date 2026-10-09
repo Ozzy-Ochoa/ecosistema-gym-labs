@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { requireAuth, authorizeResource, AuthenticatedRequest } from '../middleware/auth';
 import { NutritionRepository } from '../repositories/NutritionRepository';
+import { RelationshipRepository } from '../repositories/RelationshipRepository';
 import { AuditRepository } from '../repositories/AuditRepository';
 import { validateNutritionLogInput } from '../validators/schemaValidators';
 
@@ -48,6 +49,19 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
 
     const targetUserId = req.body.studentId || req.body.userId || callerId;
 
+    if (targetUserId !== callerId) {
+      const rel = await RelationshipRepository.getActiveRelationship(callerId, targetUserId);
+      if (!rel || (!rel.canPrescribeDiet && !rel.canViewDiet)) {
+        return res.status(403).json({
+          success: false,
+          error: {
+            code: 'FORBIDDEN',
+            message: 'Acesso negado: permissão para prescrever ou registrar dieta a este aluno inexistente no relacionamento ativo',
+          },
+        });
+      }
+    }
+
     const newMeal = await NutritionRepository.createMeal({
       id: req.body.id,
       userId: targetUserId,
@@ -94,6 +108,19 @@ router.post('/hydration', requireAuth, async (req: AuthenticatedRequest, res: Re
     const callerId = req.userId!;
     const { amountMl, studentId, userId } = req.body;
     const targetUserId = studentId || userId || callerId;
+
+    if (targetUserId !== callerId) {
+      const rel = await RelationshipRepository.getActiveRelationship(callerId, targetUserId);
+      if (!rel || (!rel.canPrescribeDiet && !rel.canViewDiet)) {
+        return res.status(403).json({
+          success: false,
+          error: {
+            code: 'FORBIDDEN',
+            message: 'Acesso negado: permissão para registrar hidratação para este aluno inexistente no relacionamento ativo',
+          },
+        });
+      }
+    }
 
     if (!amountMl || Number(amountMl) <= 0) {
       return res.status(400).json({

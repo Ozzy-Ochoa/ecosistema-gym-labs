@@ -34,42 +34,49 @@ export class UserRepository {
 
   public static async createUser(dto: UserCreateDTO) {
     const now = new Date();
-    await db.insert(users).values({
-      id: dto.id,
-      email: dto.email.toLowerCase().trim(),
-      name: dto.name,
-      passwordHash: dto.passwordHash || null,
-      pinHash: dto.pinHash || null,
-      recoveryKeyHash: dto.recoveryKeyHash || null,
-      status: 'ACTIVE',
-      jurisdiction: 'BR',
-      language: 'pt',
-      timezone: 'America/Sao_Paulo',
-      unitSystem: 'METRIC',
-      isDemo: Boolean(dto.isDemo),
-      createdAt: now,
-      updatedAt: now,
+    return db.transaction(async (tx) => {
+      await tx.insert(users).values({
+        id: dto.id,
+        email: dto.email.toLowerCase().trim(),
+        name: dto.name,
+        passwordHash: dto.passwordHash || null,
+        pinHash: dto.pinHash || null,
+        recoveryKeyHash: dto.recoveryKeyHash || null,
+        status: 'ACTIVE',
+        jurisdiction: 'BR',
+        language: 'pt',
+        timezone: 'America/Sao_Paulo',
+        unitSystem: 'METRIC',
+        isDemo: Boolean(dto.isDemo),
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      // Profile inicial
+      await tx.insert(profiles).values({
+        id: `prf-${dto.id}`,
+        userId: dto.id,
+        provenanceType: dto.isDemo ? 'DEMO' : 'REAL',
+        createdAt: now,
+        updatedAt: now,
+      }).catch(() => {});
+
+      // Atribuir papel padrão
+      const roleName = (dto.role || 'USER').toUpperCase();
+      await tx.insert(userRoles).values({
+        id: `ur-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        userId: dto.id,
+        roleName: ['USER', 'COACH', 'NUTRITIONIST', 'GYM', 'ADMIN'].includes(roleName) ? roleName : 'USER',
+        assignedAt: now,
+      }).catch(() => {});
+
+      const created = await tx
+        .select()
+        .from(users)
+        .where(eq(users.id, dto.id))
+        .limit(1);
+      return created[0] || null;
     });
-
-    // Profile inicial
-    await db.insert(profiles).values({
-      id: `prf-${dto.id}`,
-      userId: dto.id,
-      provenanceType: dto.isDemo ? 'DEMO' : 'REAL',
-      createdAt: now,
-      updatedAt: now,
-    }).catch(() => {});
-
-    // Atribuir papel padrão
-    const roleName = (dto.role || 'USER').toUpperCase();
-    await db.insert(userRoles).values({
-      id: `ur-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-      userId: dto.id,
-      roleName: ['USER', 'COACH', 'NUTRITIONIST', 'GYM', 'ADMIN'].includes(roleName) ? roleName : 'USER',
-      assignedAt: now,
-    }).catch(() => {});
-
-    return this.findById(dto.id);
   }
 
   public static async updateUser(id: string, partial: Partial<typeof users.$inferInsert>) {

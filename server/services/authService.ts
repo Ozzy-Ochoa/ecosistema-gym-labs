@@ -192,6 +192,8 @@ export function decryptVaultItem(cipherText: string, ivHex: string, authTagHex: 
   }
 }
 
+let ephemeralDevSecret: string | null = null;
+
 function getSessionSecret(): string {
   if (process.env.SESSION_SECRET) {
     return process.env.SESSION_SECRET;
@@ -199,8 +201,11 @@ function getSessionSecret(): string {
   if (process.env.NODE_ENV === 'production') {
     throw new Error('FATAL SECURITY ERROR: SESSION_SECRET must be explicitly configured in production environment.');
   }
-  // Ambiente de desenvolvimento ou teste: chave transitória de desenvolvimento
-  return 'gymlabs-labcore-dev-testing-ephemeral-key-2026';
+  // Em desenvolvimento: gera segredo criptográfico efêmero aleatório em memória (sem segredo estático em código)
+  if (!ephemeralDevSecret) {
+    ephemeralDevSecret = crypto.randomBytes(32).toString('hex');
+  }
+  return ephemeralDevSecret;
 }
 
 /**

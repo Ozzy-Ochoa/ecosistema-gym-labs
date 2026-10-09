@@ -1,3 +1,4 @@
+import { AuditRepository } from '../repositories/AuditRepository';
 import { readUserPartition, writeUserPartition } from '../database/db';
 
 export type AuditEventType =
@@ -16,65 +17,77 @@ export type AuditEventType =
 export interface AuditLogEntry {
   id: string;
   userId: string;
-  eventType: AuditEventType;
-  ipAddress: string;
-  userAgent: string;
+  eventType: string;
+  ipAddress?: string;
+  userAgent?: string;
   timestamp: string;
-  status: 'SUCCESS' | 'DENIED' | 'FLAGGED';
-  metadata?: Record<string, string | number | boolean>;
+  status?: 'SUCCESS' | 'DENIED' | 'FLAGGED';
+  metadata?: Record<string, any>;
 }
 
-export function logAuditEvent(
+/**
+ * Registra evento de auditoria no PostgreSQL (Fonte Oficial e Imutável)
+ */
+export async function logAuditEvent(
   userId: string,
   eventType: AuditEventType,
   status: 'SUCCESS' | 'DENIED' | 'FLAGGED',
   reqInfo: { ip?: string; userAgent?: string },
   metadata?: Record<string, any>
-): void {
-  // Sanitize metadata to guarantee ZERO SECRETS in audit trail
-  const safeMetadata: Record<string, any> = {};
-  if (metadata) {
-    for (const [key, value] of Object.entries(metadata)) {
-      const lower = key.toLowerCase();
-      if (
-        lower.includes('pass') ||
-        lower.includes('secret') ||
-        lower.includes('key') ||
-        lower.includes('token') ||
-        lower.includes('hash') ||
-        lower.includes('code')
-      ) {
-        safeMetadata[key] = '[REDACTED_BY_AUDIT_ENCLAVE]';
-      } else {
-        safeMetadata[key] = value;
-      }
-    }
-  }
-
-  const entry: AuditLogEntry = {
-    id: `audit-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-    userId,
-    eventType,
-    ipAddress: reqInfo.ip || '127.0.0.1',
-    userAgent: reqInfo.userAgent || 'Labcore-Client',
-    timestamp: new Date().toISOString(),
+): Promise<void> {
+  const safeDetails = {
     status,
-    metadata: safeMetadata,
+    ...(metadata || {}),
   };
 
-  const partition = readUserPartition(userId);
-  if (partition) {
-    if (!partition.auditLogs) partition.auditLogs = [];
-    partition.auditLogs.unshift(entry);
-    // Keep last 500 audit logs per tenant
-    if (partition.auditLogs.length > 500) {
-      partition.auditLogs = partition.auditLogs.slice(0, 500);
+  // 1. Gravação oficial no PostgreSQL
+  await AuditRepository.logEvent(
+    userId,
+    eventType,
+    undefined,
+    safeDetails,
+    reqInfo
+  );
+
+  // 2. Cache local não-bloqueante apenas para compatibilidade
+  try {
+    const partition = readUserPartition(userId);
+    if (partition) {
+      if (!partition.auditLogs) partition.auditLogs = [];
+      partition.auditLogs.unshift({
+        id: `audit-${Date.now()}`,
+        userId,
+        eventType,
+        ipAddress: reqInfo?.ip || '127.0.0.1',
+        userAgent: reqInfo?.userAgent || 'Labcore-Client',
+        timestamp: new Date().toISOString(),
+        status,
+        metadata: AuditRepository.sanitizeDetails(safeDetails),
+      });
+      if (partition.auditLogs.length > 500) {
+        partition.auditLogs = partition.auditLogs.slice(0, 500);
+      }
+      writeUserPartition(userId, partition);
     }
-    writeUserPartition(userId, partition);
-  }
+  } catch {}
 }
 
-export function getUserAuditLogs(userId: string): AuditLogEntry[] {
-  const partition = readUserPartition(userId);
-  return partition?.auditLogs || [];
+/**
+ * Consulta trilha de auditoria oficial do PostgreSQL
+ */
+export async function getUserAuditLogs(userId: string): Promise<AuditLogEntry[]> {
+  try {
+    const pgEvents = await AuditRepository.getEvents(userId, 500);
+    return pgEvents.map((e) => ({
+      id: e.id,
+      userId: e.userId,
+      eventType: e.eventType,
+      timestamp: e.recordedAt.toISOString(),
+      metadata: (e.detailsJson as any) || {},
+    }));
+  } catch {
+    // Fallback de contingência caso o banco esteja indisponível
+    const partition = readUserPartition(userId);
+    return (partition?.auditLogs as any) || [];
+  }
 }

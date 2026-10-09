@@ -34,12 +34,12 @@ export async function getAuthenticatedUserId(req: Request): Promise<string | nul
   const token = getAuthenticatedToken(req);
   if (!token) return null;
 
-  // 1. PostgreSQL Session
+  // Validação estrita no PostgreSQL (Sessão com hash e checagem de revogação)
   const session = await SessionRepository.validateSession(token);
   if (session) return session.userId;
 
-  // 2. Cryptographic Fallback
-  return verifySessionToken(token);
+  // Sem fallback permissivo: se não existe ou foi revogada, retorna null
+  return null;
 }
 
 // 1. Register Athlete / Operator
@@ -139,6 +139,7 @@ router.post('/register', async (req: Request, res: Response) => {
     return res.status(201).json({
       success: true,
       message: 'Atleta inicializado com sucesso no enclave com KDF scrypt',
+      token: sessionToken,
       sessionToken,
       recoveryKey: plainTextKey,
       user: {
@@ -262,6 +263,7 @@ router.post('/login', authRateLimiter, async (req: Request, res: Response) => {
     return res.json({
       success: true,
       message: 'Sessão do enclave estabelecida',
+      token: sessionToken,
       sessionToken,
       user: {
         id: user.id,
@@ -463,6 +465,9 @@ router.post('/recover', async (req: Request, res: Response) => {
     passwordHash: newHash,
     recoveryKeyHash: newRecoveryHash,
   });
+
+  // Revoga todas as sessões anteriores para garantir segurança após redefinição de credencial
+  await SessionRepository.revokeAllForUser(user.id);
 
   await AuditRepository.logEvent(user.id, 'AUTH_PASSWORD_RESET', user.id, { method: 'RECOVERY_KEY' }, {
     ip: req.ip,

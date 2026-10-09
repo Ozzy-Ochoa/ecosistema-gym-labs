@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { requireAuth, authorizeResource, AuthenticatedRequest } from '../middleware/auth';
 import { SleepRepository } from '../repositories/SleepRepository';
 import { WorkoutRepository } from '../repositories/WorkoutRepository';
+import { RelationshipRepository } from '../repositories/RelationshipRepository';
 import { AuditRepository } from '../repositories/AuditRepository';
 import { validateSleepLogInput } from '../validators/schemaValidators';
 
@@ -45,6 +46,19 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
     }
 
     const targetUserId = req.body.studentId || req.body.userId || callerId;
+
+    if (targetUserId !== callerId) {
+      const rel = await RelationshipRepository.getActiveRelationship(callerId, targetUserId);
+      if (!rel || !rel.canViewHydrationSleep) {
+        return res.status(403).json({
+          success: false,
+          error: {
+            code: 'FORBIDDEN',
+            message: 'Acesso negado: permissão para registrar telemetria de sono para este usuário inexistente no relacionamento ativo',
+          },
+        });
+      }
+    }
 
     const durationMinutes = Number(req.body.durationMinutes) || 450;
     const efficiencyPct = Number(req.body.efficiencyPct) || 88;
