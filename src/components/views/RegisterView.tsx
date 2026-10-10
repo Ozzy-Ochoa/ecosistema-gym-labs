@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { useGymLabs } from '../../context/GymLabsContext';
 import { UserRole } from '../../types/user';
 import {
@@ -22,6 +22,7 @@ import {
   Heart,
   Droplets,
   Info,
+  Calendar,
 } from 'lucide-react';
 
 export const RegisterView: React.FC = () => {
@@ -55,6 +56,43 @@ export const RegisterView: React.FC = () => {
   // Mandatory Biometrics for Conventional User (Athlete)
   const [biologicalSex, setBiologicalSex] = useState<'MALE' | 'FEMALE' | ''>('');
   const [dateOfBirth, setDateOfBirth] = useState<string>('');
+  const [dobDisplay, setDobDisplay] = useState<string>('');
+  const datePickerRef = useRef<HTMLInputElement>(null);
+
+  const handleDobTextChange = (raw: string) => {
+    const digits = raw.replace(/\D/g, '').slice(0, 8);
+    let formatted = digits;
+    if (digits.length > 2 && digits.length <= 4) {
+      formatted = `${digits.slice(0, 2)}/${digits.slice(2)}`;
+    } else if (digits.length > 4) {
+      formatted = `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+    }
+    setDobDisplay(formatted);
+
+    if (digits.length === 8) {
+      const d = parseInt(digits.slice(0, 2), 10);
+      const m = parseInt(digits.slice(2, 4), 10);
+      const y = parseInt(digits.slice(4, 8), 10);
+      const currentYear = new Date().getFullYear();
+
+      if (d >= 1 && d <= 31 && m >= 1 && m <= 12 && y >= 1900 && y <= currentYear) {
+        const iso = `${y.toString().padStart(4, '0')}-${m.toString().padStart(2, '0')}-${d.toString().padStart(2, '0')}`;
+        setDateOfBirth(iso);
+        return;
+      }
+    }
+    setDateOfBirth('');
+  };
+
+  const handleDatePickerChange = (isoValue: string) => {
+    setDateOfBirth(isoValue);
+    if (isoValue && isoValue.includes('-')) {
+      const [y, m, d] = isoValue.split('-');
+      setDobDisplay(`${d}/${m}/${y}`);
+    } else {
+      setDobDisplay('');
+    }
+  };
   const [weightKg, setWeightKg] = useState<string>('');
   const [heightCm, setHeightCm] = useState<string>('');
   const [activityLevel, setActivityLevel] = useState<
@@ -678,19 +716,65 @@ export const RegisterView: React.FC = () => {
 
                 {/* Date of Birth */}
                 <div>
-                  <label className="block text-zinc-300 uppercase text-[10px] mb-1 font-bold">
-                    Data de Nascimento * <span className="text-[9px] text-zinc-500 font-sans">(Idade & FC Máx)</span>
+                  <label className="block text-zinc-300 uppercase text-[10px] mb-1 font-bold flex items-center justify-between">
+                    <span>
+                      Data de Nascimento * <span className="text-[9px] text-zinc-500 font-sans">(Idade & FC Máx)</span>
+                    </span>
+                    <span className="text-[9px] text-zinc-400 font-mono">DD/MM/AAAA</span>
                   </label>
-                  <input
-                    type="date"
-                    required
-                    value={dateOfBirth}
-                    onChange={(e) => setDateOfBirth(e.target.value)}
-                    className="w-full px-3 py-2 bg-black border border-zinc-700 text-white focus:border-white outline-none text-xs font-mono"
-                  />
-                  {calculatedBaselines && (
-                    <span className="text-[10px] text-zinc-400 font-sans mt-0.5 block">
+                  <div className="relative flex items-center">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      required
+                      placeholder="DD/MM/AAAA (ex: 20/05/1998)"
+                      maxLength={10}
+                      value={dobDisplay}
+                      onChange={(e) => handleDobTextChange(e.target.value)}
+                      className="w-full pl-3 pr-10 py-2.5 bg-black border border-zinc-700 text-white focus:border-white outline-none text-xs font-mono placeholder:text-zinc-600"
+                    />
+                    {/* Hidden native date picker accessible via calendar button */}
+                    <input
+                      ref={datePickerRef}
+                      type="date"
+                      tabIndex={-1}
+                      max={new Date().toISOString().split('T')[0]}
+                      min="1900-01-01"
+                      value={dateOfBirth}
+                      onChange={(e) => handleDatePickerChange(e.target.value)}
+                      className="absolute right-2 opacity-0 w-6 h-6 pointer-events-none"
+                      style={{ colorScheme: 'dark' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        try {
+                          if (datePickerRef.current && 'showPicker' in datePickerRef.current) {
+                            (datePickerRef.current as any).showPicker();
+                          } else {
+                            datePickerRef.current?.focus();
+                          }
+                        } catch {
+                          datePickerRef.current?.focus();
+                        }
+                      }}
+                      className="absolute right-2 p-1 text-zinc-400 hover:text-white transition-colors cursor-pointer"
+                      title="Abrir calendário para selecionar"
+                    >
+                      <Calendar className="w-4 h-4" />
+                    </button>
+                  </div>
+                  {calculatedBaselines ? (
+                    <span className="text-[10px] text-emerald-400 font-sans mt-1 block">
                       Idade calculada: <strong>{calculatedBaselines.age} anos</strong>
+                    </span>
+                  ) : dobDisplay.length === 10 && !dateOfBirth ? (
+                    <span className="text-[10px] text-red-400 font-sans mt-1 block">
+                      Data inválida. Digite uma data real entre 1900 e hoje.
+                    </span>
+                  ) : (
+                    <span className="text-[9px] text-zinc-500 font-sans mt-0.5 block">
+                      Digite os dígitos diretamente ou selecione no calendário.
                     </span>
                   )}
                 </div>

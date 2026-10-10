@@ -249,7 +249,7 @@ export const TrainingView: React.FC = () => {
                   </span>
                 </div>
                 <div className="text-[11px] text-zinc-400 font-mono">
-                  Prescrito por: <strong className="text-white">{activePrescribedWorkoutPlan.authorName}</strong> (CREF) • {activePrescribedWorkoutPlan.title} (v{activePrescribedWorkoutPlan.version})
+                  Prescrito por: <strong className="text-white">{activePrescribedWorkoutPlan.authorName || 'Personal Trainer'}</strong> (CREF) • {activePrescribedWorkoutPlan.title || 'Plano de Treino'} (v{activePrescribedWorkoutPlan.version || '1.0'})
                 </div>
               </div>
             </div>
@@ -258,25 +258,27 @@ export const TrainingView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => {
-                  const sess = activePrescribedWorkoutPlan.sessions[activePrescribedSessionIdx] || activePrescribedWorkoutPlan.sessions[0];
+                  const sessions = activePrescribedWorkoutPlan?.sessions || [];
+                  const safeIdx = Math.min(activePrescribedSessionIdx, Math.max(0, sessions.length - 1));
+                  const sess = sessions[safeIdx] || sessions[0];
                   if (sess) {
                     const runnerSess: UserRoutineSession = {
-                      id: sess.id,
-                      splitLetter: sess.splitLetter,
-                      name: sess.name,
+                      id: sess.id || `pt-sess-${safeIdx}`,
+                      splitLetter: sess.splitLetter || String.fromCharCode(65 + safeIdx),
+                      name: sess.name || `Treino ${sess.splitLetter || safeIdx + 1}`,
                       daysOfWeek: [1],
                       targetMuscles: sess.targetMuscles || ['Geral'],
                       estimatedDurationMinutes: sess.estimatedDurationMinutes || 60,
-                      exercises: sess.exercises.map((ex, i) => ({
-                        id: ex.id || `pt-ex-${i}`,
-                        exerciseId: ex.exerciseId,
-                        exerciseName: ex.exerciseName,
-                        muscleGroup: ex.muscleGroup,
-                        sets: ex.sets,
-                        repsTarget: ex.reps,
-                        loadKgTarget: ex.loadKg,
-                        restSeconds: ex.restSeconds || 60,
-                        notes: ex.notes,
+                      exercises: (sess.exercises || []).map((ex, i) => ({
+                        id: ex?.id || `pt-ex-${i}`,
+                        exerciseId: ex?.exerciseId || `ex-${i}`,
+                        exerciseName: ex?.exerciseName || 'Exercício',
+                        muscleGroup: ex?.muscleGroup || 'Geral',
+                        sets: ex?.sets || 3,
+                        repsTarget: ex?.reps || '10',
+                        loadKgTarget: ex?.loadKg,
+                        restSeconds: ex?.restSeconds || 60,
+                        notes: ex?.notes,
                       })),
                     };
                     setActiveRunnerSession(runnerSess);
@@ -305,9 +307,9 @@ export const TrainingView: React.FC = () => {
 
           {/* Sessions Selector Tabs */}
           <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-1">
-            {activePrescribedWorkoutPlan.sessions.map((sess, idx) => (
+            {(activePrescribedWorkoutPlan?.sessions || []).map((sess, idx) => (
               <button
-                key={sess.id}
+                key={sess?.id || idx}
                 type="button"
                 onClick={() => setActivePrescribedSessionIdx(idx)}
                 className={`px-3 py-1.5 text-xs font-bold uppercase border transition-colors shrink-0 flex items-center gap-1.5 cursor-pointer ${
@@ -316,38 +318,42 @@ export const TrainingView: React.FC = () => {
                     : 'bg-black text-zinc-400 border-zinc-800 hover:text-white'
                 }`}
               >
-                <span>{sess.splitLetter}:</span>
-                <span className="truncate max-w-[180px]">{sess.name.replace(/Treino [A-Z]: /, '')}</span>
+                <span>{sess?.splitLetter || String.fromCharCode(65 + idx)}:</span>
+                <span className="truncate max-w-[180px]">{(sess?.name || '').replace(/Treino [A-Z]: /, '')}</span>
               </button>
             ))}
           </div>
 
           {/* Current Session Prescribed Exercises */}
           {(() => {
-            const currentSess = activePrescribedWorkoutPlan.sessions[activePrescribedSessionIdx] || activePrescribedWorkoutPlan.sessions[0];
+            const sessions = activePrescribedWorkoutPlan?.sessions || [];
+            const safeIdx = Math.min(activePrescribedSessionIdx, Math.max(0, sessions.length - 1));
+            const currentSess = sessions[safeIdx] || sessions[0];
             if (!currentSess) return null;
+            const exercises = currentSess.exercises || [];
+
             return (
               <div className="space-y-3">
                 <div className="text-[11px] text-zinc-400 font-mono flex items-center justify-between">
-                  <span>{currentSess.name} • Duração estimada: {currentSess.estimatedDurationMinutes} min</span>
-                  <span className="text-zinc-500">{currentSess.exercises.length} exercícios</span>
+                  <span>{currentSess.name} • Duração estimada: {currentSess.estimatedDurationMinutes || 60} min</span>
+                  <span className="text-zinc-500">{exercises.length} exercícios</span>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {currentSess.exercises.map((ex, i) => (
-                    <div key={ex.id || i} className="p-3 bg-black border border-zinc-900 space-y-1 text-xs">
+                  {exercises.map((ex, i) => (
+                    <div key={ex?.id || i} className="p-3 bg-black border border-zinc-900 space-y-1 text-xs">
                       <div className="flex items-start justify-between">
-                        <span className="text-white font-bold uppercase">{ex.exerciseName}</span>
+                        <span className="text-white font-bold uppercase">{ex?.exerciseName || 'Exercício'}</span>
                         <span className="text-[9px] px-1.5 py-0.2 bg-zinc-900 text-zinc-400 font-mono">
-                          {ex.muscleGroup}
+                          {ex?.muscleGroup || 'Geral'}
                         </span>
                       </div>
                       <div className="text-[10px] text-zinc-400 font-mono">
-                        <span className="text-blue-400 font-bold">{ex.sets} séries</span> × <span className="text-white font-bold">{ex.reps} reps</span> • Carga:{' '}
-                        <span className="text-emerald-400 font-bold">{ex.loadKg || 0} kg</span> • Descanso:{' '}
-                        <span className="text-zinc-200">{ex.restSeconds}s</span> • Alvo: RPE {ex.rpeTarget}
+                        <span className="text-blue-400 font-bold">{ex?.sets || 3} séries</span> × <span className="text-white font-bold">{ex?.reps || '10'} reps</span> • Carga:{' '}
+                        <span className="text-emerald-400 font-bold">{ex?.loadKg || 0} kg</span> • Descanso:{' '}
+                        <span className="text-zinc-200">{ex?.restSeconds || 60}s</span> • Alvo: RPE {ex?.rpeTarget || 8}
                       </div>
-                      {ex.notes && (
+                      {ex?.notes && (
                         <p className="text-[10px] text-zinc-500 font-sans italic pt-0.5">{ex.notes}</p>
                       )}
                     </div>
@@ -374,16 +380,16 @@ export const TrainingView: React.FC = () => {
               <div>
                 <div className="flex flex-wrap items-center gap-2">
                   <h2 className="text-sm sm:text-base font-black text-white uppercase tracking-tight">
-                    {userWorkoutRoutine.title}
+                    {userWorkoutRoutine?.title || 'Rotina de Treinamento Autônomo'}
                   </h2>
                   <span
                     className={`text-[9px] px-1.5 py-0.2 border font-bold uppercase ${
-                      userWorkoutRoutine.source === 'SYSTEM_SUGGESTED'
+                      userWorkoutRoutine?.source === 'SYSTEM_SUGGESTED'
                         ? 'bg-emerald-950 text-emerald-300 border-emerald-800'
                         : 'bg-zinc-900 text-zinc-300 border-zinc-700'
                     }`}
                   >
-                    {userWorkoutRoutine.source === 'SYSTEM_SUGGESTED'
+                    {userWorkoutRoutine?.source === 'SYSTEM_SUGGESTED'
                       ? 'SUGERIDO PELO SISTEMA (EDITÁVEL)'
                       : 'MONTADO POR VOCÊ'}
                   </span>
@@ -391,11 +397,11 @@ export const TrainingView: React.FC = () => {
                 <div className="text-[11px] text-zinc-400 font-mono mt-0.5">
                   Dias agendados:{' '}
                   <strong className="text-zinc-200">
-                    {userWorkoutRoutine.scheduledDaysOfWeek
+                    {(userWorkoutRoutine?.scheduledDaysOfWeek || [1, 2, 3, 4, 5])
                       .map((d) => ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][d])
                       .join(', ')}
                   </strong>{' '}
-                  • {userWorkoutRoutine.sessions.length} divisões
+                  • {userWorkoutRoutine?.sessions?.length || 0} divisões
                 </div>
               </div>
             </div>
@@ -406,9 +412,9 @@ export const TrainingView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => {
-                  const currentSess =
-                    userWorkoutRoutine.sessions[selectedRoutineSplitIdx] ||
-                    userWorkoutRoutine.sessions[0];
+                  const sessions = userWorkoutRoutine?.sessions || [];
+                  const safeIdx = Math.min(selectedRoutineSplitIdx, Math.max(0, sessions.length - 1));
+                  const currentSess = sessions[safeIdx] || sessions[0];
                   if (currentSess) {
                     setActiveRunnerSession(currentSess);
                   }
@@ -435,7 +441,10 @@ export const TrainingView: React.FC = () => {
                 type="button"
                 onClick={() => {
                   if (window.confirm('Deseja restaurar o treino sugerido pelo algoritmo fisiológico?')) {
-                    resetToSuggestedRoutine(profile.primaryGoal, userWorkoutRoutine.scheduledDaysOfWeek.length || 4);
+                    resetToSuggestedRoutine(
+                      profile?.primaryGoal || 'HYPERTROPHY',
+                      userWorkoutRoutine?.scheduledDaysOfWeek?.length || 4
+                    );
                   }
                 }}
                 className="p-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-white cursor-pointer"
@@ -459,9 +468,9 @@ export const TrainingView: React.FC = () => {
 
           {/* Splits Tabs (Treino A, B, C...) */}
           <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-1">
-            {userWorkoutRoutine.sessions.map((sess, idx) => (
+            {(userWorkoutRoutine?.sessions || []).map((sess, idx) => (
               <button
-                key={sess.id || idx}
+                key={sess?.id || idx}
                 type="button"
                 onClick={() => setSelectedRoutineSplitIdx(idx)}
                 className={`px-3 py-1.5 text-xs font-bold uppercase border transition-all shrink-0 flex items-center gap-1.5 cursor-pointer ${
@@ -470,9 +479,9 @@ export const TrainingView: React.FC = () => {
                     : 'bg-black text-zinc-400 border-zinc-800 hover:text-white'
                 }`}
               >
-                <span>{sess.splitLetter}:</span>
+                <span>{sess?.splitLetter || String.fromCharCode(65 + idx)}:</span>
                 <span className="truncate max-w-[170px]">
-                  {sess.name.replace(/Treino [A-Z]: /, '')}
+                  {(sess?.name || '').replace(/Treino [A-Z]: /, '')}
                 </span>
               </button>
             ))}
@@ -480,47 +489,54 @@ export const TrainingView: React.FC = () => {
 
           {/* Current Selected Split Exercises */}
           {(() => {
-            const currentSess =
-              userWorkoutRoutine.sessions[selectedRoutineSplitIdx] ||
-              userWorkoutRoutine.sessions[0];
-            if (!currentSess) return null;
+            const sessions = userWorkoutRoutine?.sessions || [];
+            const safeIdx = Math.min(selectedRoutineSplitIdx, Math.max(0, sessions.length - 1));
+            const currentSess = sessions[safeIdx] || sessions[0];
+            if (!currentSess) {
+              return (
+                <div className="p-4 bg-black border border-zinc-900 text-center text-xs text-zinc-500">
+                  Nenhuma divisão de treino disponível no momento. Clique em "Restaurar" para gerar uma rotina recomendada.
+                </div>
+              );
+            }
+            const exercises = currentSess.exercises || [];
 
             return (
               <div className="space-y-3">
                 <div className="text-[11px] text-zinc-400 font-mono flex items-center justify-between pb-1 border-b border-zinc-900">
                   <span>
-                    {currentSess.name} • Duração estimada: {currentSess.estimatedDurationMinutes || 50} min
+                    {currentSess.name || 'Divisão'} • Duração estimada: {currentSess.estimatedDurationMinutes || 50} min
                   </span>
                   <span className="text-zinc-500 font-bold">
-                    {currentSess.exercises.length} exercícios configurados
+                    {exercises.length} exercícios configurados
                   </span>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {currentSess.exercises.map((ex, i) => (
+                  {exercises.map((ex, i) => (
                     <div
-                      key={ex.id || i}
+                      key={ex?.id || i}
                       className="p-3 bg-black border border-zinc-900 hover:border-zinc-800 transition-colors space-y-1 text-xs"
                     >
                       <div className="flex items-start justify-between">
-                        <span className="text-white font-bold uppercase">{ex.exerciseName}</span>
+                        <span className="text-white font-bold uppercase">{ex?.exerciseName || 'Exercício'}</span>
                         <span className="text-[9px] px-1.5 py-0.2 bg-zinc-900 text-zinc-400 font-mono">
-                          {ex.muscleGroup}
+                          {ex?.muscleGroup || 'Geral'}
                         </span>
                       </div>
 
                       <div className="text-[10px] text-zinc-400 font-mono">
-                        <span className="text-white font-bold">{ex.sets} séries</span> ×{' '}
-                        <span className="text-zinc-200 font-bold">{ex.repsTarget} reps</span> • Carga:{' '}
+                        <span className="text-white font-bold">{ex?.sets || 3} séries</span> ×{' '}
+                        <span className="text-zinc-200 font-bold">{ex?.repsTarget || '10'} reps</span> • Carga:{' '}
                         <span className="text-emerald-400 font-bold">
-                          {ex.loadKgTarget !== null && ex.loadKgTarget !== undefined && ex.loadKgTarget > 0
+                          {ex?.loadKgTarget !== null && ex?.loadKgTarget !== undefined && ex?.loadKgTarget > 0
                             ? `${ex.loadKgTarget} kg`
                             : 'Na hora do treino'}
                         </span>{' '}
-                        • Descanso: <span className="text-zinc-300">{ex.restSeconds}s</span>
+                        • Descanso: <span className="text-zinc-300">{ex?.restSeconds || 60}s</span>
                       </div>
 
-                      {ex.notes && (
+                      {ex?.notes && (
                         <p className="text-[10px] text-zinc-500 font-sans italic pt-0.5">
                           Nota: {ex.notes}
                         </p>

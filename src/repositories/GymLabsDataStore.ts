@@ -1978,12 +1978,24 @@ export class GymLabsDataStore {
 
   // Cross-system getters for Student app:
   public getActivePrescribedMealPlanForStudent(studentUserIdOrId: string): NutriMealPlan | undefined {
+    const hasActiveNutri = this.healthTeamMembers.some(
+      (m) => (m.role === 'NUTRITIONIST' || m.specialty?.toLowerCase().includes('nutri')) && m.status === 'ACTIVE'
+    );
+    if (!hasActiveNutri) {
+      return undefined;
+    }
     const patient = this.nutriPatients.find((p) => p.userId === studentUserIdOrId || p.id === studentUserIdOrId);
     const targetId = patient ? patient.id : studentUserIdOrId;
     return this.nutriMealPlans.find((p) => (p.patientId === targetId || p.patientId === 'pat_alex_vance') && p.status === 'PUBLISHED');
   }
 
   public getActivePrescribedWorkoutPlanForStudent(studentUserIdOrId: string): TrainerWorkoutPlan | undefined {
+    const hasActiveCoach = this.healthTeamMembers.some(
+      (m) => (m.role === 'COACH' || m.specialty?.toLowerCase().includes('exercício') || m.specialty?.toLowerCase().includes('treino')) && m.status === 'ACTIVE'
+    );
+    if (!hasActiveCoach) {
+      return undefined;
+    }
     const student = this.trainerStudents.find((s) => s.userId === studentUserIdOrId || s.id === studentUserIdOrId);
     const targetId = student ? student.id : studentUserIdOrId;
     return this.trainerWorkoutPlans.find((p) => (p.studentId === targetId || p.studentId === 'std_alex_vance') && p.status === 'PUBLISHED');

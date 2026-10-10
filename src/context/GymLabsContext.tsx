@@ -562,6 +562,7 @@ export const GymLabsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (terminated) {
       setHealthTeamMembers(dataStore.getHealthTeamMembers());
       setAuditLogs(dataStore.getAuditLogs());
+      setUserWorkoutRoutineState(dataStore.getUserWorkoutRoutine());
     }
     return terminated;
   }, []);
@@ -569,11 +570,11 @@ export const GymLabsProvider: React.FC<{ children: React.ReactNode }> = ({ child
   // Active Prescribed Plans for Aluno
   const activePrescribedMealPlan = useMemo(() => {
     return dataStore.getActivePrescribedMealPlanForStudent(identity.id);
-  }, [identity.id, nutriMealPlans]);
+  }, [identity.id, nutriMealPlans, healthTeamMembers]);
 
   const activePrescribedWorkoutPlan = useMemo(() => {
     return dataStore.getActivePrescribedWorkoutPlanForStudent(identity.id);
-  }, [identity.id, trainerWorkoutPlans]);
+  }, [identity.id, trainerWorkoutPlans, healthTeamMembers]);
 
   // Multi-Account Switcher State
   const [savedAccounts, setSavedAccounts] = useState<SavedUserAccount[]>(dataStore.getSavedAccounts());

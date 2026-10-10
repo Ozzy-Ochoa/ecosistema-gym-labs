@@ -47,16 +47,29 @@ export const RoutineCustomizerModal: React.FC<RoutineCustomizerModalProps> = ({
   } = useGymLabs();
 
   // Local draft state
-  const [draftRoutine, setDraftRoutine] = useState<UserWorkoutRoutine>(() =>
-    JSON.parse(JSON.stringify(userWorkoutRoutine))
-  );
+  const [draftRoutine, setDraftRoutine] = useState<UserWorkoutRoutine>(() => {
+    try {
+      if (userWorkoutRoutine && Array.isArray(userWorkoutRoutine.sessions)) {
+        return JSON.parse(JSON.stringify(userWorkoutRoutine));
+      }
+    } catch {}
+    return {
+      id: 'routine-fallback',
+      userId: profile?.userId || 'usr_athlete',
+      title: 'Rotina de Treinamento',
+      source: 'SYSTEM_SUGGESTED',
+      scheduledDaysOfWeek: [1, 2, 4, 5],
+      sessions: [],
+      updatedAt: new Date().toISOString(),
+    };
+  });
 
   const [activeSessionIdx, setActiveSessionIdx] = useState(0);
 
   if (!isOpen) return null;
 
   const currentSession: UserRoutineSession | undefined =
-    draftRoutine.sessions[activeSessionIdx] || draftRoutine.sessions[0];
+    draftRoutine?.sessions?.[activeSessionIdx] || draftRoutine?.sessions?.[0];
 
   const handleToggleScheduledDay = (day: number) => {
     let days = [...draftRoutine.scheduledDaysOfWeek];

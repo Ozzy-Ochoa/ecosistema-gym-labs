@@ -28,8 +28,12 @@ export async function runSchemaMigration() {
   });
 
   const client = await adminPool.connect();
+  const ADVISORY_LOCK_ID = 742947192;
   try {
     console.log('✓ Conectividade com o PostgreSQL (usuário administrativo DDL) estabelecida com sucesso.');
+
+    // 0. Bloqueio consultivo (Advisory Lock) para impedir execuções simultâneas concorrentes
+    await client.query(`SELECT pg_advisory_lock($1);`, [ADVISORY_LOCK_ID]);
 
     // 1. Garante tabela de controle de migrations no schema public
     await client.query(`
@@ -40,9 +44,12 @@ export async function runSchemaMigration() {
       );
     `);
 
-    // 2. Lê histórico de migrations aplicadas
-    const appliedRes = await client.query(`SELECT created_at FROM public.__drizzle_migrations;`);
-    const appliedSet = new Set<string>(appliedRes.rows.map((r) => String(r.created_at)));
+    // 2. Lê histórico de migrations aplicadas (hash e timestamp de versão)
+    const appliedRes = await client.query(`SELECT hash, created_at FROM public.__drizzle_migrations;`);
+    const appliedMap = new Map<string, string>();
+    for (const r of appliedRes.rows) {
+      appliedMap.set(String(r.created_at), r.hash);
+    }
 
     // 3. Lê o journal de migrations gerado pelo drizzle-kit
     const journalPath = path.join(process.cwd(), 'drizzle', 'meta', '_journal.json');
@@ -57,11 +64,6 @@ export async function runSchemaMigration() {
     let executedCount = 0;
 
     for (const entry of journal.entries) {
-      if (appliedSet.has(String(entry.when))) {
-        console.log(`- Migration [${entry.tag}] já aplicada anteriormente (idx: ${entry.idx}).`);
-        continue;
-      }
-
       const sqlFilePath = path.join(process.cwd(), 'drizzle', `${entry.tag}.sql`);
       if (!fs.existsSync(sqlFilePath)) {
         throw new Error(`Arquivo SQL da migration não encontrado: ${sqlFilePath}`);
@@ -69,6 +71,18 @@ export async function runSchemaMigration() {
 
       const sqlContent = fs.readFileSync(sqlFilePath, 'utf-8');
       const hash = crypto.createHash('sha256').update(sqlContent).digest('hex');
+
+      // Verificação de integridade e idempotência
+      if (appliedMap.has(String(entry.when))) {
+        const storedHash = appliedMap.get(String(entry.when));
+        if (storedHash && storedHash !== hash) {
+          throw new Error(
+            `VIOLAÇÃO DE INTEGRIDADE: Migration [${entry.tag}] foi alterada após aplicação! (Hash registrado: ${storedHash}, Hash atual: ${hash})`
+          );
+        }
+        console.log(`- Migration [${entry.tag}] já aplicada anteriormente com hash íntegro (idx: ${entry.idx}).`);
+        continue;
+      }
 
       // Divide por breakpoints de declarações
       const statements = sqlContent
@@ -112,12 +126,20 @@ export async function runSchemaMigration() {
 
     // 4. Garante permissões DML para o usuário da aplicação
     if (process.env.SQL_USER && process.env.SQL_USER !== process.env.SQL_ADMIN_USER) {
-      await client.query(`GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO "${process.env.SQL_USER}";`).catch(() => {});
-      await client.query(`GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO "${process.env.SQL_USER}";`).catch(() => {});
+      await client.query(`GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO "${process.env.SQL_USER}";`).catch((err) => {
+        console.warn('Aviso de concessão de permissão:', err.message);
+      });
+      await client.query(`GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO "${process.env.SQL_USER}";`).catch((err) => {
+        console.warn('Aviso de concessão de sequências:', err.message);
+      });
     }
 
     console.log(`✓ Processamento concluído. ${executedCount} nova(s) migration(s) executada(s).`);
   } finally {
+    // Libera lock consultivo e encerra conexões com segurança
+    try {
+      await client.query(`SELECT pg_advisory_unlock($1);`, [ADVISORY_LOCK_ID]);
+    } catch {}
     client.release();
     await adminPool.end();
   }
